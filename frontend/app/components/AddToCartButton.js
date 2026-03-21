@@ -6,7 +6,8 @@ export default function AddToCartButton({ product, showSizeSelector = false }) {
   const { addToCart } = useCart()
   const [added, setAdded] = useState(false)
   const [selectedSize, setSelectedSize] = useState('')
-  const isInStock = (product.stock || 0) > 0
+  const availableStock = product.available_stock ?? product.stock ?? 0
+  const isInStock = availableStock > 0
   const canAdd = isInStock && (!showSizeSelector || Boolean(selectedSize))
 
   function handleAdd() {

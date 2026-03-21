@@ -11,8 +11,9 @@ export default function ProductCard({ product }) {
     style: 'currency',
     currency: 'USD',
   }).format(price)
-  const isInStock = (product.stock || 0) > 0
-  const stockLabel = isInStock ? `In stock: ${product.stock}` : 'Out of stock'
+  const availableStock = product.available_stock ?? product.stock ?? 0
+  const isInStock = availableStock > 0
+  const stockLabel = isInStock ? `In stock: ${availableStock}` : 'Out of stock'
   const description = (product.description || '').trim()
 
   function handleAddToCart() {

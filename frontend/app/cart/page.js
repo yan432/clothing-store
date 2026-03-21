@@ -21,6 +21,7 @@ export default function CartPage() {
             price: parseFloat(item.price),
             quantity: item.qty,
             image_url: item.image_url || null,
+            size: item.size || null,
           })),
           success_url: origin + '/success',
           cancel_url: origin + '/cart',

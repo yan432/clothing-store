@@ -36,7 +36,8 @@ export default async function ProductPage({ params }) {
   const { id } = await params
   const product = await getProduct(id)
   if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Product not found</div>
-  const isInStock = product.stock > 0
+  const availableStock = product.available_stock ?? product.stock ?? 0
+  const isInStock = availableStock > 0
   const priceLabel = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -54,7 +55,7 @@ export default async function ProductPage({ params }) {
       '@type': 'Offer',
       price: product.price,
       priceCurrency: 'USD',
-      availability: product.stock > 0
+      availability: availableStock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
       url: 'https://yourstore.com/products/' + product.id,
@@ -83,7 +84,7 @@ export default async function ProductPage({ params }) {
               Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{(product.category || 'Standard').toLowerCase()}</span>
             </p>
             <p style={{fontSize:12,color: isInStock ? '#16a34a' : '#ef4444',margin:'-6px 0 0'}}>
-              {isInStock ? 'In stock - ' + product.stock + ' left' : 'Out of stock'}
+              {isInStock ? 'In stock - ' + availableStock + ' left' : 'Out of stock'}
             </p>
 
             <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
