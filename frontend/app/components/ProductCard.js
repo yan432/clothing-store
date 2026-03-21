@@ -1,8 +1,9 @@
 'use client'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function ProductCard({ product }) {
   const [hovered, setHovered] = useState(false)
+  const [secondaryReady, setSecondaryReady] = useState(false)
   const touchTimerRef = useRef(null)
   const leaveTimerRef = useRef(null)
   const price = Number(product.price || 0)
@@ -19,6 +20,14 @@ export default function ProductCard({ product }) {
   const isInStock = availableStock > 0
   const stockLabel = isInStock ? `In stock: ${availableStock}` : 'Out of stock'
   const description = (product.description || '').trim()
+
+  useEffect(() => {
+    setSecondaryReady(false)
+    if (!secondaryImage) return
+    const img = new Image()
+    img.src = secondaryImage
+    img.onload = () => setSecondaryReady(true)
+  }, [secondaryImage])
 
   function handleMouseEnter() {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
@@ -77,7 +86,15 @@ export default function ProductCard({ product }) {
             {stockLabel}
           </div>
           {primaryImage ? (
-            <>
+            <div
+              style={{
+                position:'absolute',
+                inset:0,
+                transition:'transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
+                transform:hovered ? 'translateZ(0) scale(1.03)' : 'translateZ(0) scale(1)',
+                willChange:'transform',
+                backfaceVisibility:'hidden',
+              }}>
               <img
                 src={primaryImage}
                 alt={product.name}
@@ -85,30 +102,29 @@ export default function ProductCard({ product }) {
                 style={{
                   position:'absolute',
                   inset:0,
-                  opacity:hovered && secondaryImage ? 0 : 1,
-                  transition:'opacity 560ms cubic-bezier(0.22, 1, 0.36, 1), transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
+                  opacity:hovered && secondaryImage && secondaryReady ? 0 : 1,
+                  transition:'opacity 560ms cubic-bezier(0.22, 1, 0.36, 1)',
                   willChange:'opacity',
                   backfaceVisibility:'hidden',
-                  transform:hovered ? 'translateZ(0) scale(1.03)' : 'translateZ(0) scale(1)',
+                  zIndex:2,
                 }}
               />
-              {secondaryImage && (
+              {secondaryImage ? (
                 <img
                   src={secondaryImage}
                   alt={product.name}
                   className="product-img"
+                  onLoad={() => setSecondaryReady(true)}
                   style={{
                     position:'absolute',
                     inset:0,
-                    opacity:hovered ? 1 : 0,
-                    transition:'opacity 560ms cubic-bezier(0.22, 1, 0.36, 1), transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
-                    willChange:'opacity',
+                    opacity: secondaryReady ? 1 : 0,
                     backfaceVisibility:'hidden',
-                    transform:hovered ? 'translateZ(0) scale(1.03)' : 'translateZ(0) scale(1)',
+                    zIndex:1,
                   }}
                 />
-              )}
-            </>
+              ) : null}
+            </div>
           ) : (
             <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#ccc'}}>No image</div>
           )}

@@ -47,6 +47,7 @@ class Product(BaseModel):
     stock: int = 0
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
+    is_hidden: bool = False
 
 
 class ProductUpdate(BaseModel):
@@ -57,6 +58,7 @@ class ProductUpdate(BaseModel):
     category: Optional[str] = None
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
+    is_hidden: Optional[bool] = None
 
 
 class ProductImageDelete(BaseModel):
@@ -137,6 +139,13 @@ def get_product_row(product_id: int) -> dict:
     data = supabase.table("products").select("*").eq("id", product_id).execute()
     if not data.data:
         raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
+    return data.data[0]
+
+
+def get_visible_product_row(product_id: int) -> dict:
+    data = supabase.table("products").select("*").eq("id", product_id).eq("is_hidden", False).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Товар не найден")
     return data.data[0]
 
 
@@ -268,7 +277,7 @@ def root():
 
 @app.get("/products")
 def get_products():
-    data = supabase.table("products").select("*").execute()
+    data = supabase.table("products").select("*").eq("is_hidden", False).execute()
     return [_decorate_product_with_images(p) for p in data.data]
 
 
@@ -281,10 +290,12 @@ def get_products_admin():
 
 @app.get("/products/{product_id}")
 def get_product(product_id: int):
-    data = supabase.table("products").select("*").eq("id", product_id).execute()
-    if not data.data:
-        raise HTTPException(status_code=404, detail="Товар не найден")
-    return _decorate_product_with_images(data.data[0])
+    return _decorate_product_with_images(get_visible_product_row(product_id))
+
+
+@app.get("/products/admin/{product_id}")
+def get_product_admin(product_id: int):
+    return _decorate_product_with_images(get_product_row(product_id))
 
 
 @app.post("/products")

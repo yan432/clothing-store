@@ -22,6 +22,9 @@ export default function AdminProductsClient() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [hideArchived, setHideArchived] = useState(true)
+  const [sortBy, setSortBy] = useState('id_desc')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
 
   async function loadProducts() {
     setError('')
@@ -54,7 +57,7 @@ export default function AdminProductsClient() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return products.filter((p) => {
+    const base = products.filter((p) => {
       if (hideArchived) {
         const isArchivedName = String(p.name || '').startsWith('[ARCHIVED]')
         const isArchivedCategory = String(p.category || '').toLowerCase() === 'archived'
@@ -64,7 +67,53 @@ export default function AdminProductsClient() {
       const source = [p.name, p.category, String(p.id)].join(' ').toLowerCase()
       return source.includes(q)
     })
-  }, [products, query, hideArchived])
+    const sorted = [...base]
+    sorted.sort((a, b) => {
+      switch (sortBy) {
+        case 'id_asc': return (a.id || 0) - (b.id || 0)
+        case 'id_desc': return (b.id || 0) - (a.id || 0)
+        case 'name_asc': return String(a.name || '').localeCompare(String(b.name || ''))
+        case 'name_desc': return String(b.name || '').localeCompare(String(a.name || ''))
+        case 'price_asc': return Number(a.price || 0) - Number(b.price || 0)
+        case 'price_desc': return Number(b.price || 0) - Number(a.price || 0)
+        case 'stock_asc': return Number(a.available_stock ?? a.stock ?? 0) - Number(b.available_stock ?? b.stock ?? 0)
+        case 'stock_desc': return Number(b.available_stock ?? b.stock ?? 0) - Number(a.available_stock ?? a.stock ?? 0)
+        default: return (b.id || 0) - (a.id || 0)
+      }
+    })
+    return sorted
+  }, [products, query, hideArchived, sortBy])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const paged = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return filtered.slice(start, start + pageSize)
+  }, [filtered, safePage, pageSize])
+
+  useEffect(() => {
+    setPage(1)
+  }, [query, hideArchived, sortBy, pageSize])
+
+  function sortDirection(key) {
+    if (!sortBy.startsWith(key + '_')) return null
+    return sortBy.endsWith('_asc') ? 'asc' : 'desc'
+  }
+
+  function toggleSort(key) {
+    const dir = sortDirection(key)
+    if (!dir) {
+      setSortBy(`${key}_asc`)
+      return
+    }
+    setSortBy(`${key}_${dir === 'asc' ? 'desc' : 'asc'}`)
+  }
+
+  function sortIcon(key) {
+    const dir = sortDirection(key)
+    if (!dir) return '↕'
+    return dir === 'asc' ? '↑' : '↓'
+  }
 
   return (
     <AdminOnly>
@@ -94,6 +143,31 @@ export default function AdminProductsClient() {
           />
           Hide archived
         </label>
+        <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:14,flexWrap:'wrap'}}>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={{border:'1px solid #ddd',borderRadius:10,padding:'8px 10px',fontSize:13}}>
+            <option value="id_desc">Newest (ID desc)</option>
+            <option value="id_asc">Oldest (ID asc)</option>
+            <option value="name_asc">Name A-Z</option>
+            <option value="name_desc">Name Z-A</option>
+            <option value="price_asc">Price low-high</option>
+            <option value="price_desc">Price high-low</option>
+            <option value="stock_asc">Stock low-high</option>
+            <option value="stock_desc">Stock high-low</option>
+          </select>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            style={{border:'1px solid #ddd',borderRadius:10,padding:'8px 10px',fontSize:13}}>
+            <option value={10}>10 / page</option>
+            <option value={20}>20 / page</option>
+            <option value={50}>50 / page</option>
+            <option value={100}>100 / page</option>
+          </select>
+          <span style={{fontSize:12,color:'#777'}}>Page {safePage} / {totalPages}</span>
+        </div>
 
         {loading ? (
           <p style={{color:'#888'}}>Loading products...</p>
@@ -111,17 +185,34 @@ export default function AdminProductsClient() {
             <table style={{width:'100%',borderCollapse:'collapse',minWidth:920}}>
               <thead>
                 <tr style={{textAlign:'left',borderBottom:'1px solid #ecece8',background:'#fafaf8'}}>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>ID</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Product</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>
+                    <button type="button" onClick={() => toggleSort('id')} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontSize:12,color:'#666660',fontWeight:600}}>
+                      ID {sortIcon('id')}
+                    </button>
+                  </th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>
+                    <button type="button" onClick={() => toggleSort('name')} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontSize:12,color:'#666660',fontWeight:600}}>
+                      Product {sortIcon('name')}
+                    </button>
+                  </th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Category</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Price</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Available</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Visibility</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>
+                    <button type="button" onClick={() => toggleSort('price')} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontSize:12,color:'#666660',fontWeight:600}}>
+                      Price {sortIcon('price')}
+                    </button>
+                  </th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>
+                    <button type="button" onClick={() => toggleSort('stock')} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontSize:12,color:'#666660',fontWeight:600}}>
+                      Available {sortIcon('stock')}
+                    </button>
+                  </th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Reserved</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((p) => (
+                {paged.map((p) => (
                   <tr key={p.id} style={{borderBottom:'1px solid #f2f2ef'}}>
                     <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{p.id}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>
@@ -133,6 +224,18 @@ export default function AdminProductsClient() {
                       </div>
                     </td>
                     <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{p.category || '-'}</td>
+                    <td style={{padding:'12px 14px',fontSize:12}}>
+                      <span style={{
+                        border:'1px solid ' + (p.is_hidden ? '#fde68a' : '#bbf7d0'),
+                        background:p.is_hidden ? '#fffbeb' : '#ecfdf3',
+                        color:p.is_hidden ? '#92400e' : '#166534',
+                        borderRadius:999,
+                        padding:'3px 8px',
+                        display:'inline-block',
+                      }}>
+                        {p.is_hidden ? 'Hidden' : 'Visible'}
+                      </span>
+                    </td>
                     <td style={{padding:'12px 14px',fontSize:13}}>${Number(p.price || 0).toFixed(2)}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.available_stock ?? p.stock ?? 0}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.reserved_stock ?? 0}</td>
@@ -141,13 +244,36 @@ export default function AdminProductsClient() {
                     </td>
                   </tr>
                 ))}
-                {filtered.length === 0 && (
+                {paged.length === 0 && (
                   <tr>
-                    <td colSpan={7} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No products found</td>
+                    <td colSpan={8} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No products found</td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loading && !error && filtered.length > 0 && (
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:12}}>
+            <p style={{fontSize:12,color:'#777',margin:0}}>
+              Showing {(safePage - 1) * pageSize + 1}-{Math.min(safePage * pageSize, filtered.length)} of {filtered.length}
+            </p>
+            <div style={{display:'flex',gap:8}}>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={safePage <= 1}
+                style={{border:'1px solid #ddd',borderRadius:8,padding:'6px 10px',fontSize:13,background:'#fff',cursor:'pointer',opacity:safePage <= 1 ? 0.5 : 1}}>
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={safePage >= totalPages}
+                style={{border:'1px solid #ddd',borderRadius:8,padding:'6px 10px',fontSize:13,background:'#fff',cursor:'pointer',opacity:safePage >= totalPages ? 0.5 : 1}}>
+                Next
+              </button>
+            </div>
           </div>
         )}
       </main>

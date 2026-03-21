@@ -7,6 +7,18 @@ export default function CartPage() {
   const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
   const [loading, setLoading] = useState(false)
 
+  function lineKeyOf(item) {
+    return item.lineKey || `${item.id}:${item.size || 'no-size'}`
+  }
+
+  function dec(item) {
+    updateQty(lineKeyOf(item), item.qty - 1)
+  }
+
+  function inc(item) {
+    updateQty(lineKeyOf(item), item.qty + 1)
+  }
+
   async function handleCheckout() {
     setLoading(true)
     try {
@@ -73,14 +85,18 @@ export default function CartPage() {
               <p style={{fontSize:13,color:'#aaa',margin:0}}>${item.price}</p>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <button onClick={() => updateQty(item.lineKey || `${item.id}:${item.size || 'no-size'}`, item.qty - 1)}
-                style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+              <button
+                type="button"
+                onClick={() => dec(item)}
+                style={{width:36,height:36,borderRadius:'50%',border:'1px solid #dcdcd7',background:'#fff',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',touchAction:'manipulation',WebkitTapHighlightColor:'transparent'}}>−</button>
               <span style={{fontSize:14,fontWeight:500,minWidth:20,textAlign:'center'}}>{item.qty}</span>
-              <button onClick={() => updateQty(item.lineKey || `${item.id}:${item.size || 'no-size'}`, item.qty + 1)}
-                style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+              <button
+                type="button"
+                onClick={() => inc(item)}
+                style={{width:36,height:36,borderRadius:'50%',border:'1px solid #dcdcd7',background:'#fff',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',touchAction:'manipulation',WebkitTapHighlightColor:'transparent'}}>+</button>
             </div>
             <p style={{fontSize:14,fontWeight:600,minWidth:60,textAlign:'right'}}>${(item.price * item.qty).toFixed(2)}</p>
-            <button onClick={() => removeFromCart(item.lineKey || `${item.id}:${item.size || 'no-size'}`)}
+            <button type="button" onClick={() => removeFromCart(lineKeyOf(item))}
               style={{background:'none',border:'none',cursor:'pointer',color:'#ccc',fontSize:18,padding:4}}>×</button>
           </div>
         ))}

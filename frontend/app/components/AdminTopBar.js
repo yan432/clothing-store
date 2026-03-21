@@ -16,7 +16,7 @@ export default function AdminTopBar({ active = 'orders' }) {
     <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}}>
       <a href="/admin/orders" style={linkStyle('orders')}>Orders</a>
       <a href="/admin/products" style={linkStyle('products')}>Products CMS</a>
-      <a href="/admin/products/new" style={linkStyle('products')}>New Product</a>
+      <a href="/admin/products/new" style={linkStyle('products-new')}>New Product</a>
       <a href="/upload" style={linkStyle('upload')}>Upload</a>
     </div>
   )

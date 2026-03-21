@@ -9,7 +9,7 @@ export default function UploadPage() {
   const [message, setMessage] = useState('')
 
   async function loadProducts() {
-    const res = await fetch(getApiUrl('/products'))
+    const res = await fetch(getApiUrl('/products/admin'))
     const data = await res.json()
     setProducts(data)
   }

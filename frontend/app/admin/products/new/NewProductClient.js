@@ -16,6 +16,7 @@ export default function NewProductClient() {
     image_url: '',
     price: '0',
     available_stock: '0',
+    is_hidden: true,
   })
 
   function setField(field, value) {
@@ -37,6 +38,7 @@ export default function NewProductClient() {
         available_stock: Math.max(0, Number(form.available_stock || 0)),
         stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: 0,
+        is_hidden: Boolean(form.is_hidden),
       }
 
       if (!payload.name) throw new Error('Name is required')
@@ -61,6 +63,7 @@ export default function NewProductClient() {
         image_url: '',
         price: '0',
         available_stock: '0',
+        is_hidden: true,
       })
     } catch (e) {
       setError(e.message || 'Failed to create product')
@@ -74,7 +77,7 @@ export default function NewProductClient() {
       <main style={{maxWidth:760,margin:'0 auto',padding:'40px 24px 72px'}}>
         <a href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</a>
         <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Create product</h1>
-        <AdminTopBar active="products" />
+        <AdminTopBar active="products-new" />
 
         {createdId && (
           <div style={{marginBottom:12}}>
@@ -110,6 +113,15 @@ export default function NewProductClient() {
               <input type="number" min="0" value={form.available_stock} onChange={(e) => setField('available_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
             </label>
           </div>
+
+          <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+            <input
+              type="checkbox"
+              checked={Boolean(form.is_hidden)}
+              onChange={(e) => setField('is_hidden', e.target.checked)}
+            />
+            Create as hidden (draft)
+          </label>
 
           <button
             type="submit"

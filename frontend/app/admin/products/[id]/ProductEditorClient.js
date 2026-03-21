@@ -20,6 +20,7 @@ export default function ProductEditorClient({ id }) {
     price: '0',
     available_stock: '0',
     reserved_stock: '0',
+    is_hidden: false,
   })
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function ProductEditorClient({ id }) {
     async function load() {
       try {
         setLoading(true)
-        const res = await fetch(getApiUrl('/products/' + id), { cache: 'no-store' })
+        const res = await fetch(getApiUrl('/products/admin/' + id), { cache: 'no-store' })
         if (!res.ok) throw new Error('Product not found')
         const p = await res.json()
         if (!mounted) return
@@ -40,6 +41,7 @@ export default function ProductEditorClient({ id }) {
           price: String(p.price ?? 0),
           available_stock: String(p.available_stock ?? p.stock ?? 0),
           reserved_stock: String(p.reserved_stock ?? 0),
+          is_hidden: Boolean(p.is_hidden),
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -56,7 +58,7 @@ export default function ProductEditorClient({ id }) {
   }
 
   async function reloadProduct() {
-    const res = await fetch(getApiUrl('/products/' + id), { cache: 'no-store' })
+        const res = await fetch(getApiUrl('/products/admin/' + id), { cache: 'no-store' })
     if (!res.ok) throw new Error('Failed to refresh product')
     const p = await res.json()
     setProduct(p)
@@ -77,6 +79,7 @@ export default function ProductEditorClient({ id }) {
         price: Number(form.price || 0),
         available_stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: Math.max(0, Number(form.reserved_stock || 0)),
+        is_hidden: Boolean(form.is_hidden),
       }
       const res = await fetch(getApiUrl('/products/' + id), {
         method: 'PUT',
@@ -286,6 +289,15 @@ export default function ProductEditorClient({ id }) {
                 <input type="number" min="0" value={form.reserved_stock} onChange={(e) => setField('reserved_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
             </div>
+
+            <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+              <input
+                type="checkbox"
+                checked={Boolean(form.is_hidden)}
+                onChange={(e) => setField('is_hidden', e.target.checked)}
+              />
+              Hidden (not visible in storefront)
+            </label>
 
             <button
               type="submit"

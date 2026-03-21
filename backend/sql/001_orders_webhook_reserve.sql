@@ -5,6 +5,9 @@ alter table if exists public.products
 alter table if exists public.products
   add column if not exists reserved_stock int not null default 0;
 
+alter table if exists public.products
+  add column if not exists is_hidden boolean not null default false;
+
 -- Backfill available stock from legacy stock once.
 update public.products
 set available_stock = coalesce(stock, 0)

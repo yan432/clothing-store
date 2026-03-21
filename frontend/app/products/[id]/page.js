@@ -68,10 +68,17 @@ export default async function ProductPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <main className="product-detail-page" style={{maxWidth:1200,margin:'0 auto',padding:'28px 16px 56px'}}>
-        <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:16}}>← Back</a>
+      <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
+        <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</a>
 
-        <div className="product-detail-grid">
+        <div
+          className="product-detail-grid"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+            gap: 32,
+            alignItems: 'start',
+          }}>
           <ProductGallery product={product} />
 
           <div className="product-detail-info" style={{display:'flex',flexDirection:'column',gap:14}}>
