@@ -14,6 +14,7 @@ export default function NavBar() {
         {isAdmin && (
           <>
             <a href="/admin/orders" style={{color:'inherit',textDecoration:'none'}}>Admin</a>
+            <a href="/admin/products" style={{color:'inherit',textDecoration:'none'}}>Products</a>
             <a href="/upload" style={{color:'inherit',textDecoration:'none'}}>Upload</a>
           </>
         )}

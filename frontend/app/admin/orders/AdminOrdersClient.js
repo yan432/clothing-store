@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { getApiUrl } from '../../lib/api'
 import OrdersTable from './OrdersTable'
 import AdminOnly from '../../components/AdminOnly'
+import AdminTopBar from '../../components/AdminTopBar'
 
 export default function AdminOrdersClient() {
   const [orders, setOrders] = useState([])
@@ -35,6 +36,7 @@ export default function AdminOrdersClient() {
           <h1 style={{fontSize:30,fontWeight:600,margin:0}}>Orders</h1>
           <p style={{fontSize:14,color:'#80807a',margin:0}}>{orders.length} total</p>
         </div>
+        <AdminTopBar active="orders" />
 
         {loading ? (
           <p style={{color:'#888'}}>Loading orders...</p>

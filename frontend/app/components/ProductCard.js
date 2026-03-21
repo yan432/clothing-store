@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 
 export default function ProductCard({ product }) {
   const [hovered, setHovered] = useState(false)
+  const touchTimerRef = useRef(null)
   const leaveTimerRef = useRef(null)
   const price = Number(product.price || 0)
   const images = Array.isArray(product.image_urls) && product.image_urls.length > 0
@@ -20,6 +21,7 @@ export default function ProductCard({ product }) {
   const description = (product.description || '').trim()
 
   function handleMouseEnter() {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
     setHovered(true)
   }
@@ -30,11 +32,31 @@ export default function ProductCard({ product }) {
     leaveTimerRef.current = setTimeout(() => setHovered(false), 180)
   }
 
+  function handleTouchStart() {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+    setHovered(true)
+  }
+
+  function handleTouchMove() {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+    setHovered(true)
+  }
+
+  function handleTouchEnd() {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+    touchTimerRef.current = setTimeout(() => setHovered(false), 360)
+  }
+
   return (
     <article
       style={{display:'flex',flexDirection:'column',gap:12}}
       onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}>
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}>
       <a href={'/products/' + product.id}
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>

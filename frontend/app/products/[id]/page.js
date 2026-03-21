@@ -68,16 +68,16 @@ export default async function ProductPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <main style={{maxWidth:900,margin:'0 auto',padding:'48px 24px'}}>
-        <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:40}}>← Back</a>
+      <main className="product-detail-page" style={{maxWidth:1200,margin:'0 auto',padding:'28px 16px 56px'}}>
+        <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:16}}>← Back</a>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:48}}>
+        <div className="product-detail-grid">
           <ProductGallery product={product} />
 
-          <div style={{display:'flex',flexDirection:'column',gap:16}}>
-            <h1 style={{fontSize:36,fontWeight:600,margin:0,lineHeight:1.15}}>{product.name}</h1>
+          <div className="product-detail-info" style={{display:'flex',flexDirection:'column',gap:14}}>
+            <h1 className="product-detail-title" style={{fontWeight:600,margin:0}}>{product.name}</h1>
             <div style={{display:'flex',alignItems:'baseline',gap:10}}>
-              <p style={{fontSize:32,fontWeight:600,margin:0}}>{priceLabel}</p>
+              <p className="product-detail-price" style={{fontWeight:600,margin:0}}>{priceLabel}</p>
               <p style={{fontSize:14,color:'#8a8a84',margin:0}}>incl. tax</p>
             </div>
             <p style={{fontSize:14,color:'#666660',margin:0}}>

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 import os
+from urllib.parse import unquote, urlparse
 import uuid
 from typing import Any, Optional
 
@@ -46,6 +47,20 @@ class Product(BaseModel):
     stock: int = 0
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
+
+
+class ProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
+    category: Optional[str] = None
+    available_stock: Optional[int] = None
+    reserved_stock: Optional[int] = None
+
+
+class ProductImageDelete(BaseModel):
+    image_url: str
 
 
 class CheckoutItem(BaseModel):
@@ -140,6 +155,16 @@ def _storage_public_urls_for_product(product_id: int) -> list[str]:
         public_url = supabase.storage.from_("product-images").get_public_url(path)
         urls.append(public_url)
     return urls
+
+
+def _storage_path_from_public_url(public_url: str) -> Optional[str]:
+    if not public_url:
+        return None
+    parsed = urlparse(public_url)
+    marker = "/storage/v1/object/public/product-images/"
+    if marker not in parsed.path:
+        return None
+    return unquote(parsed.path.split(marker, 1)[1])
 
 
 def _decorate_product_with_images(product: dict) -> dict:
@@ -247,6 +272,13 @@ def get_products():
     return [_decorate_product_with_images(p) for p in data.data]
 
 
+@app.get("/products/admin")
+def get_products_admin():
+    data = supabase.table("products").select("*").order("id").execute()
+    # Fast admin listing: avoid per-product storage listing.
+    return [{**p, **stock_snapshot_for_product(p)} for p in data.data]
+
+
 @app.get("/products/{product_id}")
 def get_product(product_id: int):
     data = supabase.table("products").select("*").eq("id", product_id).execute()
@@ -267,10 +299,46 @@ def create_product(product: Product):
     return data.data[0]
 
 
+@app.put("/products/{product_id}")
+def update_product(product_id: int, product: ProductUpdate):
+    existing = get_product_row(product_id)
+    updates = product.dict(exclude_unset=True)
+
+    if "available_stock" in updates and updates["available_stock"] is not None:
+        updates["available_stock"] = max(0, int(updates["available_stock"]))
+    if "reserved_stock" in updates and updates["reserved_stock"] is not None:
+        updates["reserved_stock"] = max(0, int(updates["reserved_stock"]))
+
+    next_available = updates.get("available_stock", get_available_stock_value(existing))
+    updates["stock"] = next_available
+
+    data = supabase.table("products").update(updates).eq("id", product_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return _decorate_product_with_images(data.data[0])
+
+
 @app.delete("/products/{product_id}")
 def delete_product(product_id: int):
     supabase.table("products").delete().eq("id", product_id).execute()
     return {"message": "Удалён"}
+
+
+@app.post("/products/{product_id}/archive")
+def archive_product(product_id: int):
+    product = get_product_row(product_id)
+    current_name = product.get("name") or f"Product {product_id}"
+    archived_name = current_name if current_name.startswith("[ARCHIVED] ") else f"[ARCHIVED] {current_name}"
+    data = supabase.table("products").update({
+        "name": archived_name,
+        "category": "archived",
+        "available_stock": 0,
+        "reserved_stock": 0,
+        "stock": 0,
+    }).eq("id", product_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return _decorate_product_with_images(data.data[0])
 
 
 @app.post("/upload")
@@ -312,6 +380,22 @@ async def update_product_image(
 
     cover = uploaded_urls[0]
     data = supabase.table("products").update({"image_url": cover}).eq("id", product_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return _decorate_product_with_images(data.data[0])
+
+
+@app.delete("/products/{product_id}/image")
+def delete_product_image(product_id: int, payload: ProductImageDelete):
+    product = get_product_row(product_id)
+    path = _storage_path_from_public_url(payload.image_url)
+    if not path:
+        raise HTTPException(status_code=400, detail="Invalid image URL")
+
+    supabase.storage.from_("product-images").remove([path])
+    updated = _decorate_product_with_images(product)
+    next_cover = updated["image_urls"][0] if updated["image_urls"] else None
+    data = supabase.table("products").update({"image_url": next_cover}).eq("id", product_id).execute()
     if not data.data:
         raise HTTPException(status_code=404, detail="Товар не найден")
     return _decorate_product_with_images(data.data[0])
