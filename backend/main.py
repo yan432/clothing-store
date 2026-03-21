@@ -101,8 +101,8 @@ class CheckoutItem(BaseModel):
 
 class CheckoutRequest(BaseModel):
     items: list[CheckoutItem]
-    success_url: str = "http://localhost:3000/success"
-    cancel_url: str = "http://localhost:3000/cart"
+    success_url: str = "https://project-e38lc.vercel.app/success"
+cancel_url: str = "https://project-e38lc.vercel.app/cart"
 
 @app.post("/checkout")
 def create_checkout(request: CheckoutRequest):
