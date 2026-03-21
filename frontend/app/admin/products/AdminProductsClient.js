@@ -22,9 +22,13 @@ export default function AdminProductsClient() {
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
   const [hideArchived, setHideArchived] = useState(true)
+  const [visibilityFilter, setVisibilityFilter] = useState('all')
   const [sortBy, setSortBy] = useState('id_desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+  const [updatingVisibilityId, setUpdatingVisibilityId] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   async function loadProducts() {
     setError('')
@@ -63,9 +67,12 @@ export default function AdminProductsClient() {
         const isArchivedCategory = String(p.category || '').toLowerCase() === 'archived'
         if (isArchivedName || isArchivedCategory) return false
       }
+      if (visibilityFilter === 'hidden') return Boolean(p.is_hidden)
+      if (visibilityFilter === 'visible') return !Boolean(p.is_hidden)
       if (!q) return true
       const source = [p.name, p.category, String(p.id)].join(' ').toLowerCase()
-      return source.includes(q)
+      if (!source.includes(q)) return false
+      return true
     })
     const sorted = [...base]
     sorted.sort((a, b) => {
@@ -82,7 +89,7 @@ export default function AdminProductsClient() {
       }
     })
     return sorted
-  }, [products, query, hideArchived, sortBy])
+  }, [products, query, hideArchived, sortBy, visibilityFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages)
@@ -93,7 +100,80 @@ export default function AdminProductsClient() {
 
   useEffect(() => {
     setPage(1)
-  }, [query, hideArchived, sortBy, pageSize])
+  }, [query, hideArchived, sortBy, pageSize, visibilityFilter])
+
+  useEffect(() => {
+    setSelectedIds((prev) => prev.filter((id) => filtered.some((p) => p.id === id)))
+  }, [filtered])
+
+  async function handleToggleVisibility(product) {
+    setError('')
+    setUpdatingVisibilityId(product.id)
+    try {
+      const nextHidden = !Boolean(product.is_hidden)
+      const res = await fetch(getApiUrl('/products/' + product.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_hidden: nextHidden }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Failed to update visibility')
+      }
+      setProducts((prev) => prev.map((p) => (
+        p.id === product.id ? { ...p, is_hidden: nextHidden } : p
+      )))
+    } catch (e) {
+      setError(e?.message || 'Failed to update visibility')
+    } finally {
+      setUpdatingVisibilityId(null)
+    }
+  }
+
+  function toggleSelected(id) {
+    setSelectedIds((prev) => (
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    ))
+  }
+
+  function selectAllOnPage() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      paged.forEach((p) => next.add(p.id))
+      return Array.from(next)
+    })
+  }
+
+  function clearSelection() {
+    setSelectedIds([])
+  }
+
+  async function runBulkVisibility(nextHidden) {
+    if (!selectedIds.length) return
+    setError('')
+    setBulkSaving(true)
+    try {
+      await Promise.all(selectedIds.map(async (id) => {
+        const res = await fetch(getApiUrl('/products/' + id), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_hidden: nextHidden }),
+        })
+        if (!res.ok) {
+          const text = await res.text()
+          throw new Error(text || `Failed to update product #${id}`)
+        }
+      }))
+      setProducts((prev) => prev.map((p) => (
+        selectedIds.includes(p.id) ? { ...p, is_hidden: nextHidden } : p
+      )))
+      setSelectedIds([])
+    } catch (e) {
+      setError(e?.message || 'Bulk update failed')
+    } finally {
+      setBulkSaving(false)
+    }
+  }
 
   function sortDirection(key) {
     if (!sortBy.startsWith(key + '_')) return null
@@ -145,6 +225,14 @@ export default function AdminProductsClient() {
         </label>
         <div style={{display:'flex',gap:10,alignItems:'center',marginBottom:14,flexWrap:'wrap'}}>
           <select
+            value={visibilityFilter}
+            onChange={(e) => setVisibilityFilter(e.target.value)}
+            style={{border:'1px solid #ddd',borderRadius:10,padding:'8px 10px',fontSize:13}}>
+            <option value="all">Visibility: All</option>
+            <option value="visible">Visibility: Visible</option>
+            <option value="hidden">Visibility: Hidden</option>
+          </select>
+          <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             style={{border:'1px solid #ddd',borderRadius:10,padding:'8px 10px',fontSize:13}}>
@@ -168,6 +256,37 @@ export default function AdminProductsClient() {
           </select>
           <span style={{fontSize:12,color:'#777'}}>Page {safePage} / {totalPages}</span>
         </div>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:14,flexWrap:'wrap'}}>
+          <button
+            type="button"
+            onClick={selectAllOnPage}
+            disabled={!paged.length || bulkSaving}
+            style={{border:'1px solid #ddd',borderRadius:8,padding:'6px 10px',fontSize:12,background:'#fff',cursor:'pointer',opacity:(!paged.length || bulkSaving) ? 0.6 : 1}}>
+            Select page
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            disabled={!selectedIds.length || bulkSaving}
+            style={{border:'1px solid #ddd',borderRadius:8,padding:'6px 10px',fontSize:12,background:'#fff',cursor:'pointer',opacity:(!selectedIds.length || bulkSaving) ? 0.6 : 1}}>
+            Clear
+          </button>
+          <button
+            type="button"
+            onClick={() => runBulkVisibility(false)}
+            disabled={!selectedIds.length || bulkSaving}
+            style={{border:'1px solid #bbf7d0',borderRadius:999,padding:'6px 10px',fontSize:12,background:'#ecfdf3',color:'#166534',cursor:'pointer',opacity:(!selectedIds.length || bulkSaving) ? 0.6 : 1}}>
+            {bulkSaving ? 'Saving...' : `Bulk publish (${selectedIds.length})`}
+          </button>
+          <button
+            type="button"
+            onClick={() => runBulkVisibility(true)}
+            disabled={!selectedIds.length || bulkSaving}
+            style={{border:'1px solid #fde68a',borderRadius:999,padding:'6px 10px',fontSize:12,background:'#fffbeb',color:'#92400e',cursor:'pointer',opacity:(!selectedIds.length || bulkSaving) ? 0.6 : 1}}>
+            {bulkSaving ? 'Saving...' : `Bulk hide (${selectedIds.length})`}
+          </button>
+          <span style={{fontSize:12,color:'#777'}}>Selected: {selectedIds.length}</span>
+        </div>
 
         {loading ? (
           <p style={{color:'#888'}}>Loading products...</p>
@@ -185,6 +304,20 @@ export default function AdminProductsClient() {
             <table style={{width:'100%',borderCollapse:'collapse',minWidth:920}}>
               <thead>
                 <tr style={{textAlign:'left',borderBottom:'1px solid #ecece8',background:'#fafaf8'}}>
+                  <th style={{padding:'12px 8px',fontSize:12,color:'#666660',width:32}}>
+                    <input
+                      type="checkbox"
+                      aria-label="select all on page"
+                      checked={paged.length > 0 && paged.every((p) => selectedIds.includes(p.id))}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          selectAllOnPage()
+                        } else {
+                          setSelectedIds((prev) => prev.filter((id) => !paged.some((p) => p.id === id)))
+                        }
+                      }}
+                    />
+                  </th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>
                     <button type="button" onClick={() => toggleSort('id')} style={{background:'none',border:'none',padding:0,cursor:'pointer',fontSize:12,color:'#666660',fontWeight:600}}>
                       ID {sortIcon('id')}
@@ -214,6 +347,14 @@ export default function AdminProductsClient() {
               <tbody>
                 {paged.map((p) => (
                   <tr key={p.id} style={{borderBottom:'1px solid #f2f2ef'}}>
+                    <td style={{padding:'12px 8px'}}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(p.id)}
+                        onChange={() => toggleSelected(p.id)}
+                        aria-label={`select product ${p.id}`}
+                      />
+                    </td>
                     <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{p.id}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>
                       <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -240,13 +381,31 @@ export default function AdminProductsClient() {
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.available_stock ?? p.stock ?? 0}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.reserved_stock ?? 0}</td>
                     <td style={{padding:'12px 14px'}}>
-                      <a href={`/admin/products/${p.id}`} style={{fontSize:13,color:'#2563eb',textDecoration:'none'}}>Edit</a>
+                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                        <a href={`/admin/products/${p.id}`} style={{fontSize:13,color:'#2563eb',textDecoration:'none'}}>Edit</a>
+                        <button
+                          type="button"
+                          disabled={updatingVisibilityId === p.id}
+                          onClick={() => handleToggleVisibility(p)}
+                          style={{
+                            border:'1px solid ' + (p.is_hidden ? '#bbf7d0' : '#fde68a'),
+                            background:p.is_hidden ? '#ecfdf3' : '#fffbeb',
+                            color:p.is_hidden ? '#166534' : '#92400e',
+                            borderRadius:999,
+                            padding:'4px 9px',
+                            fontSize:12,
+                            cursor:'pointer',
+                            opacity:updatingVisibilityId === p.id ? 0.65 : 1,
+                          }}>
+                          {updatingVisibilityId === p.id ? 'Saving...' : (p.is_hidden ? 'Publish now' : 'Hide')}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No products found</td>
+                    <td colSpan={9} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No products found</td>
                   </tr>
                 )}
               </tbody>

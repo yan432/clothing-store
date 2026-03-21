@@ -13,9 +13,8 @@ export default function NavBar() {
         <a href="/products" style={{color:'inherit',textDecoration:'none'}}>Shop</a>
         {isAdmin && (
           <>
-            <a href="/admin/orders" style={{color:'inherit',textDecoration:'none'}}>Admin</a>
-            <a href="/admin/products" style={{color:'inherit',textDecoration:'none'}}>Products</a>
-            <a href="/upload" style={{color:'inherit',textDecoration:'none'}}>Upload</a>
+            <a href="/admin/orders" style={{color:'inherit',textDecoration:'none'}}>Orders</a>
+            <a href="/admin/products" style={{color:'inherit',textDecoration:'none'}}>Admin</a>
           </>
         )}
         <a href="/cart" style={{color: count > 0 ? '#000' : 'inherit',fontWeight: count > 0 ? 500 : 400,textDecoration:'none'}}>
