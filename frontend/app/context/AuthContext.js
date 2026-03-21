@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '../lib/supabase'
+import { isAdminEmail } from '../lib/admin'
 
 const AuthContext = createContext()
 
@@ -36,8 +37,10 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  const isAdmin = isAdminEmail(user?.email)
+
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )

@@ -27,6 +27,14 @@ create table if not exists public.orders (
   currency text default 'usd',
   amount_total numeric(12,2),
   email text,
+  phone text,
+  shipping_name text,
+  shipping_line1 text,
+  shipping_line2 text,
+  shipping_city text,
+  shipping_state text,
+  shipping_postal_code text,
+  shipping_country text,
   items_json jsonb not null default '[]'::jsonb,
   customer_json jsonb,
   shipping_json jsonb,
@@ -40,6 +48,15 @@ create table if not exists public.orders (
   cancelled_at timestamptz,
   expires_at timestamptz
 );
+
+alter table if exists public.orders add column if not exists phone text;
+alter table if exists public.orders add column if not exists shipping_name text;
+alter table if exists public.orders add column if not exists shipping_line1 text;
+alter table if exists public.orders add column if not exists shipping_line2 text;
+alter table if exists public.orders add column if not exists shipping_city text;
+alter table if exists public.orders add column if not exists shipping_state text;
+alter table if exists public.orders add column if not exists shipping_postal_code text;
+alter table if exists public.orders add column if not exists shipping_country text;
 
 create index if not exists idx_orders_status on public.orders(status);
 create index if not exists idx_orders_created_at on public.orders(created_at desc);

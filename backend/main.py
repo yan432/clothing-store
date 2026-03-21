@@ -61,6 +61,7 @@ class CheckoutRequest(BaseModel):
     items: list[CheckoutItem]
     success_url: str = "https://project-e38lc.vercel.app/success"
     cancel_url: str = "https://project-e38lc.vercel.app/cart"
+    customer_email: Optional[str] = None
 
 
 def now_iso() -> str:
@@ -75,6 +76,26 @@ def stripe_obj_to_dict(obj: Any) -> dict:
     if isinstance(obj, dict):
         return obj
     return {}
+
+
+def as_dict(value: Any) -> dict:
+    return value if isinstance(value, dict) else {}
+
+
+def extract_shipping_fields(session_obj: dict) -> dict:
+    shipping = as_dict(session_obj.get("shipping_details"))
+    address = as_dict(shipping.get("address"))
+    customer = as_dict(session_obj.get("customer_details"))
+    return {
+        "phone": customer.get("phone"),
+        "shipping_name": shipping.get("name"),
+        "shipping_line1": address.get("line1"),
+        "shipping_line2": address.get("line2"),
+        "shipping_city": address.get("city"),
+        "shipping_state": address.get("state"),
+        "shipping_postal_code": address.get("postal_code"),
+        "shipping_country": address.get("country"),
+    }
 
 
 def get_available_stock_value(product: dict) -> int:
@@ -357,6 +378,15 @@ def create_checkout(request: CheckoutRequest):
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
+            billing_address_collection="required",
+            shipping_address_collection={
+                "allowed_countries": [
+                    "US", "CA", "GB", "DE", "FR", "ES", "IT", "NL", "BE", "PL", "PT",
+                    "SE", "NO", "DK", "FI", "IE", "AT", "CH", "CZ"
+                ]
+            },
+            phone_number_collection={"enabled": True},
+            customer_email=request.customer_email,
             metadata={
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
@@ -374,6 +404,8 @@ def create_checkout(request: CheckoutRequest):
             "stripe_payment_intent_id": session_dict.get("payment_intent"),
             "stripe_customer_id": session_dict.get("customer"),
             "session_json": session_dict,
+            "email": as_dict(session_dict.get("customer_details")).get("email"),
+            **extract_shipping_fields(session_dict),
             "expires_at": expires_at_iso,
             "updated_at": now_iso(),
         }).eq("id", created_order["id"]).execute()
@@ -395,7 +427,9 @@ def create_checkout(request: CheckoutRequest):
 
 @app.post("/webhooks/stripe")
 async def stripe_webhook(request: Request):
-    secret = os.getenv("STRIPE_WEBHOOK_SECRET") or "whsec_1ExOwlAdIb5I3btaHQ5mPQjQsO8tmOr4"
+    secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    if not secret:
+        raise HTTPException(status_code=500, detail="STRIPE_WEBHOOK_SECRET is not configured")
 
     payload = await request.body()
     signature = request.headers.get("stripe-signature")
@@ -447,11 +481,12 @@ async def stripe_webhook(request: Request):
         "stripe_session_id": order.get("stripe_session_id") or stripe_session_id,
         "stripe_customer_id": data_obj.get("customer") or order.get("stripe_customer_id"),
         "stripe_payment_intent_id": data_obj.get("payment_intent") or order.get("stripe_payment_intent_id"),
-        "email": data_obj.get("customer_details", {}).get("email") or order.get("email"),
+        "email": as_dict(data_obj.get("customer_details")).get("email") or order.get("email"),
         "shipping_json": data_obj.get("shipping_details") or order.get("shipping_json"),
         "customer_json": data_obj.get("customer_details") or order.get("customer_json"),
         "currency": data_obj.get("currency") or order.get("currency"),
         "amount_total": (data_obj.get("amount_total") / 100.0) if data_obj.get("amount_total") else order.get("amount_total"),
+        **extract_shipping_fields(data_obj),
     }
 
     if target_status and (changed or current_status != ORDER_PAID):

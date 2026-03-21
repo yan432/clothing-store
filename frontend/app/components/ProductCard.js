@@ -1,12 +1,15 @@
 'use client'
-import { useState } from 'react'
-import { useCart } from '../context/CartContext'
+import { useRef, useState } from 'react'
 
 export default function ProductCard({ product }) {
-  const { addToCart } = useCart()
-  const [added, setAdded] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const leaveTimerRef = useRef(null)
   const price = Number(product.price || 0)
-  const primaryImage = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
+  const images = Array.isArray(product.image_urls) && product.image_urls.length > 0
+    ? product.image_urls
+    : (product.image_url ? [product.image_url] : [])
+  const primaryImage = images[0]
+  const secondaryImage = images[1]
   const priceLabel = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -16,15 +19,22 @@ export default function ProductCard({ product }) {
   const stockLabel = isInStock ? `In stock: ${availableStock}` : 'Out of stock'
   const description = (product.description || '').trim()
 
-  function handleAddToCart() {
-    if (!isInStock) return
-    addToCart(product)
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1200)
+  function handleMouseEnter() {
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+    setHovered(true)
+  }
+
+  function handleMouseLeave() {
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+    // Small linger makes the transition finish smoothly.
+    leaveTimerRef.current = setTimeout(() => setHovered(false), 180)
   }
 
   return (
-    <article style={{display:'flex',flexDirection:'column',gap:12}}>
+    <article
+      style={{display:'flex',flexDirection:'column',gap:12}}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}>
       <a href={'/products/' + product.id}
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
@@ -44,10 +54,42 @@ export default function ProductCard({ product }) {
           }}>
             {stockLabel}
           </div>
-          {primaryImage
-            ? <img src={primaryImage} alt={product.name} className="product-img"/>
-            : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#ccc'}}>No image</div>
-          }
+          {primaryImage ? (
+            <>
+              <img
+                src={primaryImage}
+                alt={product.name}
+                className="product-img"
+                style={{
+                  position:'absolute',
+                  inset:0,
+                  opacity:hovered && secondaryImage ? 0 : 1,
+                  transition:'opacity 560ms cubic-bezier(0.22, 1, 0.36, 1), transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
+                  willChange:'opacity',
+                  backfaceVisibility:'hidden',
+                  transform:hovered ? 'translateZ(0) scale(1.03)' : 'translateZ(0) scale(1)',
+                }}
+              />
+              {secondaryImage && (
+                <img
+                  src={secondaryImage}
+                  alt={product.name}
+                  className="product-img"
+                  style={{
+                    position:'absolute',
+                    inset:0,
+                    opacity:hovered ? 1 : 0,
+                    transition:'opacity 560ms cubic-bezier(0.22, 1, 0.36, 1), transform 900ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    willChange:'opacity',
+                    backfaceVisibility:'hidden',
+                    transform:hovered ? 'translateZ(0) scale(1.03)' : 'translateZ(0) scale(1)',
+                  }}
+                />
+              )}
+            </>
+          ) : (
+            <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#ccc'}}>No image</div>
+          )}
         </div>
         <p style={{fontSize:11,color:'#8f8f87',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
           {product.category || 'Essentials'}
@@ -72,24 +114,6 @@ export default function ProductCard({ product }) {
           {description || 'Minimal everyday essential. Tap to view full details.'}
         </p>
       </a>
-      <button
-        onClick={handleAddToCart}
-        disabled={!isInStock}
-        style={{
-          width:'100%',
-          border:'none',
-          borderRadius:999,
-          padding:'13px 18px',
-          fontSize:14,
-          fontWeight:600,
-          cursor:isInStock ? 'pointer' : 'not-allowed',
-          background:added ? '#16a34a' : '#111',
-          color:'#fff',
-          opacity:isInStock ? 1 : 0.6,
-          transition:'background 0.2s ease, opacity 0.2s ease',
-        }}>
-        {isInStock ? (added ? 'Added to cart' : 'Add to cart') : 'Unavailable'}
-      </button>
     </article>
   )
 }
