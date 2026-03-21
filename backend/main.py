@@ -87,4 +87,44 @@ async def update_product_image(product_id: int, file: UploadFile = File(...)):
     
     url = supabase.storage.from_("product-images").get_public_url(filename)
     data = supabase.table("products").update({"image_url": url}).eq("id", product_id).execute()
-    return data.data[0]
+    return data.data[0]    
+import stripe
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+class CheckoutItem(BaseModel):
+    id: int
+    name: str
+    price: float
+    quantity: int
+    image_url: Optional[str] = None
+
+class CheckoutRequest(BaseModel):
+    items: list[CheckoutItem]
+    success_url: str = "http://localhost:3000/success"
+    cancel_url: str = "http://localhost:3000/cart"
+
+@app.post("/checkout")
+def create_checkout(request: CheckoutRequest):
+    line_items = []
+    for item in request.items:
+        print(f"Item: {item.name}, price: {item.price}, qty: {item.quantity}, amount: {int(item.price * 100)}")
+        line_items.append({
+            "price_data": {
+                "currency": "usd",
+                "product_data": {
+                    "name": item.name,
+                    "images": [item.image_url] if item.image_url else [],
+                },
+                "unit_amount": max(1, int(item.price * 100)),
+            },
+            "quantity": max(1, item.quantity),
+        })
+    session = stripe.checkout.Session.create(
+        payment_method_types=["card"],
+        line_items=line_items,
+        mode="payment",
+        success_url=request.success_url + "?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url=request.cancel_url,
+    )
+    return {"url": session.url}

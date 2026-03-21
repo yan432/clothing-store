@@ -21,7 +21,7 @@ export function CartProvider({ children }) {
     if (existing) {
       save(cart.map(i => i.id === product.id ? {...i, qty: i.qty + 1} : i))
     } else {
-      save([...cart, {...product, qty: 1}])
+     save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
   }
 

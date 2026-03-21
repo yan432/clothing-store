@@ -1,8 +1,39 @@
 'use client'
 import { useCart } from '../context/CartContext'
+import { useState } from 'react'
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
+  const [loading, setLoading] = useState(false)
+
+  async function handleCheckout() {
+    setLoading(true)
+    try {
+      const res = await fetch('http://localhost:8000/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: parseFloat(item.price),
+            quantity: item.qty,
+            image_url: item.image_url || null,
+          })),
+          success_url: 'http://localhost:3000/success',
+          cancel_url: 'http://localhost:3000/cart',
+        }),
+      })
+      const data = await res.json()
+      console.log('Checkout response:', data)
+      if (data.url) window.location.href = data.url
+      else alert('Error: ' + JSON.stringify(data))
+    } catch (e) {
+      console.error('Checkout error:', e)
+      alert('Something went wrong: ' + e.message)
+    }
+    setLoading(false)
+  }
 
   if (cart.length === 0) return (
     <main style={{maxWidth:600,margin:'0 auto',padding:'80px 24px',textAlign:'center'}}>
@@ -31,32 +62,20 @@ export default function CartPage() {
                 : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#ccc'}}>No image</div>
               }
             </div>
-
             <div style={{flex:1}}>
               <p style={{fontWeight:500,fontSize:14,margin:'0 0 4px'}}>{item.name}</p>
               <p style={{fontSize:13,color:'#aaa',margin:0}}>${item.price}</p>
             </div>
-
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <button onClick={() => updateQty(item.id, item.qty - 1)}
-                style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                −
-              </button>
+                style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
               <span style={{fontSize:14,fontWeight:500,minWidth:20,textAlign:'center'}}>{item.qty}</span>
               <button onClick={() => updateQty(item.id, item.qty + 1)}
-                style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>
-                +
-              </button>
+                style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
             </div>
-
-            <p style={{fontSize:14,fontWeight:600,minWidth:60,textAlign:'right'}}>
-              ${(item.price * item.qty).toFixed(2)}
-            </p>
-
+            <p style={{fontSize:14,fontWeight:600,minWidth:60,textAlign:'right'}}>${(item.price * item.qty).toFixed(2)}</p>
             <button onClick={() => removeFromCart(item.id)}
-              style={{background:'none',border:'none',cursor:'pointer',color:'#ccc',fontSize:18,padding:4}}>
-              ×
-            </button>
+              style={{background:'none',border:'none',cursor:'pointer',color:'#ccc',fontSize:18,padding:4}}>×</button>
           </div>
         ))}
       </div>
@@ -66,8 +85,9 @@ export default function CartPage() {
           <p style={{fontSize:13,color:'#aaa',margin:'0 0 4px'}}>Total</p>
           <p style={{fontSize:28,fontWeight:600,margin:0}}>${total.toFixed(2)}</p>
         </div>
-        <button style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer'}}>
-          Checkout
+        <button onClick={handleCheckout} disabled={loading}
+          style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',opacity:loading?0.6:1}}>
+          {loading ? 'Loading...' : 'Checkout'}
         </button>
       </div>
     </main>
