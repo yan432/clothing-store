@@ -1,7 +1,9 @@
 import AddToCartButton from '../../components/AddToCartButton'
+import ProductGallery from '../../components/ProductGallery'
+import { getApiUrl } from '../../lib/api'
 
 async function getProduct(id) {
-  const res = await fetch('https://clothing-store-production-983f.up.railway.app/products/' + id, { cache: 'no-store' })
+  const res = await fetch(getApiUrl('/products/' + id), { cache: 'no-store' })
   if (!res.ok) return null
   return res.json()
 }
@@ -10,6 +12,7 @@ export async function generateMetadata({ params }) {
   const { id } = await params
   const product = await getProduct(id)
   if (!product) return { title: 'Product not found' }
+  const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
 
   return {
     title: product.name + ' — STORE',
@@ -17,14 +20,14 @@ export async function generateMetadata({ params }) {
     openGraph: {
       title: product.name,
       description: product.description,
-      images: product.image_url ? [{ url: product.image_url, width: 800, height: 800, alt: product.name }] : [],
+      images: image ? [{ url: image, width: 800, height: 800, alt: product.name }] : [],
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
       title: product.name,
       description: product.description,
-      images: product.image_url ? [product.image_url] : [],
+      images: image ? [image] : [],
     },
   }
 }
@@ -33,6 +36,11 @@ export default async function ProductPage({ params }) {
   const { id } = await params
   const product = await getProduct(id)
   if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Product not found</div>
+  const isInStock = product.stock > 0
+  const priceLabel = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(Number(product.price || 0))
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -62,23 +70,41 @@ export default async function ProductPage({ params }) {
       <main style={{maxWidth:900,margin:'0 auto',padding:'48px 24px'}}>
         <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:40}}>← Back</a>
 
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:64}}>
-          <div style={{aspectRatio:'1',background:'#f5f5f3',borderRadius:20,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',color:'#ccc'}}>
-            {product.image_url
-              ? <img src={product.image_url} alt={product.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-              : 'No image'
-            }
-          </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:48}}>
+          <ProductGallery product={product} />
 
-          <div style={{display:'flex',flexDirection:'column',justifyContent:'center',gap:16}}>
-            <p style={{fontSize:11,color:'#aaa',letterSpacing:'0.15em',textTransform:'uppercase',margin:0}}>{product.category}</p>
-            <h1 style={{fontSize:32,fontWeight:600,margin:0,lineHeight:1.2}}>{product.name}</h1>
-            <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{product.description}</p>
-            <p style={{fontSize:28,fontWeight:600,margin:0}}>${product.price}</p>
-            <p style={{fontSize:12,color: product.stock > 0 ? '#16a34a' : '#ef4444',margin:0}}>
-              {product.stock > 0 ? 'In stock — ' + product.stock + ' left' : 'Out of stock'}
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <h1 style={{fontSize:36,fontWeight:600,margin:0,lineHeight:1.15}}>{product.name}</h1>
+            <div style={{display:'flex',alignItems:'baseline',gap:10}}>
+              <p style={{fontSize:32,fontWeight:600,margin:0}}>{priceLabel}</p>
+              <p style={{fontSize:14,color:'#8a8a84',margin:0}}>incl. tax</p>
+            </div>
+            <p style={{fontSize:14,color:'#666660',margin:0}}>
+              Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{(product.category || 'Standard').toLowerCase()}</span>
             </p>
-            <AddToCartButton product={product} />
+            <p style={{fontSize:12,color: isInStock ? '#16a34a' : '#ef4444',margin:'-6px 0 0'}}>
+              {isInStock ? 'In stock - ' + product.stock + ' left' : 'Out of stock'}
+            </p>
+
+            <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
+              We recommend choosing your regular size.
+            </div>
+
+            <AddToCartButton product={product} showSizeSelector />
+
+            <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{product.description}</p>
+
+            <div style={{border:'1px solid #e7e7e2',borderRadius:8,overflow:'hidden'}}>
+              <div style={{padding:'14px 16px',fontSize:14,borderBottom:'1px solid #e7e7e2'}}>
+                Sold and shipped by STORE
+              </div>
+              <div style={{padding:'14px 16px',fontSize:14,borderBottom:'1px solid #e7e7e2'}}>
+                Free standard delivery for this item
+              </div>
+              <div style={{padding:'14px 16px',fontSize:14}}>
+                30-day free returns
+              </div>
+            </div>
           </div>
         </div>
       </main>

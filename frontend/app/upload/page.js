@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { getApiUrl } from '../lib/api'
 
 export default function UploadPage() {
   const [products, setProducts] = useState([])
@@ -7,27 +8,58 @@ export default function UploadPage() {
   const [message, setMessage] = useState('')
 
   async function loadProducts() {
-    const res = await fetch('https://clothing-store-production-983f.up.railway.app/products')
+    const res = await fetch(getApiUrl('/products'))
     const data = await res.json()
     setProducts(data)
   }
 
-  async function handleUpload(productId, file) {
+  async function handleUpload(productId, files) {
     setLoading(true)
     setMessage('')
-    const form = new FormData()
-    form.append('file', file)
+    try {
+      const multiForm = new FormData()
+      for (const file of files) {
+        multiForm.append('files', file)
+      }
 
-    const res = await fetch('https://clothing-store-production-983f.up.railway.app/products/' + productId + '/image', {
-      method: 'PUT',
-      body: form
-    })
+      let res = await fetch(getApiUrl('/products/' + productId + '/image'), {
+        method: 'PUT',
+        body: multiForm
+      })
 
-    if (res.ok) {
-      setMessage('Photo uploaded!')
-      loadProducts()
-    } else {
-      setMessage('Error uploading')
+      // Backward-compatible fallback: older backend versions only accept "file".
+      if (!res.ok) {
+        let allOk = true
+        for (const file of files) {
+          const singleForm = new FormData()
+          singleForm.append('file', file)
+          const singleRes = await fetch(getApiUrl('/products/' + productId + '/image'), {
+            method: 'PUT',
+            body: singleForm
+          })
+          if (!singleRes.ok) {
+            allOk = false
+            res = singleRes
+            break
+          }
+        }
+        if (allOk) {
+          setMessage(files.length > 1 ? 'Photos uploaded!' : 'Photo uploaded!')
+          loadProducts()
+          setLoading(false)
+          return
+        }
+      }
+
+      if (res.ok) {
+        setMessage(files.length > 1 ? 'Photos uploaded!' : 'Photo uploaded!')
+        loadProducts()
+      } else {
+        const errorText = await res.text()
+        setMessage('Error uploading: ' + (errorText || 'unknown error'))
+      }
+    } catch (error) {
+      setMessage('Error uploading: ' + (error?.message || 'network error'))
     }
     setLoading(false)
   }
@@ -64,15 +96,20 @@ export default function UploadPage() {
               <div style={{flex:1}}>
                 <p style={{fontWeight:500,fontSize:14,marginBottom:2}}>{product.name}</p>
                 <p style={{fontSize:13,color:'#888'}}>${product.price} · {product.category}</p>
+                {Array.isArray(product.image_urls) && product.image_urls.length > 0 && (
+                  <p style={{fontSize:12,color:'#999',marginTop:4}}>
+                    {product.image_urls.length} photos uploaded
+                  </p>
+                )}
               </div>
 
               <label style={{cursor:'pointer'}}>
-                <input type="file" accept="image/*" style={{display:'none'}}
-                  onChange={(e) => e.target.files[0] && handleUpload(product.id, e.target.files[0])}
+                <input type="file" accept="image/*" multiple style={{display:'none'}}
+                  onChange={(e) => e.target.files?.length && handleUpload(product.id, Array.from(e.target.files))}
                   disabled={loading}
                 />
                 <span style={{background: product.image_url ? '#f5f5f3' : '#000',color: product.image_url ? '#333' : '#fff',padding:'8px 18px',borderRadius:999,fontSize:13,fontWeight:500}}>
-                  {product.image_url ? 'Replace' : 'Upload'}
+                  {product.image_url ? 'Add photos' : 'Upload photos'}
                 </span>
               </label>
             </div>

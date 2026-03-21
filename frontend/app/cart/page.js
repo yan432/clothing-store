@@ -1,6 +1,7 @@
 'use client'
 import { useCart } from '../context/CartContext'
 import { useState } from 'react'
+import { getApiUrl } from '../lib/api'
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
@@ -9,7 +10,8 @@ export default function CartPage() {
   async function handleCheckout() {
     setLoading(true)
     try {
-      const res = await fetch('https://clothing-store-production-983f.up.railway.app/checkout', {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+      const res = await fetch(getApiUrl('/checkout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -20,8 +22,8 @@ export default function CartPage() {
             quantity: item.qty,
             image_url: item.image_url || null,
           })),
-          success_url: 'http://localhost:3000/success',
-          cancel_url: 'http://localhost:3000/cart',
+          success_url: origin + '/success',
+          cancel_url: origin + '/cart',
         }),
       })
       const data = await res.json()
@@ -55,7 +57,7 @@ export default function CartPage() {
 
       <div style={{display:'flex',flexDirection:'column',gap:16,marginBottom:32}}>
         {cart.map(item => (
-          <div key={item.id} style={{display:'flex',gap:16,alignItems:'center',background:'#fff',border:'1px solid #f0f0ee',borderRadius:16,padding:16}}>
+          <div key={item.lineKey || item.id} style={{display:'flex',gap:16,alignItems:'center',background:'#fff',border:'1px solid #f0f0ee',borderRadius:16,padding:16}}>
             <div style={{width:80,height:80,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0}}>
               {item.image_url
                 ? <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -64,17 +66,20 @@ export default function CartPage() {
             </div>
             <div style={{flex:1}}>
               <p style={{fontWeight:500,fontSize:14,margin:'0 0 4px'}}>{item.name}</p>
+              {item.size && (
+                <p style={{fontSize:12,color:'#666660',margin:'0 0 4px'}}>Size: {item.size}</p>
+              )}
               <p style={{fontSize:13,color:'#aaa',margin:0}}>${item.price}</p>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <button onClick={() => updateQty(item.id, item.qty - 1)}
+              <button onClick={() => updateQty(item.lineKey || `${item.id}:${item.size || 'no-size'}`, item.qty - 1)}
                 style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
               <span style={{fontSize:14,fontWeight:500,minWidth:20,textAlign:'center'}}>{item.qty}</span>
-              <button onClick={() => updateQty(item.id, item.qty + 1)}
+              <button onClick={() => updateQty(item.lineKey || `${item.id}:${item.size || 'no-size'}`, item.qty + 1)}
                 style={{width:28,height:28,borderRadius:'50%',border:'1px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
             </div>
             <p style={{fontSize:14,fontWeight:600,minWidth:60,textAlign:'right'}}>${(item.price * item.qty).toFixed(2)}</p>
-            <button onClick={() => removeFromCart(item.id)}
+            <button onClick={() => removeFromCart(item.lineKey || `${item.id}:${item.size || 'no-size'}`)}
               style={{background:'none',border:'none',cursor:'pointer',color:'#ccc',fontSize:18,padding:4}}>×</button>
           </div>
         ))}

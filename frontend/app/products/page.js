@@ -1,4 +1,5 @@
 import ProductCard from '../components/ProductCard'
+import { getApiUrl } from '../lib/api'
 
 export const metadata = {
   title: 'All Products',
@@ -10,7 +11,7 @@ export const metadata = {
 }
 
 async function getProducts() {
-  const res = await fetch('https://clothing-store-production-983f.up.railway.app/products', { cache: 'no-store' })
+  const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
   if (!res.ok) throw new Error('Failed to fetch')
   return res.json()
 }
