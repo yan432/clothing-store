@@ -10,7 +10,7 @@ export const metadata = {
 }
 
 async function getProducts() {
-  const res = await fetch('http://localhost:8000/products', { cache: 'no-store' })
+  const res = await fetch('https://clothing-store-production-983f.up.railway.app/products', { cache: 'no-store' })
   if (!res.ok) throw new Error('Failed to fetch')
   return res.json()
 }

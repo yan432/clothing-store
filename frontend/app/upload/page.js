@@ -7,7 +7,7 @@ export default function UploadPage() {
   const [message, setMessage] = useState('')
 
   async function loadProducts() {
-    const res = await fetch('http://localhost:8000/products')
+    const res = await fetch('https://clothing-store-production-983f.up.railway.app/products')
     const data = await res.json()
     setProducts(data)
   }
@@ -18,7 +18,7 @@ export default function UploadPage() {
     const form = new FormData()
     form.append('file', file)
 
-    const res = await fetch('http://localhost:8000/products/' + productId + '/image', {
+    const res = await fetch('https://clothing-store-production-983f.up.railway.app/products/' + productId + '/image', {
       method: 'PUT',
       body: form
     })

@@ -9,7 +9,7 @@ export default function CartPage() {
   async function handleCheckout() {
     setLoading(true)
     try {
-      const res = await fetch('http://localhost:8000/checkout', {
+      const res = await fetch('https://clothing-store-production-983f.up.railway.app/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

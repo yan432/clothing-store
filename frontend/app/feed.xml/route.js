@@ -1,5 +1,5 @@
 export async function GET() {
-  const res = await fetch('http://localhost:8000/products', { cache: 'no-store' })
+  const res = await fetch('https://clothing-store-production-983f.up.railway.app/products', { cache: 'no-store' })
   const products = await res.json()
 
   const baseUrl = 'https://yourstore.com'

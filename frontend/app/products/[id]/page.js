@@ -1,7 +1,7 @@
 import AddToCartButton from '../../components/AddToCartButton'
 
 async function getProduct(id) {
-  const res = await fetch('http://localhost:8000/products/' + id, { cache: 'no-store' })
+  const res = await fetch('https://clothing-store-production-983f.up.railway.app/products/' + id, { cache: 'no-store' })
   if (!res.ok) return null
   return res.json()
 }
