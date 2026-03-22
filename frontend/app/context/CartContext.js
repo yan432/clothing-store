@@ -5,6 +5,7 @@ const CartContext = createContext()
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([])
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('cart')
@@ -23,6 +24,7 @@ export function CartProvider({ children }) {
     } else {
       save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
+    setDrawerOpen(true)
   }
 
   function removeFromCart(id, size) {
@@ -34,15 +36,13 @@ export function CartProvider({ children }) {
     save(cart.map(i => (i.id === id && i.size === size) ? {...i, qty} : i))
   }
 
-  function clearCart() {
-    save([])
-  }
+  function clearCart() { save([]) }
 
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0)
   const count = cart.reduce((sum, i) => sum + i.qty, 0)
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQty, clearCart, total, count }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQty, clearCart, total, count, drawerOpen, setDrawerOpen }}>
       {children}
     </CartContext.Provider>
   )
