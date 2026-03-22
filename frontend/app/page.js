@@ -21,10 +21,10 @@ export default function Home() {
           </h1>
           <p className="mb-9 max-w-md text-base text-zinc-200 md:text-lg">{hero.subtitle}</p>
           <Link
-            href="/products"
-            className="rounded-md border border-white bg-white px-8 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-black transition hover:bg-transparent hover:text-white"
-          >
-            {hero.cta}
+  href="/products"
+  className="rounded-md border border-white bg-transparent px-8 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-black"
+>
+  {hero.cta}
           </Link>
         </div>
       </section>

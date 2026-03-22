@@ -2,10 +2,8 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'tlaagtvplzitmqwqbluq.supabase.co',
-      },
+      { protocol: 'https', hostname: 'tlaagtvplzitmqwqbluq.supabase.co' },
+      { protocol: 'https', hostname: 'assets.bigcartel.com' },
     ],
   },
 }
