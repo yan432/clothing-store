@@ -2,13 +2,9 @@
 import { useCart } from '../context/CartContext'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { getApiUrl } from '../lib/api'
 
 const SHIPPING = 30
-
-const PROMO_CODES = {
-  'WELCOME10': { discount: 0.10, label: '10% off' },
-  'SAVE20': { discount: 0.20, label: '20% off' },
-}
 
 const steps = [
   { n: 1, label: 'Cart', done: true },
@@ -53,6 +49,7 @@ export default function ConfirmPage() {
   const [promo, setPromo] = useState('')
   const [promoApplied, setPromoApplied] = useState(null)
   const [promoError, setPromoError] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -63,24 +60,45 @@ export default function ConfirmPage() {
 
   if (!details || cart.length === 0) return null
 
-  const discount = promoApplied ? total * promoApplied.discount : 0
-  const finalTotal = total - discount + SHIPPING
+  const discount = promoApplied ? Number(promoApplied.discount_amount || 0) : 0
+  const safeDiscount = Math.min(total + SHIPPING, Math.max(0, discount))
+  const shippingTotal = promoApplied?.discount_type === 'free_shipping' ? 0 : SHIPPING
+  const finalTotal = total - safeDiscount + shippingTotal
 
-  function applyPromo() {
+  async function applyPromo() {
     const code = promo.trim().toUpperCase()
-    if (PROMO_CODES[code]) {
-      setPromoApplied({ code, ...PROMO_CODES[code] })
+    if (!code) {
+      setPromoError('Enter promo code')
+      return
+    }
+    setPromoLoading(true)
+    try {
+      const res = await fetch(`${getApiUrl('/promo-codes/validate')}?code=${encodeURIComponent(code)}&subtotal=${encodeURIComponent(String(total))}&shipping=${encodeURIComponent(String(SHIPPING))}`)
+      const data = await res.json()
+      if (!res.ok || !data.valid) {
+        setPromoError(data?.message || 'Invalid promo code')
+        setPromoApplied(null)
+        return
+      }
+      setPromoApplied({
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        discount_amount: data.discount_amount,
+      })
       setPromoError('')
-    } else {
-      setPromoError('Invalid promo code')
+    } catch {
+      setPromoError('Failed to validate promo code')
       setPromoApplied(null)
+    } finally {
+      setPromoLoading(false)
     }
   }
 
   async function handlePay() {
     setLoading(true)
     try {
-      const res = await fetch('https://clothing-store-production-983f.up.railway.app/checkout', {
+      const res = await fetch(getApiUrl('/checkout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,7 +119,6 @@ export default function ConfirmPage() {
           zip: details.zip,
           country: details.country,
           promo_code: promoApplied?.code || null,
-          discount_amount: discount,
           success_url: 'https://project-e38lc.vercel.app/success',
           cancel_url: 'https://project-e38lc.vercel.app/cart',
         }),
@@ -182,14 +199,21 @@ export default function ConfirmPage() {
                 onKeyDown={e => e.key === 'Enter' && applyPromo()}
                 style={{flex:1,padding:'12px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff'}}/>
               <button onClick={applyPromo}
-                style={{padding:'12px 20px',borderRadius:12,border:'1.5px solid #000',background:'#fff',fontSize:13,fontWeight:500,cursor:'pointer'}}>
-                Apply
+                disabled={promoLoading}
+                style={{padding:'12px 20px',borderRadius:12,border:'1.5px solid #000',background:'#fff',fontSize:13,fontWeight:500,cursor:'pointer',opacity:promoLoading ? 0.7 : 1}}>
+                {promoLoading ? 'Checking...' : 'Apply'}
               </button>
             </div>
             {promoError && <p style={{fontSize:12,color:'#ef4444',margin:'6px 0 0'}}>{promoError}</p>}
             {promoApplied && (
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:10,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'8px 14px'}}>
-                <span style={{fontSize:13,color:'#166534',fontWeight:500}}>{promoApplied.code} — {promoApplied.label}</span>
+                <span style={{fontSize:13,color:'#166534',fontWeight:500}}>
+                  {promoApplied.code} — {promoApplied.discount_type === 'percent'
+                    ? `${promoApplied.discount_value}% off`
+                    : promoApplied.discount_type === 'free_shipping'
+                      ? 'Free shipping'
+                      : `€${Number(promoApplied.discount_value || 0).toFixed(2)} off`}
+                </span>
                 <button onClick={() => { setPromoApplied(null); setPromo('') }}
                   style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:18,padding:0}}>×</button>
               </div>
@@ -232,11 +256,18 @@ export default function ConfirmPage() {
             </div>
             {promoApplied && (
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#16a34a'}}>
-                <span>Discount ({promoApplied.label})</span><span>−€{discount.toFixed(2)}</span>
+                <span>
+                  Discount ({promoApplied.discount_type === 'percent'
+                    ? `${promoApplied.discount_value}%`
+                    : promoApplied.discount_type === 'free_shipping'
+                      ? 'Free shipping'
+                      : `€${Number(promoApplied.discount_value || 0).toFixed(2)}`})
+                </span>
+                <span>−€{safeDiscount.toFixed(2)}</span>
               </div>
             )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Shipping</span><span>€{SHIPPING.toFixed(2)}</span>
+              <span>Shipping</span><span>€{shippingTotal.toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4,paddingTop:10,borderTop:'1px solid #e5e5e3'}}>
               <span>Total</span><span>€{finalTotal.toFixed(2)}</span>

@@ -8,6 +8,7 @@ export default function NavBar() {
   const { user, signOut, isAdmin } = useAuth()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const menuRef = useRef(null)
+  const closeTimerRef = useRef(null)
 
   useEffect(() => {
     if (!isProfileOpen) return
@@ -29,6 +30,28 @@ export default function NavBar() {
       document.removeEventListener('keydown', onEscape)
     }
   }, [isProfileOpen])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    }
+  }, [])
+
+  function openProfileMenu() {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    setIsProfileOpen(true)
+  }
+
+  function closeProfileMenuWithDelay() {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = setTimeout(() => {
+      setIsProfileOpen(false)
+      closeTimerRef.current = null
+    }, 160)
+  }
 
   const accountLinks = [
     { href: '/account', label: 'My account' },
@@ -68,15 +91,16 @@ export default function NavBar() {
           <div
             ref={menuRef}
             style={{position:'relative',display:'flex',alignItems:'center',color:'#111'}}
-            onMouseEnter={() => setIsProfileOpen(true)}
-            onMouseLeave={() => setIsProfileOpen(false)}
+            onMouseEnter={openProfileMenu}
+            onMouseLeave={closeProfileMenuWithDelay}
           >
             <button
               type="button"
-              onFocus={() => setIsProfileOpen(true)}
+              onFocus={openProfileMenu}
+              onClick={() => { window.location.href = '/account' }}
               aria-expanded={isProfileOpen}
               aria-haspopup="menu"
-              aria-label="Open profile menu"
+              aria-label="Open account page"
               style={{
                 width:38,
                 height:38,
@@ -101,12 +125,13 @@ export default function NavBar() {
                 style={{
                   position:'absolute',
                   right:0,
-                  top:'calc(100% + 10px)',
+                  top:'100%',
                   width:240,
                   background:'#fff',
                   border:'1px solid #e8e8e5',
                   borderRadius:12,
                   padding:'8px 0',
+                  marginTop:8,
                   color:'#1a1a18',
                   boxShadow:'0 14px 34px rgba(15,15,15,0.08)',
                 }}

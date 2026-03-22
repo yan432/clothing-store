@@ -17,6 +17,7 @@ export default function AdminTopBar({ active = 'orders' }) {
       <a href="/admin/orders" style={linkStyle('orders')}>Orders</a>
       <a href="/admin/products" style={linkStyle('products')}>Products CMS</a>
       <a href="/admin/products/new" style={linkStyle('products-new')}>New Product</a>
+      <a href="/admin/promos" style={linkStyle('promos')}>Promo Codes</a>
       <a href="/upload" style={linkStyle('upload')}>Upload</a>
     </div>
   )

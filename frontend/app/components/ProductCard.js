@@ -24,9 +24,11 @@ export default function ProductCard({ product }) {
   const isLowStock = availableStock > 0 && availableStock <= 5
 
   const tags = Array.isArray(product.tags) ? product.tags : []
-  const discount = product.compare_price && product.compare_price > product.price
-    ? Math.round((1 - product.price / product.compare_price) * 100)
-    : null
+  const discount = Number.isFinite(Number(product.discount_percent))
+    ? Number(product.discount_percent)
+    : (product.compare_price && product.compare_price > product.price
+      ? Math.round((1 - product.price / product.compare_price) * 100)
+      : null)
   const badgeTags = new Set(tags)
   if (isLowStock) badgeTags.add('low_stock')
 

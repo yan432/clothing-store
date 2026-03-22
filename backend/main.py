@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 import os
+import random
+import string
 from urllib.parse import unquote, urlparse
 import uuid
 from typing import Any, Optional
@@ -96,6 +98,33 @@ class CheckoutRequest(BaseModel):
     city: Optional[str] = None
     zip: Optional[str] = None
     country: Optional[str] = None
+    promo_code: Optional[str] = None
+
+
+class PromoCodeCreate(BaseModel):
+    code: Optional[str] = None
+    discount_type: str
+    discount_value: Optional[float] = None
+    expires_at: Optional[str] = None
+    usage_limit: Optional[int] = None
+
+
+class PromoCodeUpdate(BaseModel):
+    code: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    expires_at: Optional[str] = None
+    usage_limit: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
+class PromoCodeValidateResponse(BaseModel):
+    valid: bool
+    code: Optional[str] = None
+    discount_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    discount_amount: float = 0.0
+    message: Optional[str] = None
 
 
 def now_iso() -> str:
@@ -152,6 +181,81 @@ def stock_snapshot_for_product(product: dict) -> dict:
     }
 
 
+def compute_discount_percent(price: Any, compare_price: Any) -> Optional[int]:
+    try:
+        current = float(price or 0)
+        previous = float(compare_price or 0)
+    except (TypeError, ValueError):
+        return None
+    if previous <= 0 or previous <= current:
+        return None
+    return int(round((previous - current) / previous * 100))
+
+
+def normalize_promo_code(value: Optional[str]) -> str:
+    return str(value or "").strip().upper()
+
+
+def generate_random_promo_code(length: int = 8) -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    return "".join(random.choice(alphabet) for _ in range(length))
+
+
+def get_active_promo_row(code: str) -> Optional[dict]:
+    normalized = normalize_promo_code(code)
+    if not normalized:
+        return None
+    result = supabase.table("promo_codes").select("*").eq("code", normalized).limit(1).execute()
+    if not result.data:
+        return None
+    promo = result.data[0]
+    if promo.get("is_active") is False:
+        return None
+    expires_at = promo.get("expires_at")
+    if expires_at:
+        try:
+            expires_dt = datetime.fromisoformat(str(expires_at).replace("Z", "+00:00"))
+            if expires_dt <= datetime.now(timezone.utc):
+                return None
+        except ValueError:
+            return None
+    usage_limit = promo.get("usage_limit")
+    used_count = int(promo.get("used_count") or 0)
+    if usage_limit is not None and int(usage_limit) <= used_count:
+        return None
+    return promo
+
+
+def promo_discount_amount(subtotal: float, promo: dict, shipping_cost: float = 0.0) -> float:
+    subtotal_safe = max(0.0, float(subtotal or 0))
+    shipping_safe = max(0.0, float(shipping_cost or 0))
+    dtype = str(promo.get("discount_type") or "").lower()
+    value = float(promo.get("discount_value") or 0)
+    if dtype == "free_shipping":
+        return round(shipping_safe, 2)
+    if subtotal_safe <= 0 or value <= 0:
+        return 0.0
+    if dtype == "percent":
+        raw = subtotal_safe * (value / 100.0)
+        return round(min(subtotal_safe, raw), 2)
+    if dtype == "fixed":
+        return round(min(subtotal_safe, value), 2)
+    return 0.0
+
+
+def increment_promo_usage_if_needed(order: dict) -> None:
+    metadata = as_dict(order.get("metadata_json"))
+    promo_code = normalize_promo_code(metadata.get("promo_code"))
+    if not promo_code:
+        return
+    data = supabase.table("promo_codes").select("id, used_count").eq("code", promo_code).limit(1).execute()
+    if not data.data:
+        return
+    promo = data.data[0]
+    used_count = int(promo.get("used_count") or 0)
+    supabase.table("promo_codes").update({"used_count": used_count + 1}).eq("id", promo["id"]).execute()
+
+
 def get_product_row(product_id: int) -> dict:
     data = supabase.table("products").select("*").eq("id", product_id).execute()
     if not data.data:
@@ -206,6 +310,7 @@ def _decorate_product_with_images(product: dict) -> dict:
         "image_urls": image_urls,
         "tags": compute_auto_tags(product),
         "compare_price": product.get("compare_price"),
+        "discount_percent": compute_discount_percent(product.get("price"), product.get("compare_price")),
     }
 
 def reserve_stock(items: list[dict]) -> None:
@@ -318,6 +423,7 @@ def get_products():
             **stock_snapshot_for_product(p),
             "tags": compute_auto_tags(p),
             "compare_price": p.get("compare_price"),
+            "discount_percent": compute_discount_percent(p.get("price"), p.get("compare_price")),
         }
         for p in products
     ]
@@ -462,6 +568,129 @@ def delete_product_image(product_id: int, payload: ProductImageDelete):
         raise HTTPException(status_code=404, detail="Товар не найден")
     return _decorate_product_with_images(data.data[0])
 
+
+@app.get("/promo-codes/validate")
+def validate_promo_code(code: str, subtotal: float = 0.0, shipping: float = 0.0):
+    normalized = normalize_promo_code(code)
+    if not normalized:
+        return PromoCodeValidateResponse(valid=False, message="Enter promo code")
+    promo = get_active_promo_row(normalized)
+    if not promo:
+        return PromoCodeValidateResponse(valid=False, message="Promo code is invalid or expired")
+    discount_amount = promo_discount_amount(subtotal, promo, shipping)
+    if discount_amount <= 0:
+        return PromoCodeValidateResponse(valid=False, message="Promo code does not apply")
+    return PromoCodeValidateResponse(
+        valid=True,
+        code=normalized,
+        discount_type=promo.get("discount_type"),
+        discount_value=float(promo.get("discount_value") or 0),
+        discount_amount=discount_amount,
+        message="Promo code applied",
+    )
+
+
+@app.get("/promo-codes/admin")
+def list_promo_codes_admin():
+    data = supabase.table("promo_codes").select("*").order("created_at", desc=True).limit(300).execute()
+    return data.data or []
+
+
+@app.post("/promo-codes")
+def create_promo_code(payload: PromoCodeCreate):
+    discount_type = str(payload.discount_type or "").lower()
+    if discount_type not in ("percent", "fixed", "free_shipping"):
+        raise HTTPException(status_code=400, detail="discount_type must be percent, fixed, or free_shipping")
+    discount_value = float(payload.discount_value or 0)
+    if discount_type in ("percent", "fixed") and discount_value <= 0:
+        raise HTTPException(status_code=400, detail="discount_value must be > 0")
+    if discount_type == "percent" and discount_value > 100:
+        raise HTTPException(status_code=400, detail="percent discount cannot exceed 100")
+    if discount_type == "free_shipping":
+        discount_value = 0.0
+
+    code = normalize_promo_code(payload.code)
+    if not code:
+        for _ in range(8):
+            candidate = generate_random_promo_code(8)
+            exists = supabase.table("promo_codes").select("id").eq("code", candidate).limit(1).execute()
+            if not exists.data:
+                code = candidate
+                break
+    if not code:
+        raise HTTPException(status_code=500, detail="Failed to generate promo code")
+
+    usage_limit = payload.usage_limit
+    if usage_limit is not None and int(usage_limit) < 1:
+        raise HTTPException(status_code=400, detail="usage_limit must be >= 1")
+
+    existing = supabase.table("promo_codes").select("id").eq("code", code).limit(1).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Promo code already exists")
+
+    insert_payload = {
+        "code": code,
+        "discount_type": discount_type,
+        "discount_value": discount_value,
+        "expires_at": payload.expires_at,
+        "usage_limit": int(usage_limit) if usage_limit is not None else None,
+        "used_count": 0,
+        "is_active": True,
+    }
+    data = supabase.table("promo_codes").insert(insert_payload).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create promo code")
+    return data.data[0]
+
+
+@app.put("/promo-codes/{promo_id}")
+def update_promo_code(promo_id: int, payload: PromoCodeUpdate):
+    updates = payload.dict(exclude_unset=True)
+    existing_result = supabase.table("promo_codes").select("*").eq("id", promo_id).limit(1).execute()
+    if not existing_result.data:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+    existing = existing_result.data[0]
+
+    if "code" in updates and updates["code"] is not None:
+        updates["code"] = normalize_promo_code(updates["code"])
+        if not updates["code"]:
+            raise HTTPException(status_code=400, detail="Code cannot be empty")
+        duplicate = supabase.table("promo_codes").select("id").eq("code", updates["code"]).neq("id", promo_id).limit(1).execute()
+        if duplicate.data:
+            raise HTTPException(status_code=400, detail="Promo code already exists")
+
+    next_discount_type = str(updates.get("discount_type", existing.get("discount_type")) or "").lower()
+    if next_discount_type not in ("percent", "fixed", "free_shipping"):
+        raise HTTPException(status_code=400, detail="discount_type must be percent, fixed, or free_shipping")
+    updates["discount_type"] = next_discount_type
+
+    if next_discount_type == "free_shipping":
+        updates["discount_value"] = 0.0
+    else:
+        next_discount_value = float(updates.get("discount_value", existing.get("discount_value")) or 0)
+        if next_discount_value <= 0:
+            raise HTTPException(status_code=400, detail="discount_value must be > 0")
+        if next_discount_type == "percent" and next_discount_value > 100:
+            raise HTTPException(status_code=400, detail="percent discount cannot exceed 100")
+        updates["discount_value"] = next_discount_value
+
+    if "usage_limit" in updates and updates["usage_limit"] is not None and int(updates["usage_limit"]) < 1:
+        raise HTTPException(status_code=400, detail="usage_limit must be >= 1")
+
+    data = supabase.table("promo_codes").update(updates).eq("id", promo_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+    return data.data[0]
+
+
+@app.delete("/promo-codes/{promo_id}")
+def delete_promo_code(promo_id: int):
+    data = supabase.table("promo_codes").delete().eq("id", promo_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Promo code not found")
+    return {"message": "Promo code deleted"}
+
+
 SHIPPING_COST = 30.0
 
 @app.post("/checkout")
@@ -470,7 +699,7 @@ def create_checkout(request: CheckoutRequest):
         raise HTTPException(status_code=400, detail="Cart is empty")
 
     normalized_items = []
-    amount_total = 0.0
+    subtotal = 0.0
     line_items = []
 
     for item in request.items:
@@ -485,7 +714,7 @@ def create_checkout(request: CheckoutRequest):
             "size": item.size,
         }
         normalized_items.append(normalized_item)
-        amount_total += price * qty
+        subtotal += price * qty
         line_items.append({
             "price_data": {
                 "currency": "eur",
@@ -502,28 +731,50 @@ def create_checkout(request: CheckoutRequest):
             "quantity": qty,
         })
 
-    line_items.append({
-        "price_data": {
-            "currency": "eur",
-            "product_data": {"name": "Shipping"},
-            "unit_amount": int(SHIPPING_COST * 100),
-        },
-        "quantity": 1,
-    })
-    amount_total += SHIPPING_COST
+    promo = None
+    promo_discount = 0.0
+    promo_type = None
+    normalized_promo_code = normalize_promo_code(request.promo_code)
+    if normalized_promo_code:
+        promo = get_active_promo_row(normalized_promo_code)
+        if not promo:
+            raise HTTPException(status_code=400, detail="Promo code is invalid or expired")
+        promo_type = str(promo.get("discount_type") or "").lower()
+        promo_discount = promo_discount_amount(subtotal, promo, SHIPPING_COST)
+        if promo_discount <= 0:
+            raise HTTPException(status_code=400, detail="Promo code does not apply")
+
+    should_charge_shipping = promo_type != "free_shipping"
+    if should_charge_shipping:
+        line_items.append({
+            "price_data": {
+                "currency": "eur",
+                "product_data": {"name": "Shipping"},
+                "unit_amount": int(SHIPPING_COST * 100),
+            },
+            "quantity": 1,
+        })
+    amount_total = subtotal - promo_discount + (SHIPPING_COST if should_charge_shipping else 0.0)
 
     reserve_stock(normalized_items)
     client_reference_id = str(uuid.uuid4())
     created_order = None
 
     try:
+        metadata_json = {"source": "web_checkout"}
+        if promo:
+            metadata_json["promo_code"] = promo.get("code")
+            metadata_json["promo_discount_type"] = promo.get("discount_type")
+            metadata_json["promo_discount_value"] = promo.get("discount_value")
+            metadata_json["promo_discount_amount"] = promo_discount
+
         order_insert = supabase.table("orders").insert({
             "client_reference_id": client_reference_id,
             "status": ORDER_PENDING,
             "currency": "eur",
             "amount_total": round(amount_total, 2),
             "items_json": normalized_items,
-            "metadata_json": {"source": "web_checkout"},
+            "metadata_json": metadata_json,
             "email": request.customer_email,
             "phone": request.phone,
             "shipping_name": f"{request.first_name or ''} {request.last_name or ''}".strip(),
@@ -538,99 +789,33 @@ def create_checkout(request: CheckoutRequest):
             raise HTTPException(status_code=500, detail="Failed to create order")
         created_order = order_insert.data[0]
 
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card", "paypal", "klarna", "apple_pay", "google_pay", "link"],
-            line_items=line_items,
-            mode="payment",
-            client_reference_id=client_reference_id,
-            customer_email=request.customer_email,
-            metadata={
-                "client_reference_id": client_reference_id,
-                "order_id": str(created_order.get("id")),
-            },
-            success_url=request.success_url + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=request.cancel_url,
-        )
-        session_dict = stripe_obj_to_dict(session)
-        supabase.table("orders").update({
-            "stripe_session_id": session.id,
-            "updated_at": now_iso(),
-        }).eq("id", created_order["id"]).execute()
-        return {"url": session.url}
-
-    except HTTPException:
-        release_reserved_stock(normalized_items)
-        raise
-    except Exception as exc:
-        release_reserved_stock(normalized_items)
-        if created_order:
-            supabase.table("orders").update({
-                "status": ORDER_PAYMENT_FAILED,
-                "failed_at": now_iso(),
-                "updated_at": now_iso(),
-            }).eq("id", created_order["id"]).execute()
-        raise HTTPException(status_code=500, detail=f"Checkout creation failed: {exc}")
-    line_items = []
-    for item in request.items:
-        qty = max(1, int(item.quantity))
-        price = max(0.01, float(item.price))
-        normalized_item = {
-            "id": int(item.id),
-            "name": item.name,
-            "price": price,
-            "quantity": qty,
-            "image_url": item.image_url,
-            "size": item.size,
-        }
-        normalized_items.append(normalized_item)
-        amount_total += price * qty
-        line_items.append({
-            "price_data": {
-                "currency": "eur",
-                "product_data": {
-                    "name": item.name,
-                    "images": [item.image_url] if item.image_url else [],
-                    "metadata": {
-                        "product_id": str(item.id),
-                        "size": item.size or "",
-                    },
-                },
-                "unit_amount": int(price * 100),
-            },
-            "quantity": qty,
-        })
-
-    reserve_stock(normalized_items)
-    client_reference_id = str(uuid.uuid4())
-    created_order = None
-
-    try:
-        order_insert = supabase.table("orders").insert({
-    "client_reference_id": client_reference_id,
-    "status": ORDER_PENDING,
-    "currency": "eur",
-    "amount_total": round(amount_total, 2),
-    "items_json": normalized_items,
-    "metadata_json": {"source": "web_checkout"},
-    "email": request.customer_email,
-    "phone": request.phone,
-    "shipping_name": f"{request.first_name or ''} {request.last_name or ''}".strip(),
-    "shipping_line1": request.address,
-    "shipping_city": request.city,
-    "shipping_postal_code": request.zip,
-    "shipping_country": request.country,
-    "created_at": now_iso(),
-    "updated_at": now_iso(),
-}).execute()
-        if not order_insert.data:
-            raise HTTPException(status_code=500, detail="Failed to create order")
-        created_order = order_insert.data[0]
+        stripe_discounts = None
+        if promo and promo_type in ("percent", "fixed"):
+            promo_value = float(promo.get("discount_value") or 0)
+            if promo_type == "percent":
+                coupon = stripe.Coupon.create(
+                    duration="once",
+                    percent_off=promo_value,
+                    name=f"Promo {promo.get('code')}",
+                    metadata={"promo_code": str(promo.get("code") or "")},
+                )
+                stripe_discounts = [{"coupon": coupon.id}]
+            elif promo_type == "fixed":
+                coupon = stripe.Coupon.create(
+                    duration="once",
+                    amount_off=int(round(promo_value * 100)),
+                    currency="eur",
+                    name=f"Promo {promo.get('code')}",
+                    metadata={"promo_code": str(promo.get("code") or "")},
+                )
+                stripe_discounts = [{"coupon": coupon.id}]
 
         session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
+            discounts=stripe_discounts,
             billing_address_collection="required",
             shipping_address_collection={
                 "allowed_countries": [
@@ -643,6 +828,7 @@ def create_checkout(request: CheckoutRequest):
             metadata={
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
+                "promo_code": str(promo.get("code")) if promo else "",
             },
             success_url=request.success_url + "?session_id={CHECKOUT_SESSION_ID}",
             cancel_url=request.cancel_url,
@@ -652,17 +838,19 @@ def create_checkout(request: CheckoutRequest):
         expires_at_iso = None
         if expires_at_epoch:
             expires_at_iso = datetime.fromtimestamp(expires_at_epoch, tz=timezone.utc).isoformat()
+
         supabase.table("orders").update({
             "stripe_session_id": session.id,
             "stripe_payment_intent_id": session_dict.get("payment_intent"),
             "stripe_customer_id": session_dict.get("customer"),
             "session_json": session_dict,
-            "email": as_dict(session_dict.get("customer_details")).get("email"),
+            "email": as_dict(session_dict.get("customer_details")).get("email") or request.customer_email,
             **extract_shipping_fields(session_dict),
             "expires_at": expires_at_iso,
             "updated_at": now_iso(),
         }).eq("id", created_order["id"]).execute()
         return {"url": session.url}
+
     except HTTPException:
         release_reserved_stock(normalized_items)
         raise
@@ -673,7 +861,6 @@ def create_checkout(request: CheckoutRequest):
                 "status": ORDER_PAYMENT_FAILED,
                 "failed_at": now_iso(),
                 "updated_at": now_iso(),
-                "event_json": {"error": str(exc)},
             }).eq("id", created_order["id"]).execute()
         raise HTTPException(status_code=500, detail=f"Checkout creation failed: {exc}")
 
@@ -736,6 +923,7 @@ async def stripe_webhook(request: Request):
     changed = False
     if target_status == ORDER_PAID and current_status == ORDER_PENDING:
         finalize_paid_stock(items)
+        increment_promo_usage_if_needed(order)
         changed = True
     elif target_status in (ORDER_PAYMENT_FAILED, ORDER_CANCELLED) and current_status == ORDER_PENDING:
         release_reserved_stock(items)
