@@ -472,7 +472,7 @@ def create_checkout(request: CheckoutRequest):
         amount_total += price * qty
         line_items.append({
             "price_data": {
-                "currency": "usd",
+                "currency": "eur",
                 "product_data": {
                     "name": item.name,
                     "images": [item.image_url] if item.image_url else [],
@@ -488,7 +488,7 @@ def create_checkout(request: CheckoutRequest):
 
     line_items.append({
         "price_data": {
-            "currency": "usd",
+            "currency": "eur",
             "product_data": {"name": "Shipping"},
             "unit_amount": int(SHIPPING_COST * 100),
         },
@@ -504,7 +504,7 @@ def create_checkout(request: CheckoutRequest):
         order_insert = supabase.table("orders").insert({
             "client_reference_id": client_reference_id,
             "status": ORDER_PENDING,
-            "currency": "usd",
+            "currency": "eur",
             "amount_total": round(amount_total, 2),
             "items_json": normalized_items,
             "metadata_json": {"source": "web_checkout"},
@@ -523,7 +523,7 @@ def create_checkout(request: CheckoutRequest):
         created_order = order_insert.data[0]
 
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
+            payment_method_types=["card", "paypal", "klarna", "apple_pay", "google_pay", "link"],
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
@@ -570,7 +570,7 @@ def create_checkout(request: CheckoutRequest):
         amount_total += price * qty
         line_items.append({
             "price_data": {
-                "currency": "usd",
+                "currency": "eur",
                 "product_data": {
                     "name": item.name,
                     "images": [item.image_url] if item.image_url else [],
@@ -592,7 +592,7 @@ def create_checkout(request: CheckoutRequest):
         order_insert = supabase.table("orders").insert({
     "client_reference_id": client_reference_id,
     "status": ORDER_PENDING,
-    "currency": "usd",
+    "currency": "eur",
     "amount_total": round(amount_total, 2),
     "items_json": normalized_items,
     "metadata_json": {"source": "web_checkout"},

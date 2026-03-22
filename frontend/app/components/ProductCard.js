@@ -12,9 +12,9 @@ export default function ProductCard({ product }) {
     : (product.image_url ? [product.image_url] : [])
   const primaryImage = images[0]
   const secondaryImage = images[1]
-  const priceLabel = new Intl.NumberFormat('en-US', {
+  const priceLabel = new Intl.NumberFormat('de-DE', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'EUR',
   }).format(price)
   const availableStock = product.available_stock ?? product.stock ?? 0
   const isInStock = availableStock > 0

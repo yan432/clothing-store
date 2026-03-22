@@ -13,7 +13,7 @@ export async function GET() {
       <g:description>${p.description || p.name}</g:description>
       <g:link>${baseUrl}/products/${p.id}</g:link>
       <g:image_link>${(Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''}</g:image_link>
-      <g:price>${p.price} USD</g:price>
+      <g:price>${p.price} EUR</g:price>
       <g:availability>${p.stock > 0 ? 'in stock' : 'out of stock'}</g:availability>
       <g:condition>new</g:condition>
       <g:brand>STORE</g:brand>

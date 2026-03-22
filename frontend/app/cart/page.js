@@ -1,39 +1,15 @@
 'use client'
 import { useCart } from '../context/CartContext'
-import { useState } from 'react'
+
+const steps = [
+  { n: 1, label: 'Cart', active: true },
+  { n: 2, label: 'Details', active: false },
+  { n: 3, label: 'Confirm', disabled: true },
+  { n: 4, label: 'Payment', disabled: true },
+]
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
-  const [promo, setPromo] = useState('')
-  const [promoApplied, setPromoApplied] = useState(null)
-  const [promoError, setPromoError] = useState('')
-
-  const PROMO_CODES = {
-    'WELCOME10': { discount: 0.10, label: '10% off' },
-    'SAVE20': { discount: 0.20, label: '20% off' },
-  }
-
-  function applyPromo() {
-    const code = promo.trim().toUpperCase()
-    if (PROMO_CODES[code]) {
-      setPromoApplied({ code, ...PROMO_CODES[code] })
-      setPromoError('')
-    } else {
-      setPromoError('Invalid promo code')
-      setPromoApplied(null)
-    }
-  }
-
-  const SHIPPING = 30
-  const discount = promoApplied ? total * promoApplied.discount : 0
-  const finalTotal = total - discount + SHIPPING
-
-  const steps = [
-    { n: 1, label: 'Cart', active: true },
-    { n: 2, label: 'Details', active: false },
-    { n: 3, label: 'Shipping', disabled: true },
-    { n: 4, label: 'Payment', disabled: true },
-  ]
 
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
@@ -109,7 +85,7 @@ export default function CartPage() {
                   <div style={{flex:1}}>
                     <p style={{fontWeight:600,fontSize:15,margin:'0 0 2px'}}>{item.name}</p>
                     {item.size && <p style={{fontSize:13,color:'#888',margin:'0 0 2px'}}>Size: {item.size}</p>}
-                    <p style={{fontSize:13,color:'#aaa',margin:0}}>${item.price}</p>
+                    <p style={{fontSize:13,color:'#aaa',margin:0}}>€{item.price}</p>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
                     <button onClick={() => updateQty(item.id, item.qty - 1, item.size)}
@@ -119,7 +95,7 @@ export default function CartPage() {
                       style={{width:32,height:32,borderRadius:'50%',border:'1.5px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
                   </div>
                   <div style={{textAlign:'right',minWidth:80}}>
-                    <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>${(item.price * item.qty).toFixed(2)}</p>
+                    <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>€{(item.price * item.qty).toFixed(2)}</p>
                     <button onClick={() => removeFromCart(item.id, item.size)}
                       style={{background:'none',border:'none',cursor:'pointer',color:'#bbb',fontSize:12,textDecoration:'underline',padding:0}}>
                       Remove
@@ -148,47 +124,24 @@ export default function CartPage() {
                     <p style={{fontSize:14,fontWeight:500,margin:'0 0 2px'}}>{item.name}</p>
                     <p style={{fontSize:12,color:'#aaa',margin:0}}>x{item.qty}{item.size ? ` • ${item.size}` : ''}</p>
                   </div>
-                  <p style={{fontSize:14,fontWeight:500,margin:0}}>${(item.price*item.qty).toFixed(2)}</p>
+                  <p style={{fontSize:14,fontWeight:500,margin:0}}>€{(item.price*item.qty).toFixed(2)}</p>
                 </div>
               ))}
             </div>
 
-            <div style={{marginBottom:16}}>
-              <div style={{display:'flex',gap:8}}>
-                <input type="text" placeholder="Promo code" value={promo}
-                  onChange={e => { setPromo(e.target.value); setPromoError('') }}
-                  onKeyDown={e => e.key === 'Enter' && applyPromo()}
-                  style={{flex:1,padding:'10px 14px',borderRadius:10,border:'1px solid #e5e5e3',fontSize:13,outline:'none',background:'#fff'}}/>
-                <button onClick={applyPromo}
-                  style={{padding:'10px 16px',borderRadius:10,border:'1.5px solid #000',background:'#fff',fontSize:13,fontWeight:500,cursor:'pointer'}}>
-                  Apply
-                </button>
-              </div>
-              {promoError && <p style={{fontSize:12,color:'#ef4444',margin:'6px 0 0'}}>{promoError}</p>}
-              {promoApplied && (
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:8,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8,padding:'6px 12px'}}>
-                  <span style={{fontSize:13,color:'#166534',fontWeight:500}}>{promoApplied.code} — {promoApplied.label}</span>
-                  <button onClick={() => { setPromoApplied(null); setPromo('') }}
-                    style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:16,padding:0}}>×</button>
-                </div>
-              )}
-            </div>
-
             <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-                <span>Subtotal</span><span>${total.toFixed(2)}</span>
+                <span>Subtotal</span><span>€{total.toFixed(2)}</span>
               </div>
-              {promoApplied && (
-                <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#16a34a'}}>
-                  <span>Discount</span><span>−${discount.toFixed(2)}</span>
-                </div>
-              )}
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-                <span>Shipping</span><span>$30.00</span>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#aaa'}}>
+                <span>Shipping</span><span>Calculated at next step</span>
               </div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4}}>
-                <span>Total</span><span>${finalTotal.toFixed(2)}</span>
+                <span>Total</span><span>€{total.toFixed(2)}</span>
               </div>
+              <p style={{fontSize:11,color:'#bbb',margin:'4px 0 0',lineHeight:1.5}}>
+                Promo codes and shipping cost will be applied at the confirmation step.
+              </p>
             </div>
 
             <button onClick={() => window.location.href = '/checkout'}

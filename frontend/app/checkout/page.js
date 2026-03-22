@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useRouter } from 'next/navigation'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -49,7 +50,7 @@ const COUNTRIES = [
 const steps = [
   { n: 1, label: 'Cart', done: true },
   { n: 2, label: 'Details', active: true },
-  { n: 3, label: 'Shipping', disabled: true },
+  { n: 3, label: 'Confirm', disabled: true },
   { n: 4, label: 'Payment', disabled: true },
 ]
 
@@ -85,6 +86,7 @@ function StepBar() {
 export default function CheckoutPage() {
   const { cart, total } = useCart()
   const { user, signIn, signUp } = useAuth()
+  const router = useRouter()
   const [mode, setMode] = useState('guest')
   const [loading, setLoading] = useState(false)
   const [authError, setAuthError] = useState('')
@@ -131,41 +133,10 @@ export default function CheckoutPage() {
     setLoading(false)
   }
 
-  async function handleContinue() {
+  function handleContinue() {
     if (!validate()) return
-    setLoading(true)
-    try {
-      const res = await fetch('https://clothing-store-production-983f.up.railway.app/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: cart.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: parseFloat(item.price),
-            quantity: item.qty,
-            image_url: item.image_url || null,
-            size: item.size || null,
-          })),
-          customer_email: form.email,
-          first_name: form.firstName,
-          last_name: form.lastName,
-          phone: form.phone,
-          address: form.address,
-          city: form.city,
-          zip: form.zip,
-          country: form.country,
-          success_url: 'https://project-e38lc.vercel.app/success',
-          cancel_url: 'https://project-e38lc.vercel.app/cart',
-        }),
-      })
-      const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else alert('Error: ' + JSON.stringify(data))
-    } catch (e) {
-      alert('Something went wrong: ' + e.message)
-    }
-    setLoading(false)
+    sessionStorage.setItem('checkout_details', JSON.stringify(form))
+    router.push('/confirm')
   }
 
   const inputStyle = (key) => ({
@@ -256,13 +227,13 @@ export default function CheckoutPage() {
           </div>
 
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <button onClick={() => window.location.href = '/cart'}
+            <button onClick={() => router.push('/cart')}
               style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
               ← Back
             </button>
-            <button onClick={handleContinue} disabled={loading || cart.length === 0}
-              style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer',opacity:loading?0.6:1}}>
-              {loading ? 'Processing...' : 'Continue to payment'}
+            <button onClick={handleContinue} disabled={cart.length === 0}
+              style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer'}}>
+              Continue to confirm
             </button>
           </div>
         </div>
@@ -279,19 +250,16 @@ export default function CheckoutPage() {
                   <p style={{fontSize:14,fontWeight:500,margin:'0 0 2px'}}>{item.name}</p>
                   <p style={{fontSize:12,color:'#aaa',margin:0}}>x{item.qty}{item.size ? ` • ${item.size}` : ''}</p>
                 </div>
-                <p style={{fontSize:14,fontWeight:500,margin:0}}>${(item.price*item.qty).toFixed(2)}</p>
+                <p style={{fontSize:14,fontWeight:500,margin:0}}>€{(item.price*item.qty).toFixed(2)}</p>
               </div>
             ))}
           </div>
           <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Subtotal</span><span>${total.toFixed(2)}</span>
+              <span>Subtotal</span><span>€{total.toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Shipping</span><span>$30.00</span>
-            </div>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4}}>
-              <span>Total</span><span>${(total + 30).toFixed(2)}</span>
+              <span>Shipping</span><span style={{color:'#aaa'}}>Calculated next step</span>
             </div>
           </div>
           <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:16,lineHeight:1.5}}>
