@@ -79,6 +79,13 @@ class CheckoutRequest(BaseModel):
     success_url: str = "https://project-e38lc.vercel.app/success"
     cancel_url: str = "https://project-e38lc.vercel.app/cart"
     customer_email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    zip: Optional[str] = None
+    country: Optional[str] = None
 
 
 def now_iso() -> str:
@@ -278,7 +285,26 @@ def root():
 @app.get("/products")
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    return [_decorate_product_with_images(p) for p in data.data]
+    products = data.data
+    
+    # Чтобы не тормозило, мы возвращаем image_urls из базы, 
+    # НО если колонка пустая, мы один раз ее заполним
+    enriched_products = []
+    for p in products:
+        # Если в базе нет массива картинок или он пустой
+        if not p.get("image_urls"):
+            # Тянем из стораджа (медленно, но только один раз)
+            urls = _storage_public_urls_for_product(p["id"])
+            # Сразу сохраняем в базу, чтобы в следующий раз было мгновенно
+            supabase.table("products").update({"image_urls": urls}).eq("id", p["id"]).execute()
+            p["image_urls"] = urls
+        
+        enriched_products.append({
+            **p,
+            **stock_snapshot_for_product(p)
+        })
+        
+    return enriched_products
 
 
 @app.get("/products/admin")
@@ -301,13 +327,22 @@ def get_product_admin(product_id: int):
 @app.post("/products")
 def create_product(product: Product):
     payload = product.dict()
-    if payload.get("available_stock") is None:
-        payload["available_stock"] = payload.get("stock", 0)
-    if payload.get("reserved_stock") is None:
-        payload["reserved_stock"] = 0
-    payload["stock"] = payload["available_stock"]
+    # ... твоя логика остатков ...
+    
+    # Перед вставкой в базу, один раз вызываем сканирование папки
+    # (для одного товара при создании это не затормозит систему)
+    temp_id = str(uuid.uuid4()) # или используй логику получения ID после вставки
+    
+    # Вставляем запись
     data = supabase.table("products").insert(payload).execute()
-    return data.data[0]
+    new_product = data.data[0]
+    
+    # Опционально: после вставки можно обновить image_urls, 
+    # если ты уже загрузил файлы в Storage в папку с ID товара
+    urls = _storage_public_urls_for_product(new_product["id"])
+    supabase.table("products").update({"image_urls": urls}).eq("id", new_product["id"]).execute()
+    
+    return {**new_product, "image_urls": urls}
 
 
 @app.put("/products/{product_id}")
@@ -455,15 +490,22 @@ def create_checkout(request: CheckoutRequest):
 
     try:
         order_insert = supabase.table("orders").insert({
-            "client_reference_id": client_reference_id,
-            "status": ORDER_PENDING,
-            "currency": "usd",
-            "amount_total": round(amount_total, 2),
-            "items_json": normalized_items,
-            "metadata_json": {"source": "web_checkout"},
-            "created_at": now_iso(),
-            "updated_at": now_iso(),
-        }).execute()
+    "client_reference_id": client_reference_id,
+    "status": ORDER_PENDING,
+    "currency": "usd",
+    "amount_total": round(amount_total, 2),
+    "items_json": normalized_items,
+    "metadata_json": {"source": "web_checkout"},
+    "email": request.customer_email,
+    "phone": request.phone,
+    "shipping_name": f"{request.first_name or ''} {request.last_name or ''}".strip(),
+    "shipping_line1": request.address,
+    "shipping_city": request.city,
+    "shipping_postal_code": request.zip,
+    "shipping_country": request.country,
+    "created_at": now_iso(),
+    "updated_at": now_iso(),
+}).execute()
         if not order_insert.data:
             raise HTTPException(status_code=500, detail="Failed to create order")
         created_order = order_insert.data[0]
