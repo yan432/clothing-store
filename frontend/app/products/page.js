@@ -177,8 +177,8 @@ export default async function ProductsPage({ searchParams }) {
           <p style={{fontSize:14,color:'#aaa',margin:0}}>{sorted.length} items</p>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[220px_1fr] md:items-start">
-          <aside className="hidden md:block md:sticky md:top-[88px]">
+        <div className="products-layout">
+          <aside className="products-categories-sidebar">
             <p style={{fontSize:13,color:'#666',margin:'0 0 12px',fontWeight:600}}>{categoriesPanelTitle}</p>
             <div style={{display:'flex',flexDirection:'column',gap:6}}>
               <a
@@ -210,7 +210,7 @@ export default async function ProductsPage({ searchParams }) {
           </aside>
 
           <section>
-            <details className="md:hidden" style={{marginBottom:12}}>
+            <details className="products-categories-mobile" style={{marginBottom:12}}>
               <summary style={{listStyle:'none',cursor:'pointer',border:'1px solid #222',padding:'10px 14px',fontSize:14,background:'#fff'}}>
                 {categoriesPanelTitle}
               </summary>

@@ -21,11 +21,14 @@ export default function ProductCard({ product }) {
 
   const availableStock = product.available_stock ?? product.stock ?? 0
   const description = (product.description || '').trim()
+  const isLowStock = availableStock > 0 && availableStock <= 5
 
   const tags = Array.isArray(product.tags) ? product.tags : []
   const discount = product.compare_price && product.compare_price > product.price
     ? Math.round((1 - product.price / product.compare_price) * 100)
     : null
+  const badgeTags = new Set(tags)
+  if (isLowStock) badgeTags.add('low_stock')
 
   const BADGE = {
     new:       { label: 'New',           bg: '#000',    color: '#fff' },
@@ -35,7 +38,7 @@ export default function ProductCard({ product }) {
   }
 
   const visibleTags = ['sold_out', 'sale', 'low_stock', 'new']
-    .filter(t => tags.includes(t) || (t === 'sale' && discount))
+    .filter(t => badgeTags.has(t) || (t === 'sale' && discount))
     .slice(0, 2)
 
   useEffect(() => {
@@ -102,17 +105,6 @@ export default function ProductCard({ product }) {
       {BADGE[tag].label}
     </span>
   ))}
-  {availableStock > 0 && availableStock <= 5 && !tags.includes('sold_out') && (
-    <span style={{
-      fontSize:10,fontWeight:700,padding:'4px 9px',borderRadius:999,
-      letterSpacing:'0.06em',textTransform:'uppercase',
-      display:'inline-block',width:'fit-content',
-      background:'rgba(255,255,255,0.92)',color:'#1a1a18',
-      border:'1px solid #e5e5e0',
-    }}>
-      Only {availableStock} left
-    </span>
-  )}
 </div>
 
 

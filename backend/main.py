@@ -41,6 +41,9 @@ ORDER_CANCELLED = "cancelled"
 class Product(BaseModel):
     name: str
     description: Optional[str] = None
+    material_care: Optional[str] = None
+    product_details: Optional[str] = None
+    fit_info: Optional[str] = None
     price: float
     compare_price: Optional[float] = None
     image_url: Optional[str] = None
@@ -55,6 +58,9 @@ class Product(BaseModel):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    material_care: Optional[str] = None
+    product_details: Optional[str] = None
+    fit_info: Optional[str] = None
     price: Optional[float] = None
     compare_price: Optional[float] = None
     image_url: Optional[str] = None

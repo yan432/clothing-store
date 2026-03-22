@@ -12,6 +12,9 @@ export default function NewProductClient() {
   const [form, setForm] = useState({
     name: '',
     description: '',
+    material_care: '',
+    product_details: '',
+    fit_info: '',
     category: '',
     image_url: '',
     price: '0',
@@ -45,6 +48,9 @@ export default function NewProductClient() {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
+        material_care: form.material_care.trim(),
+        product_details: form.product_details.trim(),
+        fit_info: form.fit_info.trim(),
         category: form.category.trim(),
         image_url: form.image_url.trim() || null,
         price: nextPrice,
@@ -85,6 +91,9 @@ export default function NewProductClient() {
       setForm({
         name: '',
         description: '',
+        material_care: '',
+        product_details: '',
+        fit_info: '',
         category: '',
         image_url: '',
         price: '0',
@@ -126,6 +135,18 @@ export default function NewProductClient() {
 
           <label style={{fontSize:13,color:'#444'}}>Description
             <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} rows={4} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+          </label>
+
+          <label style={{fontSize:13,color:'#444'}}>Material & care
+            <textarea value={form.material_care} onChange={(e) => setField('material_care', e.target.value)} rows={3} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+          </label>
+
+          <label style={{fontSize:13,color:'#444'}}>More about this product
+            <textarea value={form.product_details} onChange={(e) => setField('product_details', e.target.value)} rows={3} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+          </label>
+
+          <label style={{fontSize:13,color:'#444'}}>Fit
+            <textarea value={form.fit_info} onChange={(e) => setField('fit_info', e.target.value)} rows={3} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
           </label>
 
           <label style={{fontSize:13,color:'#444'}}>Category
