@@ -3,6 +3,7 @@ import { useState } from 'react'
 import AdminOnly from '../../../components/AdminOnly'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { getApiUrl } from '../../../lib/api'
+import { buildSizeTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 
 export default function NewProductClient() {
   const [saving, setSaving] = useState(false)
@@ -23,6 +24,8 @@ export default function NewProductClient() {
     is_hidden: true,
     is_new: false,
     is_sale: false,
+    selected_sizes: [],
+    custom_sizes: '',
     order_mode: 'standard',
     order_priority: '0',
   })
@@ -62,6 +65,7 @@ export default function NewProductClient() {
         tags: [
           form.is_new ? 'new' : null,
           form.is_sale ? 'sale' : null,
+          ...buildSizeTags(form.selected_sizes, form.custom_sizes),
           ...orderTags,
         ].filter(Boolean),
       }
@@ -102,6 +106,8 @@ export default function NewProductClient() {
         is_hidden: true,
         is_new: false,
         is_sale: false,
+        selected_sizes: [],
+        custom_sizes: '',
         order_mode: 'standard',
         order_priority: '0',
       })
@@ -196,6 +202,43 @@ export default function NewProductClient() {
                 onChange={(e) => setField('is_sale', e.target.checked)}
               />
               Label as Sale
+            </label>
+          </div>
+
+          <div style={{border:'1px solid #ecece8',borderRadius:10,padding:12,background:'#fafaf8'}}>
+            <p style={{fontSize:13,color:'#444',margin:'0 0 8px',fontWeight:600}}>Size options</p>
+            <p style={{fontSize:12,color:'#777',margin:'0 0 10px'}}>
+              Leave all unchecked for products without sizes (for example, scarf with no size choice).
+            </p>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(120px, 1fr))',gap:8}}>
+              {SIZE_PRESET_OPTIONS.map((size) => {
+                const checked = form.selected_sizes.includes(size)
+                return (
+                  <label key={size} style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setField('selected_sizes', [...form.selected_sizes, size])
+                        } else {
+                          setField('selected_sizes', form.selected_sizes.filter((s) => s !== size))
+                        }
+                      }}
+                    />
+                    {size}
+                  </label>
+                )
+              })}
+            </div>
+            <label style={{display:'block',marginTop:10,fontSize:13,color:'#444'}}>
+              Custom sizes (comma separated)
+              <input
+                value={form.custom_sizes}
+                onChange={(e) => setField('custom_sizes', e.target.value)}
+                placeholder="Petite, Tall, 32/34"
+                style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
+              />
             </label>
           </div>
 

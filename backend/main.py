@@ -209,33 +209,43 @@ def _decorate_product_with_images(product: dict) -> dict:
     }
 
 def reserve_stock(items: list[dict]) -> None:
-    products_map: dict[int, dict] = {}
+    quantities_by_product: dict[int, int] = {}
     for item in items:
-        product = get_product_row(int(item["id"]))
+        product_id = int(item["id"])
+        qty = max(0, int(item["quantity"]))
+        quantities_by_product[product_id] = quantities_by_product.get(product_id, 0) + qty
+
+    products_map: dict[int, dict] = {}
+    for product_id, qty in quantities_by_product.items():
+        product = get_product_row(product_id)
         available = get_available_stock_value(product)
-        if available < int(item["quantity"]):
+        if available < qty:
             raise HTTPException(
                 status_code=400,
-                detail=f"Not enough stock for product {item['id']}",
+                detail=f"Not enough stock for product {product_id}",
             )
-        products_map[int(item["id"])] = product
+        products_map[product_id] = product
 
-    for item in items:
-        product = products_map[int(item["id"])]
-        qty = int(item["quantity"])
+    for product_id, qty in quantities_by_product.items():
+        product = products_map[product_id]
         available = get_available_stock_value(product)
         reserved = get_reserved_stock_value(product)
         supabase.table("products").update({
             "available_stock": available - qty,
             "reserved_stock": reserved + qty,
             "stock": available - qty,
-        }).eq("id", int(item["id"])).execute()
+        }).eq("id", product_id).execute()
 
 
 def release_reserved_stock(items: list[dict]) -> None:
+    quantities_by_product: dict[int, int] = {}
     for item in items:
-        product = get_product_row(int(item["id"]))
-        qty = int(item["quantity"])
+        product_id = int(item["id"])
+        qty = max(0, int(item["quantity"]))
+        quantities_by_product[product_id] = quantities_by_product.get(product_id, 0) + qty
+
+    for product_id, qty in quantities_by_product.items():
+        product = get_product_row(product_id)
         available = get_available_stock_value(product)
         reserved = get_reserved_stock_value(product)
         new_reserved = max(0, reserved - qty)
@@ -244,19 +254,24 @@ def release_reserved_stock(items: list[dict]) -> None:
             "available_stock": available + returned,
             "reserved_stock": new_reserved,
             "stock": available + returned,
-        }).eq("id", int(item["id"])).execute()
+        }).eq("id", product_id).execute()
 
 
 def finalize_paid_stock(items: list[dict]) -> None:
+    quantities_by_product: dict[int, int] = {}
     for item in items:
-        product = get_product_row(int(item["id"]))
-        qty = int(item["quantity"])
+        product_id = int(item["id"])
+        qty = max(0, int(item["quantity"]))
+        quantities_by_product[product_id] = quantities_by_product.get(product_id, 0) + qty
+
+    for product_id, qty in quantities_by_product.items():
+        product = get_product_row(product_id)
         reserved = get_reserved_stock_value(product)
         new_reserved = max(0, reserved - qty)
         supabase.table("products").update({
             "reserved_stock": new_reserved,
             "stock": get_available_stock_value(product),
-        }).eq("id", int(item["id"])).execute()
+        }).eq("id", product_id).execute()
 
 
 def find_order(client_reference_id: Optional[str], stripe_session_id: Optional[str]) -> Optional[dict]:

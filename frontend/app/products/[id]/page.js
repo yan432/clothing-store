@@ -1,6 +1,7 @@
 import AddToCartButton from '../../components/AddToCartButton'
 import ProductGallery from '../../components/ProductGallery'
 import { getApiUrl } from '../../lib/api'
+import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 
 async function getProduct(id) {
   const res = await fetch(getApiUrl('/products/' + id), { cache: 'no-store' })
@@ -46,6 +47,7 @@ export default async function ProductPage({ params }) {
     style: 'currency',
     currency: 'EUR',
   }).format(Number(product.price || 0))
+  const sizeOptions = parseSizeOptionsFromTags(product.tags)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -100,9 +102,11 @@ export default async function ProductPage({ params }) {
               {!isInStock ? 'Out of stock' : isLowStock ? 'LOW STOCK' : 'In stock'}
             </p>
 
-            <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
-              We recommend choosing your regular size.
-            </div>
+            {sizeOptions.length > 0 && (
+              <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
+                We recommend choosing your regular size.
+              </div>
+            )}
 
             <AddToCartButton product={product} showSizeSelector />
 

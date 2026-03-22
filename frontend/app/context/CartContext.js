@@ -17,7 +17,24 @@ export function CartProvider({ children }) {
     localStorage.setItem('cart', JSON.stringify(items))
   }
 
+  function getMaxStock(item) {
+    return Math.max(0, Number(item?.available_stock ?? item?.stock ?? 0))
+  }
+
+  function getQtyForProduct(productId, ignoreSize = null) {
+    return cart.reduce((sum, item) => {
+      if (item.id !== productId) return sum
+      if (ignoreSize != null && item.size === ignoreSize) return sum
+      return sum + item.qty
+    }, 0)
+  }
+
   function addToCart(product) {
+    const maxStock = getMaxStock(product)
+    if (maxStock <= 0) return { ok: false, reason: 'out_of_stock' }
+    const currentQty = getQtyForProduct(product.id)
+    if (currentQty >= maxStock) return { ok: false, reason: 'max_reached' }
+
     const existing = cart.find(i => i.id === product.id && i.size === product.size)
     if (existing) {
       save(cart.map(i => (i.id === product.id && i.size === product.size) ? {...i, qty: i.qty + 1} : i))
@@ -25,6 +42,7 @@ export function CartProvider({ children }) {
       save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
     setDrawerOpen(true)
+    return { ok: true }
   }
 
   function removeFromCart(id, size) {
@@ -33,7 +51,19 @@ export function CartProvider({ children }) {
 
   function updateQty(id, qty, size) {
     if (qty < 1) return removeFromCart(id, size)
-    save(cart.map(i => (i.id === id && i.size === size) ? {...i, qty} : i))
+    const target = cart.find((i) => i.id === id && i.size === size)
+    if (!target) return
+
+    const maxStock = getMaxStock(target)
+    const otherQty = cart.reduce((sum, item) => {
+      if (item.id !== id) return sum
+      if (item.size === size) return sum
+      return sum + item.qty
+    }, 0)
+    const maxForLine = Math.max(0, maxStock - otherQty)
+    if (maxForLine < 1) return removeFromCart(id, size)
+    const nextQty = Math.min(qty, maxForLine)
+    save(cart.map(i => (i.id === id && i.size === size) ? {...i, qty: nextQty} : i))
   }
 
   function clearCart() { save([]) }
