@@ -446,6 +446,7 @@ def delete_product_image(product_id: int, payload: ProductImageDelete):
         raise HTTPException(status_code=404, detail="Товар не найден")
     return _decorate_product_with_images(data.data[0])
 
+SHIPPING_COST = 30.0
 
 @app.post("/checkout")
 def create_checkout(request: CheckoutRequest):
@@ -454,6 +455,105 @@ def create_checkout(request: CheckoutRequest):
 
     normalized_items = []
     amount_total = 0.0
+    line_items = []
+
+    for item in request.items:
+        qty = max(1, int(item.quantity))
+        price = max(0.01, float(item.price))
+        normalized_item = {
+            "id": int(item.id),
+            "name": item.name,
+            "price": price,
+            "quantity": qty,
+            "image_url": item.image_url,
+            "size": item.size,
+        }
+        normalized_items.append(normalized_item)
+        amount_total += price * qty
+        line_items.append({
+            "price_data": {
+                "currency": "usd",
+                "product_data": {
+                    "name": item.name,
+                    "images": [item.image_url] if item.image_url else [],
+                    "metadata": {
+                        "product_id": str(item.id),
+                        "size": item.size or "",
+                    },
+                },
+                "unit_amount": int(price * 100),
+            },
+            "quantity": qty,
+        })
+
+    line_items.append({
+        "price_data": {
+            "currency": "usd",
+            "product_data": {"name": "Shipping"},
+            "unit_amount": int(SHIPPING_COST * 100),
+        },
+        "quantity": 1,
+    })
+    amount_total += SHIPPING_COST
+
+    reserve_stock(normalized_items)
+    client_reference_id = str(uuid.uuid4())
+    created_order = None
+
+    try:
+        order_insert = supabase.table("orders").insert({
+            "client_reference_id": client_reference_id,
+            "status": ORDER_PENDING,
+            "currency": "usd",
+            "amount_total": round(amount_total, 2),
+            "items_json": normalized_items,
+            "metadata_json": {"source": "web_checkout"},
+            "email": request.customer_email,
+            "phone": request.phone,
+            "shipping_name": f"{request.first_name or ''} {request.last_name or ''}".strip(),
+            "shipping_line1": request.address,
+            "shipping_city": request.city,
+            "shipping_postal_code": request.zip,
+            "shipping_country": request.country,
+            "created_at": now_iso(),
+            "updated_at": now_iso(),
+        }).execute()
+        if not order_insert.data:
+            raise HTTPException(status_code=500, detail="Failed to create order")
+        created_order = order_insert.data[0]
+
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            client_reference_id=client_reference_id,
+            customer_email=request.customer_email,
+            metadata={
+                "client_reference_id": client_reference_id,
+                "order_id": str(created_order.get("id")),
+            },
+            success_url=request.success_url + "?session_id={CHECKOUT_SESSION_ID}",
+            cancel_url=request.cancel_url,
+        )
+        session_dict = stripe_obj_to_dict(session)
+        supabase.table("orders").update({
+            "stripe_session_id": session.id,
+            "updated_at": now_iso(),
+        }).eq("id", created_order["id"]).execute()
+        return {"url": session.url}
+
+    except HTTPException:
+        release_reserved_stock(normalized_items)
+        raise
+    except Exception as exc:
+        release_reserved_stock(normalized_items)
+        if created_order:
+            supabase.table("orders").update({
+                "status": ORDER_PAYMENT_FAILED,
+                "failed_at": now_iso(),
+                "updated_at": now_iso(),
+            }).eq("id", created_order["id"]).execute()
+        raise HTTPException(status_code=500, detail=f"Checkout creation failed: {exc}")
     line_items = []
     for item in request.items:
         qty = max(1, int(item.quantity))

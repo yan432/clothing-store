@@ -16,28 +16,22 @@ export function CartProvider({ children }) {
     localStorage.setItem('cart', JSON.stringify(items))
   }
 
-  function getLineKey(product) {
-    const sizePart = product.size || 'no-size'
-    return `${product.id}:${sizePart}`
-  }
-
   function addToCart(product) {
-    const lineKey = getLineKey(product)
-    const existing = cart.find(i => i.lineKey === lineKey)
+    const existing = cart.find(i => i.id === product.id && i.size === product.size)
     if (existing) {
-      save(cart.map(i => i.lineKey === lineKey ? {...i, qty: i.qty + 1} : i))
+      save(cart.map(i => (i.id === product.id && i.size === product.size) ? {...i, qty: i.qty + 1} : i))
     } else {
-     save([...cart, {...product, lineKey, price: parseFloat(product.price), qty: 1}])
+      save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
   }
 
-  function removeFromCart(lineKey) {
-    save(cart.filter(i => i.lineKey !== lineKey))
+  function removeFromCart(id, size) {
+    save(cart.filter(i => !(i.id === id && i.size === size)))
   }
 
-  function updateQty(lineKey, qty) {
-    if (qty < 1) return removeFromCart(lineKey)
-    save(cart.map(i => i.lineKey === lineKey ? {...i, qty} : i))
+  function updateQty(id, qty, size) {
+    if (qty < 1) return removeFromCart(id, size)
+    save(cart.map(i => (i.id === id && i.size === size) ? {...i, qty} : i))
   }
 
   function clearCart() {

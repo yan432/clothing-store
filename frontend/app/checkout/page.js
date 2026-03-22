@@ -186,12 +186,10 @@ export default function CheckoutPage() {
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
       <StepBar />
-
       <div style={{display:'grid',gridTemplateColumns:'1fr 380px',gap:32,alignItems:'start'}}>
         <div>
           <h1 style={{fontSize:24,fontWeight:600,margin:'0 0 24px'}}>Details</h1>
 
-          {/* Auth toggle */}
           {!user && (
             <div style={{marginBottom:28}}>
               <div style={{display:'flex',gap:8,marginBottom:20}}>
@@ -206,7 +204,6 @@ export default function CheckoutPage() {
                   </button>
                 ))}
               </div>
-
               {(mode === 'login' || mode === 'register') && (
                 <form onSubmit={handleAuth} style={{display:'flex',flexDirection:'column',gap:12,maxWidth:420,marginBottom:24}}>
                   {authError && (
@@ -233,7 +230,6 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Contact */}
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Contact</p>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
@@ -244,7 +240,6 @@ export default function CheckoutPage() {
             <Field placeholder="Phone * e.g. +49 151 23456789" fieldKey="phone" type="tel" />
           </div>
 
-          {/* Address */}
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:32}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Shipping address</p>
             <Field placeholder="Street address *" fieldKey="address" />
@@ -260,13 +255,18 @@ export default function CheckoutPage() {
             </select>
           </div>
 
-          <button onClick={handleContinue} disabled={loading || cart.length === 0}
-            style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer',opacity:loading?0.6:1}}>
-            {loading ? 'Processing...' : 'Continue to payment'}
-          </button>
+          <div style={{display:'flex',gap:12,alignItems:'center'}}>
+            <button onClick={() => window.location.href = '/cart'}
+              style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
+              ← Back
+            </button>
+            <button onClick={handleContinue} disabled={loading || cart.length === 0}
+              style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer',opacity:loading?0.6:1}}>
+              {loading ? 'Processing...' : 'Continue to payment'}
+            </button>
+          </div>
         </div>
 
-        {/* Order summary */}
         <div style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>
           <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>Order summary</h2>
           <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
@@ -288,10 +288,10 @@ export default function CheckoutPage() {
               <span>Subtotal</span><span>${total.toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Shipping</span><span>Calculated at checkout</span>
+              <span>Shipping</span><span>$30.00</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4}}>
-              <span>Total</span><span>${total.toFixed(2)}</span>
+              <span>Total</span><span>${(total + 30).toFixed(2)}</span>
             </div>
           </div>
           <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:16,lineHeight:1.5}}>
