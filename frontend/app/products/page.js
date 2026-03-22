@@ -1,4 +1,5 @@
 import ProductCard from '../components/ProductCard'
+import { getApiUrl } from '../lib/api'
 
 export const metadata = {
   title: 'All Products',
@@ -10,13 +11,21 @@ export const metadata = {
 }
 
 async function getProducts() {
-  const res = await fetch('https://clothing-store-production-983f.up.railway.app/products', { cache: 'no-store' })
-  if (!res.ok) throw new Error('Failed to fetch')
-  return res.json()
+  try {
+    const apiUrl = getApiUrl('/products')
+    const res = await fetch(apiUrl, { cache: 'no-store' })
+    if (!res.ok) {
+      return { products: [], fetchError: 'Catalog is temporarily unavailable. Please try again in a moment.' }
+    }
+    const data = await res.json()
+    return { products: Array.isArray(data) ? data : [], fetchError: '' }
+  } catch {
+    return { products: [], fetchError: 'Catalog is temporarily unavailable. Please try again in a moment.' }
+  }
 }
 
 export default async function ProductsPage({ searchParams }) {
-  const products = await getProducts()
+  const { products, fetchError } = await getProducts()
   const params = await searchParams
   const normalizeList = (value) => {
     if (Array.isArray(value)) return value.filter(Boolean)
@@ -157,6 +166,11 @@ export default async function ProductsPage({ searchParams }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}/>
       <main style={{maxWidth:1200,margin:'0 auto',padding:'48px 24px'}}>
+        {fetchError && (
+          <div style={{marginBottom:16,border:'1px solid #fecaca',background:'#fef2f2',color:'#b91c1c',borderRadius:10,padding:'10px 12px',fontSize:14}}>
+            {fetchError}
+          </div>
+        )}
 
         <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:32}}>
           <h1 style={{fontSize:28,fontWeight:600,margin:0}}>{pageTitle}</h1>

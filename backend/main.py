@@ -290,26 +290,16 @@ def root():
 @app.get("/products")
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    
-  
-    # Чтобы не тормозило, мы возвращаем image_urls из базы, 
-    # НО если колонка пустая, мы один раз ее заполним
-    enriched_products = []
-    for p in products:
-        # Если в базе нет массива картинок или он пустой
-        if not p.get("image_urls"):
-            # Тянем из стораджа (медленно, но только один раз)
-            urls = _storage_public_urls_for_product(p["id"])
-            # Сразу сохраняем в базу, чтобы в следующий раз было мгновенно
-            supabase.table("products").update({"image_urls": urls}).eq("id", p["id"]).execute()
-            p["image_urls"] = urls
-        
-        enriched_products.append({
+    products = data.data or []
+    return [
+        {
             **p,
-            **stock_snapshot_for_product(p)
-        })
-        
-    return [{**p, **stock_snapshot_for_product(p), "tags": compute_auto_tags(p)} for p in data.data]
+            **stock_snapshot_for_product(p),
+            "tags": compute_auto_tags(p),
+            "compare_price": p.get("compare_price"),
+        }
+        for p in products
+    ]
 
 
 @app.get("/products/admin")
