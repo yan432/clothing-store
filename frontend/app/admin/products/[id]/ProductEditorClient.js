@@ -5,6 +5,7 @@ import { getApiUrl } from '../../../lib/api'
 import AdminTopBar from '../../../components/AdminTopBar'
 
 export default function ProductEditorClient({ id }) {
+  const MANAGED_TAG_PREFIXES = ['new', 'sale', 'order:fixed', 'order:random', 'order:priority:']
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -12,15 +13,21 @@ export default function ProductEditorClient({ id }) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [product, setProduct] = useState(null)
+  const [baseTags, setBaseTags] = useState([])
   const [form, setForm] = useState({
     name: '',
     description: '',
     category: '',
     image_url: '',
     price: '0',
+    compare_price: '',
     available_stock: '0',
     reserved_stock: '0',
     is_hidden: false,
+    is_new: false,
+    is_sale: false,
+    order_mode: 'standard',
+    order_priority: '0',
   })
 
   useEffect(() => {
@@ -33,15 +40,35 @@ export default function ProductEditorClient({ id }) {
         const p = await res.json()
         if (!mounted) return
         setProduct(p)
+        const tags = Array.isArray(p.tags) ? p.tags : []
+        const cleanedBaseTags = tags.filter((tag) => (
+          !MANAGED_TAG_PREFIXES.some((prefix) => (
+            prefix.endsWith(':') ? String(tag).startsWith(prefix) : tag === prefix
+          ))
+        ))
+        const priorityTag = tags.find((tag) => String(tag).startsWith('order:priority:'))
+        const parsedPriority = priorityTag ? Number(String(priorityTag).split('order:priority:')[1]) : 0
+        const orderMode = tags.includes('order:fixed')
+          ? 'mandatory'
+          : tags.includes('order:random')
+            ? 'random'
+            : 'standard'
+        const hasCompareSale = Number(p.compare_price || 0) > Number(p.price || 0)
+        setBaseTags(cleanedBaseTags)
         setForm({
           name: p.name || '',
           description: p.description || '',
           category: p.category || '',
           image_url: p.image_url || '',
           price: String(p.price ?? 0),
+          compare_price: p.compare_price != null ? String(p.compare_price) : '',
           available_stock: String(p.available_stock ?? p.stock ?? 0),
           reserved_stock: String(p.reserved_stock ?? 0),
           is_hidden: Boolean(p.is_hidden),
+          is_new: tags.includes('new'),
+          is_sale: tags.includes('sale') || hasCompareSale,
+          order_mode: orderMode,
+          order_priority: String(Number.isFinite(parsedPriority) ? parsedPriority : 0),
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -71,15 +98,38 @@ export default function ProductEditorClient({ id }) {
     setError('')
     setMessage('')
     try {
+      const nextPrice = Number(form.price || 0)
+      const nextComparePrice = Number(form.compare_price || 0)
+      const nextOrderPriority = Math.max(0, Number(form.order_priority || 0))
+      const orderTags = form.order_mode === 'mandatory'
+        ? ['order:fixed', `order:priority:${nextOrderPriority}`]
+        : form.order_mode === 'random'
+          ? ['order:random']
+          : []
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category.trim(),
         image_url: form.image_url.trim() || null,
-        price: Number(form.price || 0),
+        price: nextPrice,
+        compare_price: form.is_sale ? nextComparePrice : null,
         available_stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: Math.max(0, Number(form.reserved_stock || 0)),
         is_hidden: Boolean(form.is_hidden),
+        tags: [
+          ...baseTags,
+          form.is_new ? 'new' : null,
+          form.is_sale ? 'sale' : null,
+          ...orderTags,
+        ].filter(Boolean),
+      }
+      if (payload.price < 0) throw new Error('Price must be >= 0')
+      if (form.is_sale) {
+        if (!form.compare_price) throw new Error('Set old price for Sale')
+        if (nextComparePrice <= nextPrice) throw new Error('Old price must be greater than current price')
+      }
+      if (form.order_mode === 'mandatory' && Number.isNaN(nextOrderPriority)) {
+        throw new Error('Set mandatory order priority')
       }
       const res = await fetch(getApiUrl('/products/' + id), {
         method: 'PUT',
@@ -279,7 +329,7 @@ export default function ProductEditorClient({ id }) {
             </div>
 
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
-              <label style={{fontSize:13,color:'#444'}}>Price
+              <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price' : 'Price'}
                 <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setField('price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
               <label style={{fontSize:13,color:'#444'}}>Available stock
@@ -289,6 +339,11 @@ export default function ProductEditorClient({ id }) {
                 <input type="number" min="0" value={form.reserved_stock} onChange={(e) => setField('reserved_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
             </div>
+            {form.is_sale && (
+              <label style={{fontSize:13,color:'#444'}}>Old price (before discount)
+                <input type="number" step="0.01" min="0" value={form.compare_price} onChange={(e) => setField('compare_price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+              </label>
+            )}
 
             <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
               <input
@@ -298,6 +353,49 @@ export default function ProductEditorClient({ id }) {
               />
               Hidden (not visible in storefront)
             </label>
+            <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
+              <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.is_new)}
+                  onChange={(e) => setField('is_new', e.target.checked)}
+                />
+                Label as New
+              </label>
+              <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.is_sale)}
+                  onChange={(e) => setField('is_sale', e.target.checked)}
+                />
+                Label as Sale
+              </label>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+              <label style={{fontSize:13,color:'#444'}}>Default listing order
+                <select
+                  value={form.order_mode}
+                  onChange={(e) => setField('order_mode', e.target.value)}
+                  style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#fff'}}
+                >
+                  <option value="standard">Standard</option>
+                  <option value="mandatory">Mandatory position</option>
+                  <option value="random">Random rotation</option>
+                </select>
+              </label>
+              {form.order_mode === 'mandatory' && (
+                <label style={{fontSize:13,color:'#444'}}>Mandatory priority (lower first)
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={form.order_priority}
+                    onChange={(e) => setField('order_priority', e.target.value)}
+                    style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
+                  />
+                </label>
+              )}
+            </div>
 
             <button
               type="submit"

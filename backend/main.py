@@ -42,23 +42,27 @@ class Product(BaseModel):
     name: str
     description: Optional[str] = None
     price: float
+    compare_price: Optional[float] = None
     image_url: Optional[str] = None
     category: Optional[str] = None
     stock: int = 0
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
     is_hidden: bool = False
+    tags: list = []
 
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
+    compare_price: Optional[float] = None
     image_url: Optional[str] = None
     category: Optional[str] = None
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
     is_hidden: Optional[bool] = None
+    tags: Optional[list] = None
 
 
 class ProductImageDelete(BaseModel):
@@ -194,8 +198,9 @@ def _decorate_product_with_images(product: dict) -> dict:
         **stock_snapshot_for_product(product),
         "image_url": cover,
         "image_urls": image_urls,
+        "tags": compute_auto_tags(product),
+        "compare_price": product.get("compare_price"),
     }
-
 
 def reserve_stock(items: list[dict]) -> None:
     products_map: dict[int, dict] = {}
@@ -285,8 +290,8 @@ def root():
 @app.get("/products")
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    products = data.data
     
+  
     # Чтобы не тормозило, мы возвращаем image_urls из базы, 
     # НО если колонка пустая, мы один раз ее заполним
     enriched_products = []
@@ -304,7 +309,7 @@ def get_products():
             **stock_snapshot_for_product(p)
         })
         
-    return enriched_products
+    return [{**p, **stock_snapshot_for_product(p), "tags": compute_auto_tags(p)} for p in data.data]
 
 
 @app.get("/products/admin")
@@ -661,6 +666,20 @@ def create_checkout(request: CheckoutRequest):
             }).eq("id", created_order["id"]).execute()
         raise HTTPException(status_code=500, detail=f"Checkout creation failed: {exc}")
 
+def compute_auto_tags(product: dict) -> list:
+    tags = list(product.get("tags") or [])
+    available = get_available_stock_value(product)
+    
+    # Убираем авто-теги чтобы пересчитать
+    auto_tags = {"low_stock", "sold_out"}
+    tags = [t for t in tags if t not in auto_tags]
+    
+    if available == 0:
+        tags.append("sold_out")
+    elif available < 5:
+        tags.append("low_stock")
+    
+    return tags
 
 @app.post("/webhooks/stripe")
 async def stripe_webhook(request: Request):

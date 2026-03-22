@@ -15,8 +15,13 @@ export default function NewProductClient() {
     category: '',
     image_url: '',
     price: '0',
+    compare_price: '',
     available_stock: '0',
     is_hidden: true,
+    is_new: false,
+    is_sale: false,
+    order_mode: 'standard',
+    order_priority: '0',
   })
 
   function setField(field, value) {
@@ -29,20 +34,41 @@ export default function NewProductClient() {
     setError('')
     setMessage('')
     try {
+      const nextPrice = Number(form.price || 0)
+      const nextComparePrice = Number(form.compare_price || 0)
+      const nextOrderPriority = Math.max(0, Number(form.order_priority || 0))
+      const orderTags = form.order_mode === 'mandatory'
+        ? ['order:fixed', `order:priority:${nextOrderPriority}`]
+        : form.order_mode === 'random'
+          ? ['order:random']
+          : []
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
         category: form.category.trim(),
         image_url: form.image_url.trim() || null,
-        price: Number(form.price || 0),
+        price: nextPrice,
+        compare_price: form.is_sale ? nextComparePrice : null,
         available_stock: Math.max(0, Number(form.available_stock || 0)),
         stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: 0,
         is_hidden: Boolean(form.is_hidden),
+        tags: [
+          form.is_new ? 'new' : null,
+          form.is_sale ? 'sale' : null,
+          ...orderTags,
+        ].filter(Boolean),
       }
 
       if (!payload.name) throw new Error('Name is required')
       if (payload.price < 0) throw new Error('Price must be >= 0')
+      if (form.is_sale) {
+        if (!form.compare_price) throw new Error('Set old price for Sale')
+        if (nextComparePrice <= nextPrice) throw new Error('Old price must be greater than current price')
+      }
+      if (form.order_mode === 'mandatory' && Number.isNaN(nextOrderPriority)) {
+        throw new Error('Set mandatory order priority')
+      }
 
       const res = await fetch(getApiUrl('/products'), {
         method: 'POST',
@@ -62,8 +88,13 @@ export default function NewProductClient() {
         category: '',
         image_url: '',
         price: '0',
+        compare_price: '',
         available_stock: '0',
         is_hidden: true,
+        is_new: false,
+        is_sale: false,
+        order_mode: 'standard',
+        order_priority: '0',
       })
     } catch (e) {
       setError(e.message || 'Failed to create product')
@@ -106,13 +137,18 @@ export default function NewProductClient() {
           </label>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <label style={{fontSize:13,color:'#444'}}>Price
+            <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price' : 'Price'}
               <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setField('price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
             </label>
             <label style={{fontSize:13,color:'#444'}}>Available stock
               <input type="number" min="0" value={form.available_stock} onChange={(e) => setField('available_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
             </label>
           </div>
+          {form.is_sale && (
+            <label style={{fontSize:13,color:'#444'}}>Old price (before discount)
+              <input type="number" step="0.01" min="0" value={form.compare_price} onChange={(e) => setField('compare_price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+            </label>
+          )}
 
           <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
             <input
@@ -122,6 +158,51 @@ export default function NewProductClient() {
             />
             Create as hidden (draft)
           </label>
+
+          <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
+            <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+              <input
+                type="checkbox"
+                checked={Boolean(form.is_new)}
+                onChange={(e) => setField('is_new', e.target.checked)}
+              />
+              Label as New
+            </label>
+            <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+              <input
+                type="checkbox"
+                checked={Boolean(form.is_sale)}
+                onChange={(e) => setField('is_sale', e.target.checked)}
+              />
+              Label as Sale
+            </label>
+          </div>
+
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+            <label style={{fontSize:13,color:'#444'}}>Default listing order
+              <select
+                value={form.order_mode}
+                onChange={(e) => setField('order_mode', e.target.value)}
+                style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#fff'}}
+              >
+                <option value="standard">Standard</option>
+                <option value="mandatory">Mandatory position</option>
+                <option value="random">Random rotation</option>
+              </select>
+            </label>
+            {form.order_mode === 'mandatory' && (
+              <label style={{fontSize:13,color:'#444'}}>Mandatory priority (lower first)
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.order_priority}
+                  onChange={(e) => setField('order_priority', e.target.value)}
+                  style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
+                />
+              </label>
+            )}
+          </div>
 
           <button
             type="submit"

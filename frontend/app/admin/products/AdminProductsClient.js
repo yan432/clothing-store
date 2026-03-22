@@ -17,6 +17,7 @@ async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
 }
 
 export default function AdminProductsClient() {
+  const ORDER_TAG_PREFIXES = ['order:fixed', 'order:random', 'order:priority:']
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -27,8 +28,11 @@ export default function AdminProductsClient() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [updatingVisibilityId, setUpdatingVisibilityId] = useState(null)
+  const [updatingOrderId, setUpdatingOrderId] = useState(null)
   const [selectedIds, setSelectedIds] = useState([])
   const [bulkSaving, setBulkSaving] = useState(false)
+  const [bulkOrderSaving, setBulkOrderSaving] = useState(false)
+  const [orderDrafts, setOrderDrafts] = useState({})
 
   async function loadProducts() {
     setError('')
@@ -130,6 +134,65 @@ export default function AdminProductsClient() {
     }
   }
 
+  function parseOrderMeta(tagsValue) {
+    const tags = Array.isArray(tagsValue) ? tagsValue : []
+    const priorityTag = tags.find((tag) => String(tag).startsWith('order:priority:'))
+    const parsedPriority = priorityTag ? Number(String(priorityTag).split('order:priority:')[1]) : null
+    const mode = tags.includes('order:fixed')
+      ? 'mandatory'
+      : tags.includes('order:random')
+        ? 'random'
+        : 'standard'
+    return {
+      mode,
+      priority: Number.isFinite(parsedPriority) ? parsedPriority : 0,
+    }
+  }
+
+  function tagsWithOrder(tagsValue, mode, priority) {
+    const tags = Array.isArray(tagsValue) ? tagsValue : []
+    const kept = tags.filter((tag) => (
+      !ORDER_TAG_PREFIXES.some((prefix) => (
+        prefix.endsWith(':') ? String(tag).startsWith(prefix) : tag === prefix
+      ))
+    ))
+    if (mode === 'mandatory') {
+      const safePriority = Math.max(0, Number(priority || 0))
+      return [...kept, 'order:fixed', `order:priority:${safePriority}`]
+    }
+    if (mode === 'random') {
+      return [...kept, 'order:random']
+    }
+    return kept
+  }
+
+  async function updateProductOrder(product, mode, priority) {
+    setError('')
+    setUpdatingOrderId(product.id)
+    try {
+      const nextTags = tagsWithOrder(product.tags, mode, priority)
+      const res = await fetch(getApiUrl('/products/' + product.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: nextTags }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Failed to update order mode')
+      }
+      setProducts((prev) => prev.map((p) => (
+        p.id === product.id ? { ...p, tags: nextTags } : p
+      )))
+      if (mode === 'mandatory') {
+        setOrderDrafts((prev) => ({ ...prev, [product.id]: String(Math.max(0, Number(priority || 0))) }))
+      }
+    } catch (e) {
+      setError(e?.message || 'Failed to update order mode')
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
+
   function toggleSelected(id) {
     setSelectedIds((prev) => (
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -172,6 +235,38 @@ export default function AdminProductsClient() {
       setError(e?.message || 'Bulk update failed')
     } finally {
       setBulkSaving(false)
+    }
+  }
+
+  async function runBulkOrderMode(mode) {
+    if (!selectedIds.length) return
+    setError('')
+    setBulkOrderSaving(true)
+    try {
+      await Promise.all(selectedIds.map(async (id) => {
+        const product = products.find((p) => p.id === id)
+        if (!product) return
+        const nextTags = tagsWithOrder(product.tags, mode, 0)
+        const res = await fetch(getApiUrl('/products/' + id), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tags: nextTags }),
+        })
+        if (!res.ok) {
+          const text = await res.text()
+          throw new Error(text || `Failed to update product #${id}`)
+        }
+      }))
+      setProducts((prev) => prev.map((p) => (
+        selectedIds.includes(p.id)
+          ? { ...p, tags: tagsWithOrder(p.tags, mode, 0) }
+          : p
+      )))
+      setSelectedIds([])
+    } catch (e) {
+      setError(e?.message || 'Bulk order update failed')
+    } finally {
+      setBulkOrderSaving(false)
     }
   }
 
@@ -285,6 +380,27 @@ export default function AdminProductsClient() {
             style={{border:'1px solid #fde68a',borderRadius:999,padding:'6px 10px',fontSize:12,background:'#fffbeb',color:'#92400e',cursor:'pointer',opacity:(!selectedIds.length || bulkSaving) ? 0.6 : 1}}>
             {bulkSaving ? 'Saving...' : `Bulk hide (${selectedIds.length})`}
           </button>
+          <button
+            type="button"
+            onClick={() => runBulkOrderMode('standard')}
+            disabled={!selectedIds.length || bulkOrderSaving}
+            style={{border:'1px solid #ddd',borderRadius:999,padding:'6px 10px',fontSize:12,background:'#fff',color:'#333',cursor:'pointer',opacity:(!selectedIds.length || bulkOrderSaving) ? 0.6 : 1}}>
+            {bulkOrderSaving ? 'Saving...' : `Bulk standard (${selectedIds.length})`}
+          </button>
+          <button
+            type="button"
+            onClick={() => runBulkOrderMode('mandatory')}
+            disabled={!selectedIds.length || bulkOrderSaving}
+            style={{border:'1px solid #c7d2fe',borderRadius:999,padding:'6px 10px',fontSize:12,background:'#eef2ff',color:'#3730a3',cursor:'pointer',opacity:(!selectedIds.length || bulkOrderSaving) ? 0.6 : 1}}>
+            {bulkOrderSaving ? 'Saving...' : `Bulk mandatory (${selectedIds.length})`}
+          </button>
+          <button
+            type="button"
+            onClick={() => runBulkOrderMode('random')}
+            disabled={!selectedIds.length || bulkOrderSaving}
+            style={{border:'1px solid #ddd6fe',borderRadius:999,padding:'6px 10px',fontSize:12,background:'#f5f3ff',color:'#6d28d9',cursor:'pointer',opacity:(!selectedIds.length || bulkOrderSaving) ? 0.6 : 1}}>
+            {bulkOrderSaving ? 'Saving...' : `Bulk random (${selectedIds.length})`}
+          </button>
           <span style={{fontSize:12,color:'#777'}}>Selected: {selectedIds.length}</span>
         </div>
 
@@ -301,7 +417,7 @@ export default function AdminProductsClient() {
           </div>
         ) : (
           <div style={{overflowX:'auto',border:'1px solid #ecece8',borderRadius:14,background:'#fff'}}>
-            <table style={{width:'100%',borderCollapse:'collapse',minWidth:920}}>
+            <table style={{width:'100%',borderCollapse:'collapse',minWidth:1120}}>
               <thead>
                 <tr style={{textAlign:'left',borderBottom:'1px solid #ecece8',background:'#fafaf8'}}>
                   <th style={{padding:'12px 8px',fontSize:12,color:'#666660',width:32}}>
@@ -341,6 +457,7 @@ export default function AdminProductsClient() {
                     </button>
                   </th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Reserved</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Order</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Action</th>
                 </tr>
               </thead>
@@ -381,6 +498,59 @@ export default function AdminProductsClient() {
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.available_stock ?? p.stock ?? 0}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.reserved_stock ?? 0}</td>
                     <td style={{padding:'12px 14px'}}>
+                      {(() => {
+                        const meta = parseOrderMeta(p.tags)
+                        const draftPriority = orderDrafts[p.id] ?? String(meta.priority)
+                        const isSaving = updatingOrderId === p.id
+                        return (
+                          <div style={{display:'flex',flexDirection:'column',gap:6,minWidth:210}}>
+                            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => updateProductOrder(p, 'standard', 0)}
+                                style={{border:'1px solid ' + (meta.mode === 'standard' ? '#111' : '#ddd'),background:meta.mode === 'standard' ? '#111' : '#fff',color:meta.mode === 'standard' ? '#fff' : '#444',borderRadius:999,padding:'4px 8px',fontSize:11,cursor:'pointer',opacity:isSaving ? 0.65 : 1}}>
+                                Standard
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => updateProductOrder(p, 'mandatory', draftPriority)}
+                                style={{border:'1px solid ' + (meta.mode === 'mandatory' ? '#3730a3' : '#c7d2fe'),background:meta.mode === 'mandatory' ? '#3730a3' : '#eef2ff',color:meta.mode === 'mandatory' ? '#fff' : '#3730a3',borderRadius:999,padding:'4px 8px',fontSize:11,cursor:'pointer',opacity:isSaving ? 0.65 : 1}}>
+                                Mandatory
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isSaving}
+                                onClick={() => updateProductOrder(p, 'random', 0)}
+                                style={{border:'1px solid ' + (meta.mode === 'random' ? '#6d28d9' : '#ddd6fe'),background:meta.mode === 'random' ? '#6d28d9' : '#f5f3ff',color:meta.mode === 'random' ? '#fff' : '#6d28d9',borderRadius:999,padding:'4px 8px',fontSize:11,cursor:'pointer',opacity:isSaving ? 0.65 : 1}}>
+                                Random
+                              </button>
+                            </div>
+                            {meta.mode === 'mandatory' && (
+                              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={draftPriority}
+                                  onChange={(e) => setOrderDrafts((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                                  style={{width:72,border:'1px solid #ddd',borderRadius:8,padding:'4px 6px',fontSize:12}}
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isSaving}
+                                  onClick={() => updateProductOrder(p, 'mandatory', draftPriority)}
+                                  style={{border:'1px solid #ddd',background:'#fff',color:'#444',borderRadius:8,padding:'4px 8px',fontSize:11,cursor:'pointer',opacity:isSaving ? 0.65 : 1}}>
+                                  Save prio
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
+                    </td>
+                    <td style={{padding:'12px 14px'}}>
                       <div style={{display:'flex',alignItems:'center',gap:10}}>
                         <a href={`/admin/products/${p.id}`} style={{fontSize:13,color:'#2563eb',textDecoration:'none'}}>Edit</a>
                         <button
@@ -405,7 +575,7 @@ export default function AdminProductsClient() {
                 ))}
                 {paged.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No products found</td>
+                    <td colSpan={10} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No products found</td>
                   </tr>
                 )}
               </tbody>
