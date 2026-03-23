@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
+import { getApiUrl } from '../lib/api'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -100,13 +101,20 @@ function StepBar() {
 
 export default function CheckoutPage() {
   const { cart, total } = useCart()
-  const { user, signIn, signUp } = useAuth()
+  const { user, signIn, signUp, verifySignUpCode, resendSignUpCode, requestPasswordReset } = useAuth()
   const router = useRouter()
   const [mode, setMode] = useState('guest')
   const [loading, setLoading] = useState(false)
   const [authError, setAuthError] = useState('')
+  const [authMessage, setAuthMessage] = useState('')
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
+  const [authConfirmPassword, setAuthConfirmPassword] = useState('')
+  const [authVerifyCode, setAuthVerifyCode] = useState('')
+  const [pendingVerifyEmail, setPendingVerifyEmail] = useState('')
+  const [authNewsletterOptIn, setAuthNewsletterOptIn] = useState(true)
+  const [showAuthPassword, setShowAuthPassword] = useState(false)
+  const [showAuthConfirmPassword, setShowAuthConfirmPassword] = useState(false)
   const [errors, setErrors] = useState({})
 
   const [form, setForm] = useState({
@@ -118,6 +126,17 @@ export default function CheckoutPage() {
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+
+  const registerPasswordChecks = [
+    { id: 'length', label: 'At least 8 characters', valid: authPassword.length >= 8 },
+    { id: 'lower', label: 'At least one lowercase letter', valid: /[a-z]/.test(authPassword) },
+    { id: 'upper', label: 'At least one uppercase letter', valid: /[A-Z]/.test(authPassword) },
+    { id: 'digit', label: 'At least one number', valid: /\d/.test(authPassword) },
+  ]
+  const isRegisterPasswordValid = registerPasswordChecks.every((rule) => rule.valid)
+  const registerPasswordScore = registerPasswordChecks.filter((rule) => rule.valid).length
+  const registerPasswordStrength = registerPasswordScore <= 2 ? 'Weak' : registerPasswordScore === 3 ? 'Medium' : 'Strong'
+  const registerStrengthColor = registerPasswordScore <= 2 ? '#b91c1c' : registerPasswordScore === 3 ? '#b45309' : '#15803d'
 
   function validate() {
     const e = {}
@@ -135,16 +154,86 @@ export default function CheckoutPage() {
   async function handleAuth(e) {
     e.preventDefault()
     setAuthError('')
+    setAuthMessage('')
     setLoading(true)
     if (mode === 'login') {
       const { error } = await signIn(authEmail, authPassword)
       if (error) setAuthError(error.message)
       else { setForm(f => ({...f, email: authEmail})); setMode('guest') }
     } else {
-      const { error } = await signUp(authEmail, authPassword)
+      if (!isRegisterPasswordValid) {
+        setAuthError('Password does not meet security requirements')
+        setLoading(false)
+        return
+      }
+      if (authPassword !== authConfirmPassword) {
+        setAuthError('Passwords do not match')
+        setLoading(false)
+        return
+      }
+      const { error, isExistingUser } = await signUp(authEmail, authPassword)
       if (error) setAuthError(error.message)
-      else setAuthError('Check your email to confirm your account.')
+      else if (isExistingUser) setAuthError('This email is already registered. Please sign in or reset your password.')
+      else {
+        setPendingVerifyEmail(authEmail.trim().toLowerCase())
+        setAuthMessage('Enter the verification code from your email.')
+      }
     }
+    setLoading(false)
+  }
+
+  async function handleForgotPassword() {
+    setAuthError('')
+    setAuthMessage('')
+    const targetEmail = authEmail.trim().toLowerCase() || form.email.trim().toLowerCase()
+    if (!targetEmail) {
+      setAuthError('Enter your email first')
+      return
+    }
+    setLoading(true)
+    const { error } = await requestPasswordReset(targetEmail)
+    if (error) setAuthError(error.message)
+    else setAuthMessage('Password reset link sent to your email.')
+    setLoading(false)
+  }
+
+  async function handleVerifyCode(e) {
+    e.preventDefault()
+    if (!pendingVerifyEmail || !authVerifyCode.trim()) return
+    setAuthError('')
+    setAuthMessage('')
+    setLoading(true)
+    const { error } = await verifySignUpCode(pendingVerifyEmail, authVerifyCode.trim())
+    if (error) {
+      setAuthError(error.message)
+      setLoading(false)
+      return
+    }
+    if (authNewsletterOptIn) {
+      try {
+        await fetch(getApiUrl('/email-subscribers/capture'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingVerifyEmail, source: 'signup_checkout' }),
+        })
+      } catch (_) {}
+    }
+    setForm((f) => ({ ...f, email: pendingVerifyEmail }))
+    setPendingVerifyEmail('')
+    setAuthVerifyCode('')
+    setMode('guest')
+    setAuthMessage('Email verified. You can continue checkout.')
+    setLoading(false)
+  }
+
+  async function handleResendCode() {
+    if (!pendingVerifyEmail) return
+    setAuthError('')
+    setAuthMessage('')
+    setLoading(true)
+    const { error } = await resendSignUpCode(pendingVerifyEmail)
+    if (error) setAuthError(error.message)
+    else setAuthMessage('New verification code sent.')
     setLoading(false)
   }
 
@@ -171,7 +260,17 @@ export default function CheckoutPage() {
             <div style={{marginBottom:28}}>
               <div style={{display:'flex',gap:8,marginBottom:20}}>
                 {[['guest','Continue as guest'],['login','Sign in'],['register','Register']].map(([m,label]) => (
-                  <button key={m} onClick={() => { setMode(m); setAuthError('') }}
+                  <button key={m} onClick={() => {
+                    setMode(m)
+                    setAuthError('')
+                    setAuthMessage('')
+                    setAuthPassword('')
+                    setAuthConfirmPassword('')
+                    setPendingVerifyEmail('')
+                    setAuthVerifyCode('')
+                    setShowAuthPassword(false)
+                    setShowAuthConfirmPassword(false)
+                  }}
                     style={{padding:'8px 18px',borderRadius:999,fontSize:13,fontWeight:500,border:'1.5px solid',cursor:'pointer',
                       borderColor: mode === m ? '#000' : '#e5e5e3',
                       background: mode === m ? '#000' : '#fff',
@@ -182,21 +281,108 @@ export default function CheckoutPage() {
                 ))}
               </div>
               {(mode === 'login' || mode === 'register') && (
+                <>
                 <form onSubmit={handleAuth} style={{display:'flex',flexDirection:'column',gap:12,maxWidth:420,marginBottom:24}}>
                   {authError && (
                     <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,padding:'10px 16px',fontSize:13,color:'#dc2626'}}>
                       {authError}
                     </div>
                   )}
+                  {authMessage && (
+                    <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'10px 16px',fontSize:13,color:'#166534'}}>
+                      {authMessage}
+                    </div>
+                  )}
                   <input type="email" placeholder="Email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required
                     style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none'}}/>
-                  <input type="password" placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required
-                    style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none'}}/>
+                  <div style={{position:'relative'}}>
+                    <input type={showAuthPassword ? 'text' : 'password'} placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required
+                      style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}/>
+                    <button
+                      type="button"
+                      onClick={() => setShowAuthPassword((v) => !v)}
+                      style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
+                    >
+                      {showAuthPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      disabled={loading}
+                      style={{background:'none',border:'none',padding:0,textAlign:'left',fontSize:13,color:'#555',textDecoration:'underline',cursor:'pointer',width:'fit-content'}}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                  {mode === 'register' && (
+                    <>
+                      <div style={{position:'relative'}}>
+                        <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder="Confirm password" value={authConfirmPassword} onChange={e => setAuthConfirmPassword(e.target.value)} required
+                          style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}/>
+                        <button
+                          type="button"
+                          onClick={() => setShowAuthConfirmPassword((v) => !v)}
+                          style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
+                        >
+                          {showAuthConfirmPassword ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                      <div style={{border:'1px solid #ecece8',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#666'}}>
+                        <p style={{margin:'0 0 6px',fontWeight:600,color:registerStrengthColor}}>Password strength: {registerPasswordStrength}</p>
+                        {registerPasswordChecks.map((rule) => (
+                          <p key={rule.id} style={{margin:'2px 0',color:rule.valid ? '#15803d' : '#666'}}>
+                            {rule.valid ? '✓' : '•'} {rule.label}
+                          </p>
+                        ))}
+                      </div>
+                      <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#555',cursor:'pointer'}}>
+                        <input
+                          type="checkbox"
+                          checked={authNewsletterOptIn}
+                          onChange={(e) => setAuthNewsletterOptIn(e.target.checked)}
+                        />
+                        I want to receive newsletter updates
+                      </label>
+                    </>
+                  )}
                   <button type="submit" disabled={loading}
                     style={{background:'#000',color:'#fff',border:'none',padding:'13px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',opacity:loading?0.6:1}}>
                     {loading ? 'Loading...' : mode === 'login' ? 'Sign in' : 'Create account'}
                   </button>
                 </form>
+              {mode === 'register' && pendingVerifyEmail && (
+                <form onSubmit={handleVerifyCode} style={{display:'flex',flexDirection:'column',gap:10,maxWidth:420,marginBottom:24,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
+                  <p style={{margin:0,fontSize:13,color:'#555'}}>Verification code for <strong>{pendingVerifyEmail}</strong></p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="Enter code"
+                    value={authVerifyCode}
+                    onChange={(e) => setAuthVerifyCode(e.target.value)}
+                    style={{padding:'12px 14px',borderRadius:10,border:'1px solid #e5e5e3',fontSize:14,outline:'none'}}
+                  />
+                  <div style={{display:'flex',gap:8}}>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      style={{background:'#000',color:'#fff',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'none',cursor:'pointer',opacity: loading ? 0.6 : 1}}
+                    >
+                      Verify code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      disabled={loading}
+                      style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
+                    >
+                      Resend code
+                    </button>
+                  </div>
+                </form>
+              )}
+                </>
               )}
             </div>
           )}

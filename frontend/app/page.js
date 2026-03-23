@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
 
@@ -17,7 +18,29 @@ async function getNewArrivals() {
   }
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }) {
+  const params = searchParams || {}
+  const recoveryType = String(params.type || '')
+  const hasRecoveryPayload =
+    recoveryType === 'recovery' ||
+    Boolean(params.token) ||
+    Boolean(params.token_hash) ||
+    Boolean(params.code)
+
+  if (hasRecoveryPayload) {
+    const qp = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value == null) return
+      if (Array.isArray(value)) {
+        value.forEach((v) => qp.append(key, String(v)))
+      } else {
+        qp.set(key, String(value))
+      }
+    })
+    const query = qp.toString()
+    redirect(query ? `/auth/reset?${query}` : '/auth/reset')
+  }
+
   const { hero, promoTiles, spotlight, arrivals } = homepageContent
   const newArrivals = await getNewArrivals()
   const arrivalCards = newArrivals.length > 0

@@ -24,7 +24,26 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function signUp(email, password) {
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
+    const identities = Array.isArray(data?.user?.identities) ? data.user.identities : null
+    const isExistingUser = !error && identities !== null && identities.length === 0
+    return { data, error, isExistingUser }
+  }
+
+  async function verifySignUpCode(email, code) {
+    const { error } = await supabase.auth.verifyOtp({
+      type: 'signup',
+      email,
+      token: code,
+    })
+    return { error }
+  }
+
+  async function resendSignUpCode(email) {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    })
     return { error }
   }
 
@@ -37,10 +56,24 @@ export function AuthProvider({ children }) {
     await supabase.auth.signOut()
   }
 
+  async function requestPasswordReset(email) {
+    const redirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/auth/reset`
+        : undefined
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    return { error }
+  }
+
+  async function updatePassword(nextPassword) {
+    const { error } = await supabase.auth.updateUser({ password: nextPassword })
+    return { error }
+  }
+
   const isAdmin = isAdminEmail(user?.email)
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, verifySignUpCode, resendSignUpCode, requestPasswordReset, updatePassword, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )
