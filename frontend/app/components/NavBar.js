@@ -93,6 +93,7 @@ export default function NavBar() {
     { href: '/admin/products/new', label: 'New Product' },
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/promos', label: 'Promo Codes' },
+    { href: '/admin/subscribers', label: 'Subscribers' },
   ]
 
   return (

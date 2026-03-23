@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
+import { getApiUrl } from '../lib/api'
 
 export default function AuthPage() {
   const [mode, setMode] = useState('signin')
@@ -26,7 +27,16 @@ export default function AuthPage() {
     } else {
       const { error } = await signUp(email, password)
       if (error) setError(error.message)
-      else setMessage('Check your email to confirm your account!')
+      else {
+        setMessage('Check your email to confirm your account!')
+        try {
+          await fetch(getApiUrl('/email-subscribers/capture'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, source: 'signup' }),
+          })
+        } catch (_) {}
+      }
     }
     setLoading(false)
   }

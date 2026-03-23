@@ -7,7 +7,7 @@ import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -42,7 +42,7 @@ ORDER_PAYMENT_FAILED = "payment_failed"
 ORDER_CANCELLED = "cancelled"
 RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
-RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "STORE <orders@store.local>")
+RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Store <onboarding@resend.dev>")
 ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
 
 
@@ -131,6 +131,12 @@ class PromoCodeValidateResponse(BaseModel):
     discount_value: Optional[float] = None
     discount_amount: float = 0.0
     message: Optional[str] = None
+
+
+class SubscriberCaptureRequest(BaseModel):
+    email: str
+    source: Optional[str] = "unknown"
+    metadata: Optional[dict] = None
 
 
 def now_iso() -> str:
@@ -240,6 +246,46 @@ def normalize_promo_code(value: Optional[str]) -> str:
     return str(value or "").strip().upper()
 
 
+def normalize_email(value: Optional[str]) -> str:
+    return str(value or "").strip().lower()
+
+
+def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Optional[dict] = None) -> None:
+    email = normalize_email(raw_email)
+    if not email:
+        return
+    source_name = str(source or "unknown").strip() or "unknown"
+    existing = supabase.table("email_subscribers").select("*").eq("email", email).limit(1).execute()
+    row = existing.data[0] if existing.data else None
+    now = now_iso()
+    if not row:
+        supabase.table("email_subscribers").insert({
+            "email": email,
+            "first_source": source_name,
+            "last_source": source_name,
+            "source_counts": {source_name: 1},
+            "first_seen_at": now,
+            "last_seen_at": now,
+            "events_count": 1,
+            "metadata_json": metadata or {},
+            "created_at": now,
+            "updated_at": now,
+        }).execute()
+        return
+    source_counts = as_dict(row.get("source_counts"))
+    source_counts[source_name] = int(source_counts.get(source_name) or 0) + 1
+    merged_metadata = as_dict(row.get("metadata_json"))
+    merged_metadata.update(metadata or {})
+    supabase.table("email_subscribers").update({
+        "last_source": source_name,
+        "source_counts": source_counts,
+        "last_seen_at": now,
+        "events_count": int(row.get("events_count") or 0) + 1,
+        "metadata_json": merged_metadata,
+        "updated_at": now,
+    }).eq("id", row["id"]).execute()
+
+
 def generate_random_promo_code(length: int = 8) -> str:
     alphabet = string.ascii_uppercase + string.digits
     return "".join(random.choice(alphabet) for _ in range(length))
@@ -307,6 +353,7 @@ def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None
     target = str(to_email or "").strip()
     if not target:
         return
+    sender = str(RESEND_FROM_EMAIL or "").strip() or "Store <onboarding@resend.dev>"
     try:
         response = requests.post(
             RESEND_API_URL,
@@ -315,7 +362,7 @@ def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None
                 "Content-Type": "application/json",
             },
             json={
-                "from": RESEND_FROM_EMAIL,
+                "from": sender,
                 "to": [target],
                 "subject": subject,
                 "html": html,
@@ -884,16 +931,39 @@ def delete_promo_code(promo_id: int):
 
 SHIPPING_COST = 30.0
 
+
+def extract_origin_url(value: Any) -> Optional[str]:
+    parsed = urlparse(str(value or "").strip())
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return None
+
+
+def resolve_checkout_origin(http_request: Request, payload: CheckoutRequest) -> str:
+    candidates: list[Any] = [
+        http_request.headers.get("origin"),
+        http_request.headers.get("referer"),
+        payload.success_url,
+        payload.cancel_url,
+        FRONTEND_URL,
+    ]
+    for candidate in candidates:
+        base = extract_origin_url(candidate)
+        if base:
+            return base.rstrip("/")
+    return "http://localhost:3000"
+
+
 @app.post("/checkout")
-def create_checkout(request: CheckoutRequest):
-    if not request.items:
+def create_checkout(payload: CheckoutRequest, http_request: Request):
+    if not payload.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
     normalized_items = []
     subtotal = 0.0
     line_items = []
 
-    for item in request.items:
+    for item in payload.items:
         qty = max(1, int(item.quantity))
         price = max(0.01, float(item.price))
         normalized_item = {
@@ -925,7 +995,7 @@ def create_checkout(request: CheckoutRequest):
     promo = None
     promo_discount = 0.0
     promo_type = None
-    normalized_promo_code = normalize_promo_code(request.promo_code)
+    normalized_promo_code = normalize_promo_code(payload.promo_code)
     if normalized_promo_code:
         promo = get_active_promo_row(normalized_promo_code)
         if not promo:
@@ -934,6 +1004,8 @@ def create_checkout(request: CheckoutRequest):
         promo_discount = promo_discount_amount(subtotal, promo, SHIPPING_COST)
         if promo_discount <= 0:
             raise HTTPException(status_code=400, detail="Promo code does not apply")
+
+    checkout_origin = resolve_checkout_origin(http_request, payload)
 
     should_charge_shipping = promo_type != "free_shipping"
     if should_charge_shipping:
@@ -966,19 +1038,24 @@ def create_checkout(request: CheckoutRequest):
             "amount_total": round(amount_total, 2),
             "items_json": normalized_items,
             "metadata_json": metadata_json,
-            "email": request.customer_email,
-            "phone": request.phone,
-            "shipping_name": f"{request.first_name or ''} {request.last_name or ''}".strip(),
-            "shipping_line1": request.address,
-            "shipping_city": request.city,
-            "shipping_postal_code": request.zip,
-            "shipping_country": request.country,
+            "email": payload.customer_email,
+            "phone": payload.phone,
+            "shipping_name": f"{payload.first_name or ''} {payload.last_name or ''}".strip(),
+            "shipping_line1": payload.address,
+            "shipping_city": payload.city,
+            "shipping_postal_code": payload.zip,
+            "shipping_country": payload.country,
             "created_at": now_iso(),
             "updated_at": now_iso(),
         }).execute()
         if not order_insert.data:
             raise HTTPException(status_code=500, detail="Failed to create order")
         created_order = order_insert.data[0]
+        capture_subscriber_email(
+            payload.customer_email,
+            "checkout_started",
+            {"client_reference_id": client_reference_id},
+        )
 
         stripe_discounts = None
         if promo and promo_type in ("percent", "fixed"):
@@ -1015,14 +1092,14 @@ def create_checkout(request: CheckoutRequest):
                 ]
             },
             phone_number_collection={"enabled": True},
-            customer_email=request.customer_email,
+            customer_email=payload.customer_email,
             metadata={
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
                 "promo_code": str(promo.get("code")) if promo else "",
             },
-            success_url=request.success_url + "?session_id={CHECKOUT_SESSION_ID}",
-            cancel_url=request.cancel_url,
+            success_url=f"{checkout_origin}/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{checkout_origin}/cart",
         )
         session_dict = stripe_obj_to_dict(session)
         expires_at_epoch = session_dict.get("expires_at")
@@ -1039,7 +1116,7 @@ def create_checkout(request: CheckoutRequest):
             "stripe_payment_intent_id": session_dict.get("payment_intent"),
             "stripe_customer_id": session_dict.get("customer"),
             "session_json": session_dict,
-            "email": as_dict(session_dict.get("customer_details")).get("email") or request.customer_email,
+            "email": as_dict(session_dict.get("customer_details")).get("email") or payload.customer_email,
             **session_shipping_fields,
             "expires_at": expires_at_iso,
             "updated_at": now_iso(),
@@ -1154,6 +1231,14 @@ async def stripe_webhook(request: Request):
             update_payload["cancelled_at"] = now_iso()
 
     supabase.table("orders").update(update_payload).eq("id", order["id"]).execute()
+    capture_subscriber_email(
+        update_payload.get("email") or order.get("email"),
+        "order_webhook",
+        {
+            "order_id": order.get("id"),
+            "status": update_payload.get("status") or order.get("status"),
+        },
+    )
     return {"received": True}
 
 
@@ -1219,3 +1304,54 @@ def get_order(id_or_session: str):
             return result.data[0]
 
     raise HTTPException(status_code=404, detail="Order not found")
+
+
+@app.post("/email-subscribers/capture")
+def capture_email_subscriber(payload: SubscriberCaptureRequest):
+    email = normalize_email(payload.email)
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+    capture_subscriber_email(email, payload.source or "unknown", payload.metadata or {})
+    return {"ok": True}
+
+
+@app.get("/email-subscribers")
+def list_email_subscribers(limit: int = 500):
+    safe_limit = max(1, min(int(limit or 500), 5000))
+    data = (
+        supabase.table("email_subscribers")
+        .select("*")
+        .order("last_seen_at", desc=True)
+        .limit(safe_limit)
+        .execute()
+    )
+    return data.data or []
+
+
+@app.get("/email-subscribers/export.csv")
+def export_email_subscribers_csv():
+    data = (
+        supabase.table("email_subscribers")
+        .select("*")
+        .order("last_seen_at", desc=True)
+        .limit(20000)
+        .execute()
+    )
+    rows = data.data or []
+    header = "email,first_source,last_source,events_count,first_seen_at,last_seen_at\n"
+    lines = [header]
+    for row in rows:
+        email = str(row.get("email") or "").replace('"', '""')
+        first_source = str(row.get("first_source") or "").replace('"', '""')
+        last_source = str(row.get("last_source") or "").replace('"', '""')
+        events_count = int(row.get("events_count") or 0)
+        first_seen_at = str(row.get("first_seen_at") or "").replace('"', '""')
+        last_seen_at = str(row.get("last_seen_at") or "").replace('"', '""')
+        lines.append(
+            f"\"{email}\",\"{first_source}\",\"{last_source}\",{events_count},\"{first_seen_at}\",\"{last_seen_at}\"\n"
+        )
+    return Response(
+        content="".join(lines),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=email_subscribers.csv"},
+    )

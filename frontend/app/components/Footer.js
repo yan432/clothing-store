@@ -1,4 +1,42 @@
+'use client'
+
+import { useState } from 'react'
+import { getApiUrl } from '../lib/api'
+
 export default function Footer() {
+  const [newsletterEmail, setNewsletterEmail] = useState('')
+  const [newsletterLoading, setNewsletterLoading] = useState(false)
+  const [newsletterMessage, setNewsletterMessage] = useState('')
+
+  async function handleNewsletterSubmit(e) {
+    e.preventDefault()
+    const email = newsletterEmail.trim().toLowerCase()
+    if (!email) return
+    setNewsletterLoading(true)
+    setNewsletterMessage('')
+    try {
+      const res = await fetch(getApiUrl('/email-subscribers/capture'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          source: 'footer_newsletter',
+          metadata: { placement: 'footer' },
+        }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Failed to subscribe')
+      }
+      setNewsletterMessage('Thanks, you are subscribed.')
+      setNewsletterEmail('')
+    } catch (_) {
+      setNewsletterMessage('Could not subscribe right now.')
+    } finally {
+      setNewsletterLoading(false)
+    }
+  }
+
   const shopLinks = [
     ['All products','/products'],
     ['New arrivals','/products?special=new'],
@@ -73,21 +111,34 @@ export default function Footer() {
           <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:'0 0 16px'}}>
             New releases and special offers — straight to your inbox.
           </p>
-          <div style={{display:'flex'}}>
-            <input type="email" placeholder="Your email"
-  style={{
-    flex:1,padding:'11px 16px',background:'#1a1a1a',
-    borderTop:'1px solid #2a2a2a',
-    borderBottom:'1px solid #2a2a2a',
-    borderLeft:'1px solid #2a2a2a',
-    borderRight:'none',
-    borderRadius:'8px 0 0 8px',
-    color:'#fff',fontSize:13,outline:'none'
-  }}/>
-  <button style={{padding:'11px 18px',background:'#fff',color:'#000',border:'none',borderRadius:'0 8px 8px 0',fontSize:13,fontWeight:600,cursor:'pointer'}}>
-              Subscribe
+          <form onSubmit={handleNewsletterSubmit} style={{display:'flex'}}>
+            <input
+              type="email"
+              placeholder="Your email"
+              value={newsletterEmail}
+              onChange={(e) => setNewsletterEmail(e.target.value)}
+              required
+              style={{
+                flex:1,padding:'11px 16px',background:'#1a1a1a',
+                borderTop:'1px solid #2a2a2a',
+                borderBottom:'1px solid #2a2a2a',
+                borderLeft:'1px solid #2a2a2a',
+                borderRight:'none',
+                borderRadius:'8px 0 0 8px',
+                color:'#fff',fontSize:13,outline:'none'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={newsletterLoading}
+              style={{minWidth:104,padding:'11px 18px',background:'#fff',color:'#000',border:'none',borderRadius:'0 8px 8px 0',fontSize:13,fontWeight:600,cursor:'pointer',opacity:newsletterLoading ? 0.7 : 1}}
+            >
+              {newsletterLoading ? '...' : 'Subscribe'}
             </button>
-          </div>
+          </form>
+          <p style={{fontSize:12,color:'#888',margin:'8px 0 0',minHeight:16}}>
+            {newsletterMessage || '\u00A0'}
+          </p>
         </div>
       </div>
 

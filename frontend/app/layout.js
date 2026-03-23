@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext'
 import NavBar from './components/NavBar'
 import DrawerWrapper from './components/DrawerWrapper'
 import Footer from './components/Footer'
+import EmailCapturePopup from './components/EmailCapturePopup'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }) {
           <CartProvider>
             <NavBar />
             <DrawerWrapper />
+            <EmailCapturePopup />
             {children}
             <Footer />
           </CartProvider>
