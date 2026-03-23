@@ -98,6 +98,7 @@ export default function ConfirmPage() {
   async function handlePay() {
     setLoading(true)
     try {
+      const origin = window.location.origin
       const res = await fetch(getApiUrl('/checkout'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,8 +120,8 @@ export default function ConfirmPage() {
           zip: details.zip,
           country: details.country,
           promo_code: promoApplied?.code || null,
-          success_url: 'https://project-e38lc.vercel.app/success',
-          cancel_url: 'https://project-e38lc.vercel.app/cart',
+          success_url: `${origin}/success`,
+          cancel_url: `${origin}/cart`,
         }),
       })
       const data = await res.json()

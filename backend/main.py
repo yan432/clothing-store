@@ -16,11 +16,12 @@ from supabase import Client, create_client
 
 load_dotenv()
 app = FastAPI(title="Clothing Store API")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://project-e38lc.vercel.app",
+        FRONTEND_URL,
         "http://localhost:3000"
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
@@ -93,8 +94,8 @@ class CheckoutItem(BaseModel):
 
 class CheckoutRequest(BaseModel):
     items: list[CheckoutItem]
-    success_url: str = "https://project-e38lc.vercel.app/success"
-    cancel_url: str = "https://project-e38lc.vercel.app/cart"
+    success_url: str = f"{FRONTEND_URL}/success"
+    cancel_url: str = f"{FRONTEND_URL}/cart"
     customer_email: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -274,12 +275,13 @@ def increment_promo_usage_if_needed(order: dict) -> None:
 
 def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None:
     if not RESEND_API_KEY:
+        print("Resend is not configured: RESEND_API_KEY is missing")
         return
     target = str(to_email or "").strip()
     if not target:
         return
     try:
-        requests.post(
+        response = requests.post(
             RESEND_API_URL,
             headers={
                 "Authorization": f"Bearer {RESEND_API_KEY}",
@@ -294,8 +296,11 @@ def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None
             },
             timeout=8,
         )
-    except requests.RequestException:
+        if response.status_code >= 400:
+            print(f"Resend email failed ({response.status_code}): {response.text[:300]}")
+    except requests.RequestException as exc:
         # Email delivery failure should not block order flow/webhook processing.
+        print(f"Resend email request error: {exc}")
         return
 
 
