@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import requests
 import stripe
 from supabase import Client, create_client
 
@@ -38,6 +39,10 @@ ORDER_PENDING = "pending"
 ORDER_PAID = "paid"
 ORDER_PAYMENT_FAILED = "payment_failed"
 ORDER_CANCELLED = "cancelled"
+RESEND_API_URL = "https://api.resend.com/emails"
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "STORE <orders@store.local>")
+ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
 
 
 class Product(BaseModel):
@@ -143,6 +148,17 @@ def stripe_obj_to_dict(obj: Any) -> dict:
 
 def as_dict(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
+
+
+def to_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def money_eur(value: Any) -> str:
+    return f"€{to_float(value):.2f}"
 
 
 def extract_shipping_fields(session_obj: dict) -> dict:
@@ -254,6 +270,149 @@ def increment_promo_usage_if_needed(order: dict) -> None:
     promo = data.data[0]
     used_count = int(promo.get("used_count") or 0)
     supabase.table("promo_codes").update({"used_count": used_count + 1}).eq("id", promo["id"]).execute()
+
+
+def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None:
+    if not RESEND_API_KEY:
+        return
+    target = str(to_email or "").strip()
+    if not target:
+        return
+    try:
+        requests.post(
+            RESEND_API_URL,
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": RESEND_FROM_EMAIL,
+                "to": [target],
+                "subject": subject,
+                "html": html,
+                "text": text,
+            },
+            timeout=8,
+        )
+    except requests.RequestException:
+        # Email delivery failure should not block order flow/webhook processing.
+        return
+
+
+def order_items_html(items: list[dict]) -> str:
+    lines = []
+    for item in items:
+        name = str(item.get("name") or "Item")
+        qty = int(item.get("quantity") or 0)
+        size = str(item.get("size") or "").strip()
+        price = to_float(item.get("price"))
+        line_total = price * qty
+        size_suffix = f" (size: {size})" if size else ""
+        lines.append(
+            f"<tr><td style='padding:6px 0'>{name}{size_suffix}</td>"
+            f"<td style='padding:6px 0;text-align:center'>{qty}</td>"
+            f"<td style='padding:6px 0;text-align:right'>{money_eur(line_total)}</td></tr>"
+        )
+    return "".join(lines)
+
+
+def order_items_text(items: list[dict]) -> str:
+    text_lines = []
+    for item in items:
+        name = str(item.get("name") or "Item")
+        qty = int(item.get("quantity") or 0)
+        size = str(item.get("size") or "").strip()
+        price = to_float(item.get("price"))
+        line_total = price * qty
+        size_suffix = f" (size: {size})" if size else ""
+        text_lines.append(f"- {name}{size_suffix} x{qty}: {money_eur(line_total)}")
+    return "\n".join(text_lines)
+
+
+def send_order_confirmation_emails(order: dict) -> None:
+    items = order.get("items_json") or []
+    metadata = as_dict(order.get("metadata_json"))
+    subtotal = sum(to_float(item.get("price")) * int(item.get("quantity") or 0) for item in items)
+    promo_discount = to_float(metadata.get("promo_discount_amount"))
+    shipping = max(0.0, to_float(order.get("amount_total")) - subtotal + promo_discount)
+    total = to_float(order.get("amount_total"))
+    order_id = order.get("id")
+    order_ref = order.get("client_reference_id")
+    customer_email = str(order.get("email") or "").strip()
+    customer_name = str(order.get("shipping_name") or "").strip() or "Customer"
+    shipping_address = ", ".join([
+        str(order.get("shipping_line1") or "").strip(),
+        str(order.get("shipping_city") or "").strip(),
+        str(order.get("shipping_postal_code") or "").strip(),
+        str(order.get("shipping_country") or "").strip(),
+    ]).strip(", ").strip()
+
+    items_html = order_items_html(items)
+    items_text = order_items_text(items)
+    promo_row_html = ""
+    promo_row_text = ""
+    if promo_discount > 0:
+        promo_row_html = f"<tr><td style='padding:4px 0'>Discount</td><td></td><td style='text-align:right'>-{money_eur(promo_discount)}</td></tr>"
+        promo_row_text = f"Discount: -{money_eur(promo_discount)}\n"
+
+    customer_subject = f"Order confirmation #{order_id} — STORE"
+    customer_html = f"""
+      <div style="font-family:Arial,sans-serif;color:#111">
+        <h2>Thanks for your order, {customer_name}!</h2>
+        <p>We received your order and started processing it.</p>
+        <p><strong>Order #{order_id}</strong><br/>Reference: {order_ref or '-'}</p>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr><th align="left">Item</th><th align="center">Qty</th><th align="right">Total</th></tr></thead>
+          <tbody>{items_html}</tbody>
+        </table>
+        <hr/>
+        <table style="width:100%">
+          <tr><td>Subtotal</td><td align="right">{money_eur(subtotal)}</td></tr>
+          {promo_row_html}
+          <tr><td>Shipping</td><td align="right">{money_eur(shipping)}</td></tr>
+          <tr><td><strong>Total</strong></td><td align="right"><strong>{money_eur(total)}</strong></td></tr>
+        </table>
+        <p style="margin-top:14px"><strong>Shipping address:</strong><br/>{shipping_address or 'Not provided'}</p>
+      </div>
+    """
+    customer_text = (
+        f"Thanks for your order, {customer_name}!\n\n"
+        f"Order #{order_id}\nReference: {order_ref or '-'}\n\n"
+        f"{items_text}\n\n"
+        f"Subtotal: {money_eur(subtotal)}\n"
+        f"{promo_row_text}"
+        f"Shipping: {money_eur(shipping)}\n"
+        f"Total: {money_eur(total)}\n\n"
+        f"Shipping address: {shipping_address or 'Not provided'}\n"
+    )
+    send_resend_email(customer_email, customer_subject, customer_html, customer_text)
+
+    admin_target = str(ORDER_ALERT_EMAIL or "").strip()
+    if admin_target:
+        admin_subject = f"New paid order #{order_id} — {money_eur(total)}"
+        admin_html = f"""
+          <div style="font-family:Arial,sans-serif;color:#111">
+            <h2>New paid order received</h2>
+            <p><strong>Order #{order_id}</strong><br/>Reference: {order_ref or '-'}</p>
+            <p><strong>Customer email:</strong> {customer_email or '-'}</p>
+            <p><strong>Shipping:</strong> {shipping_address or 'Not provided'}</p>
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr><th align="left">Item</th><th align="center">Qty</th><th align="right">Total</th></tr></thead>
+              <tbody>{items_html}</tbody>
+            </table>
+            <hr/>
+            <p><strong>Total:</strong> {money_eur(total)}</p>
+          </div>
+        """
+        admin_text = (
+            f"New paid order received\n\n"
+            f"Order #{order_id}\nReference: {order_ref or '-'}\n"
+            f"Customer email: {customer_email or '-'}\n"
+            f"Shipping: {shipping_address or 'Not provided'}\n\n"
+            f"{items_text}\n\n"
+            f"Total: {money_eur(total)}\n"
+        )
+        send_resend_email(admin_target, admin_subject, admin_html, admin_text)
 
 
 def get_product_row(product_id: int) -> dict:
@@ -924,6 +1083,7 @@ async def stripe_webhook(request: Request):
     if target_status == ORDER_PAID and current_status == ORDER_PENDING:
         finalize_paid_stock(items)
         increment_promo_usage_if_needed(order)
+        send_order_confirmation_emails(order)
         changed = True
     elif target_status in (ORDER_PAYMENT_FAILED, ORDER_CANCELLED) and current_status == ORDER_PENDING:
         release_reserved_stock(items)

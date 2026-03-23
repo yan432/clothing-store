@@ -131,7 +131,7 @@ export default async function ProductsPage({ searchParams }) {
   }
 
   const pageTitle = selectedCategory || 'All Products'
-  const categoriesPanelTitle = selectedCategory || 'Categories'
+  const categoriesPanelTitle = 'Categories'
   const activeSortLabel = sortOptions.find((opt) => opt.id === activeSort)?.label || 'Default order'
   const selectedCampaignLabels = specialFilters
     .filter((special) => selectedSpecials.includes(special.id))

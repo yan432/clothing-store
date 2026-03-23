@@ -1,8 +1,40 @@
 import Link from 'next/link'
 import { homepageContent } from './lib/homepageContent'
+import { getApiUrl } from './lib/api'
 
-export default function Home() {
+async function getNewArrivals() {
+  try {
+    const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    const list = Array.isArray(data) ? data : []
+    return list
+      .filter((item) => Array.isArray(item.tags) && item.tags.includes('new'))
+      .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
+      .slice(0, 4)
+  } catch {
+    return []
+  }
+}
+
+export default async function Home() {
   const { hero, promoTiles, spotlight, arrivals } = homepageContent
+  const newArrivals = await getNewArrivals()
+  const arrivalCards = newArrivals.length > 0
+    ? newArrivals.map((item) => ({
+      key: String(item.id),
+      href: `/products/${item.id}`,
+      image: (Array.isArray(item.image_urls) && item.image_urls[0]) || item.image_url || '',
+      title: item.name || 'Product',
+      price: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(item.price || 0)),
+    }))
+    : arrivals.map((item) => ({
+      key: `${item.title}-${item.image}`,
+      href: '/products?special=new',
+      image: item.image,
+      title: item.title,
+      price: item.price,
+    }))
 
   return (
     <main className="pb-20 md:pb-28">
@@ -90,16 +122,16 @@ export default function Home() {
           <h3 className="text-xl font-semibold uppercase tracking-[0.12em] text-zinc-900 md:text-2xl">
             New Arrivals
           </h3>
-          <Link href="/products" className="text-xs font-medium uppercase tracking-[0.1em] text-zinc-600 hover:text-zinc-900">
+          <Link href="/products?special=new" className="text-xs font-medium uppercase tracking-[0.1em] text-zinc-600 hover:text-zinc-900">
             View all
           </Link>
         </div>
 
         <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-4 md:gap-5 lg:max-w-none">
-          {arrivals.map((item) => (
+          {arrivalCards.map((item) => (
             <Link
-              key={`${item.title}-${item.image}`}
-              href="/products"
+              key={item.key}
+              href={item.href}
               className="group rounded-2xl border border-zinc-200 bg-white p-2.5 md:p-3"
             >
               <div

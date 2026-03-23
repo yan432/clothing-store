@@ -301,13 +301,14 @@ export default function PromoCodesClient() {
           </div>
 
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-            <label style={{fontSize:13,color:'#444'}}>Usage limit (optional)
+            <label style={{fontSize:13,color:'#444'}}>Max uses (optional)
               <input
                 type="number"
                 min="1"
                 step="1"
                 value={form.usage_limit}
                 onChange={(e) => setField('usage_limit', e.target.value)}
+                placeholder="Leave empty for unlimited"
                 style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
               />
             </label>
@@ -348,7 +349,7 @@ export default function PromoCodesClient() {
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Type</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Value</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Used</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Limit</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Max uses</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Expires</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Status</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Actions</th>
@@ -368,8 +369,12 @@ export default function PromoCodesClient() {
                           ? 'Free shipping'
                         : `€${Number(row.discount_value || 0).toFixed(2)}`}
                     </td>
-                    <td style={{padding:'10px 14px',fontSize:13}}>{row.used_count || 0}</td>
-                    <td style={{padding:'10px 14px',fontSize:13}}>{row.usage_limit ?? '∞'}</td>
+                    <td style={{padding:'10px 14px',fontSize:13}}>
+                      {row.usage_limit == null
+                        ? `${row.used_count || 0} / unlimited`
+                        : `${row.used_count || 0} / ${row.usage_limit}`}
+                    </td>
+                    <td style={{padding:'10px 14px',fontSize:13}}>{row.usage_limit ?? 'Unlimited'}</td>
                     <td style={{padding:'10px 14px',fontSize:13,color:'#666'}}>{formatDate(row.expires_at)}</td>
                     <td style={{padding:'10px 14px',fontSize:12}}>
                       <span style={{border:'1px solid #ddd',borderRadius:999,padding:'3px 8px',display:'inline-block'}}>
@@ -424,10 +429,11 @@ export default function PromoCodesClient() {
                   onChange={(e) => setEditForm((prev) => ({ ...prev, discount_value: e.target.value }))}
                   style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
-              <label style={{fontSize:13,color:'#444'}}>Usage limit
+              <label style={{fontSize:13,color:'#444'}}>Max uses
                 <input type="number" min="1" step="1"
                   value={editForm.usage_limit}
                   onChange={(e) => setEditForm((prev) => ({ ...prev, usage_limit: e.target.value }))}
+                  placeholder="Leave empty for unlimited"
                   style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
               <label style={{fontSize:13,color:'#444'}}>Expires at

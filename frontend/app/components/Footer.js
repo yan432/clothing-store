@@ -1,7 +1,8 @@
 export default function Footer() {
   const shopLinks = [
     ['All products','/products'],
-    ['New arrivals','/products?category=New'],
+    ['New arrivals','/products?special=new'],
+    ['Sale','/products?special=sale'],
     ['Tops','/products?category=Tops'],
     ['Bottoms','/products?category=Bottoms'],
     ['Outerwear','/products?category=Outerwear'],
