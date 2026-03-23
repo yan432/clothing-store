@@ -7,20 +7,29 @@ export default function NavBar() {
   const { count, setDrawerOpen } = useCart()
   const { user, signOut, isAdmin } = useAuth()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isAdminOpen, setIsAdminOpen] = useState(false)
   const menuRef = useRef(null)
+  const adminMenuRef = useRef(null)
   const closeTimerRef = useRef(null)
+  const closeAdminTimerRef = useRef(null)
 
   useEffect(() => {
-    if (!isProfileOpen) return
+    if (!isProfileOpen && !isAdminOpen) return
 
     const onClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      const profileOutside = !menuRef.current || !menuRef.current.contains(event.target)
+      const adminOutside = !adminMenuRef.current || !adminMenuRef.current.contains(event.target)
+      if (profileOutside && adminOutside) {
         setIsProfileOpen(false)
+        setIsAdminOpen(false)
       }
     }
 
     const onEscape = (event) => {
-      if (event.key === 'Escape') setIsProfileOpen(false)
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false)
+        setIsAdminOpen(false)
+      }
     }
 
     document.addEventListener('mousedown', onClickOutside)
@@ -29,11 +38,12 @@ export default function NavBar() {
       document.removeEventListener('mousedown', onClickOutside)
       document.removeEventListener('keydown', onEscape)
     }
-  }, [isProfileOpen])
+  }, [isProfileOpen, isAdminOpen])
 
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+      if (closeAdminTimerRef.current) clearTimeout(closeAdminTimerRef.current)
     }
   }, [])
 
@@ -42,6 +52,7 @@ export default function NavBar() {
       clearTimeout(closeTimerRef.current)
       closeTimerRef.current = null
     }
+    setIsAdminOpen(false)
     setIsProfileOpen(true)
   }
 
@@ -53,12 +64,35 @@ export default function NavBar() {
     }, 160)
   }
 
+  function openAdminMenu() {
+    if (closeAdminTimerRef.current) {
+      clearTimeout(closeAdminTimerRef.current)
+      closeAdminTimerRef.current = null
+    }
+    setIsProfileOpen(false)
+    setIsAdminOpen(true)
+  }
+
+  function closeAdminMenuWithDelay() {
+    if (closeAdminTimerRef.current) clearTimeout(closeAdminTimerRef.current)
+    closeAdminTimerRef.current = setTimeout(() => {
+      setIsAdminOpen(false)
+      closeAdminTimerRef.current = null
+    }, 160)
+  }
+
   const accountLinks = [
     { href: '/account', label: 'My account' },
     { href: '/account?tab=orders', label: 'Orders' },
     { href: '/account?tab=returns', label: 'Returns' },
     { href: '/account?tab=sizes', label: 'My sizes' },
     { href: '/account?tab=help', label: 'Help & FAQ' },
+  ]
+  const adminLinks = [
+    { href: '/admin/products', label: 'Products CMS' },
+    { href: '/admin/products/new', label: 'New Product' },
+    { href: '/admin/orders', label: 'Orders' },
+    { href: '/admin/promos', label: 'Promo Codes' },
   ]
 
   return (
@@ -67,10 +101,63 @@ export default function NavBar() {
       <div style={{display:'flex',gap:24,fontSize:14,color:'#666',alignItems:'center'}}>
         <a href="/products" style={{color:'inherit',textDecoration:'none'}}>Shop</a>
         {isAdmin && (
-          <>
-            <a href="/admin/orders" style={{color:'inherit',textDecoration:'none'}}>Orders</a>
-            <a href="/admin/products" style={{color:'inherit',textDecoration:'none'}}>Admin</a>
-          </>
+          <div
+            ref={adminMenuRef}
+            style={{position:'relative',display:'flex',alignItems:'center'}}
+            onMouseEnter={openAdminMenu}
+            onMouseLeave={closeAdminMenuWithDelay}
+          >
+            <button
+              type="button"
+              onFocus={openAdminMenu}
+              aria-expanded={isAdminOpen}
+              aria-haspopup="menu"
+              aria-label="Open admin menu"
+              style={{background:'none',border:'none',cursor:'pointer',fontSize:14,color:'#444',padding:0}}
+            >
+              Admin
+            </button>
+            {isAdminOpen && (
+              <div
+                role="menu"
+                style={{
+                  position:'absolute',
+                  left:0,
+                  top:'100%',
+                  width:200,
+                  background:'#fff',
+                  border:'1px solid #e8e8e5',
+                  borderRadius:12,
+                  padding:'8px 0',
+                  marginTop:8,
+                  color:'#1a1a18',
+                  boxShadow:'0 14px 34px rgba(15,15,15,0.08)',
+                  zIndex:60,
+                }}
+              >
+                <div style={{padding:'4px 8px 6px'}}>
+                  {adminLinks.map((item) => (
+                    <a
+                      key={item.label}
+                      href={item.href}
+                      role="menuitem"
+                      onClick={() => setIsAdminOpen(false)}
+                      style={{
+                        display:'block',
+                        padding:'10px 12px',
+                        fontSize:14,
+                        lineHeight:1.2,
+                        color:'#1a1a18',
+                        borderRadius:8,
+                      }}
+                    >
+                      {item.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
         <button
           type="button"

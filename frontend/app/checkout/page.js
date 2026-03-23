@@ -54,6 +54,21 @@ const steps = [
   { n: 4, label: 'Payment', disabled: true },
 ]
 
+function FormField({ placeholder, fieldKey, type = 'text', value, onChange, error, style }) {
+  return (
+    <div>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        style={style}
+      />
+      {error && <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0 4px'}}>{error}</p>}
+    </div>
+  )
+}
+
 function StepBar() {
   return (
     <div style={{display:'flex',alignItems:'center',marginBottom:40}}>
@@ -145,15 +160,6 @@ export default function CheckoutPage() {
     background:'#fff', boxSizing:'border-box',
   })
 
-  const Field = ({ placeholder, fieldKey, type='text' }) => (
-    <div>
-      <input type={type} placeholder={placeholder} value={form[fieldKey]}
-        onChange={e => { set(fieldKey, e.target.value); setErrors(err => ({...err, [fieldKey]: null})) }}
-        style={inputStyle(fieldKey)}/>
-      {errors[fieldKey] && <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0 4px'}}>{errors[fieldKey]}</p>}
-    </div>
-  )
-
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
       <StepBar />
@@ -204,19 +210,70 @@ export default function CheckoutPage() {
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Contact</p>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              <Field placeholder="First name *" fieldKey="firstName" />
-              <Field placeholder="Last name *" fieldKey="lastName" />
+              <FormField
+                placeholder="First name *"
+                fieldKey="firstName"
+                value={form.firstName}
+                error={errors.firstName}
+                style={inputStyle('firstName')}
+                onChange={e => { set('firstName', e.target.value); setErrors(err => ({...err, firstName: null})) }}
+              />
+              <FormField
+                placeholder="Last name *"
+                fieldKey="lastName"
+                value={form.lastName}
+                error={errors.lastName}
+                style={inputStyle('lastName')}
+                onChange={e => { set('lastName', e.target.value); setErrors(err => ({...err, lastName: null})) }}
+              />
             </div>
-            <Field placeholder="Email *" fieldKey="email" type="email" />
-            <Field placeholder="Phone * e.g. +49 151 23456789" fieldKey="phone" type="tel" />
+            <FormField
+              placeholder="Email *"
+              fieldKey="email"
+              type="email"
+              value={form.email}
+              error={errors.email}
+              style={inputStyle('email')}
+              onChange={e => { set('email', e.target.value); setErrors(err => ({...err, email: null})) }}
+            />
+            <FormField
+              placeholder="Phone * e.g. +49 151 23456789"
+              fieldKey="phone"
+              type="tel"
+              value={form.phone}
+              error={errors.phone}
+              style={inputStyle('phone')}
+              onChange={e => { set('phone', e.target.value); setErrors(err => ({...err, phone: null})) }}
+            />
           </div>
 
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:32}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Shipping address</p>
-            <Field placeholder="Street address *" fieldKey="address" />
+            <FormField
+              placeholder="Street address *"
+              fieldKey="address"
+              value={form.address}
+              error={errors.address}
+              style={inputStyle('address')}
+              onChange={e => { set('address', e.target.value); setErrors(err => ({...err, address: null})) }}
+            />
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-              <Field placeholder="City *" fieldKey="city" />
-              <Field placeholder="ZIP / Postal code *" fieldKey="zip" />
+              <FormField
+                placeholder="City *"
+                fieldKey="city"
+                value={form.city}
+                error={errors.city}
+                style={inputStyle('city')}
+                onChange={e => { set('city', e.target.value); setErrors(err => ({...err, city: null})) }}
+              />
+              <FormField
+                placeholder="ZIP / Postal code *"
+                fieldKey="zip"
+                value={form.zip}
+                error={errors.zip}
+                style={inputStyle('zip')}
+                onChange={e => { set('zip', e.target.value); setErrors(err => ({...err, zip: null})) }}
+              />
             </div>
             <select value={form.country} onChange={e => set('country', e.target.value)}
               style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff',color:'#1a1a18'}}>
