@@ -162,19 +162,46 @@ def money_eur(value: Any) -> str:
     return f"€{to_float(value):.2f}"
 
 
+def first_non_empty(*values: Any) -> Optional[str]:
+    for value in values:
+        text = str(value or "").strip()
+        if text:
+            return text
+    return None
+
+
 def extract_shipping_fields(session_obj: dict) -> dict:
     shipping = as_dict(session_obj.get("shipping_details"))
     address = as_dict(shipping.get("address"))
     customer = as_dict(session_obj.get("customer_details"))
+    customer_address = as_dict(customer.get("address"))
     return {
-        "phone": customer.get("phone"),
-        "shipping_name": shipping.get("name"),
-        "shipping_line1": address.get("line1"),
-        "shipping_line2": address.get("line2"),
-        "shipping_city": address.get("city"),
-        "shipping_state": address.get("state"),
-        "shipping_postal_code": address.get("postal_code"),
-        "shipping_country": address.get("country"),
+        "phone": first_non_empty(customer.get("phone")),
+        "shipping_name": first_non_empty(shipping.get("name"), customer.get("name")),
+        "shipping_line1": first_non_empty(address.get("line1"), customer_address.get("line1")),
+        "shipping_line2": first_non_empty(address.get("line2"), customer_address.get("line2")),
+        "shipping_city": first_non_empty(address.get("city"), customer_address.get("city")),
+        "shipping_state": first_non_empty(address.get("state"), customer_address.get("state")),
+        "shipping_postal_code": first_non_empty(address.get("postal_code"), customer_address.get("postal_code")),
+        "shipping_country": first_non_empty(address.get("country"), customer_address.get("country")),
+    }
+
+
+def enrich_order_shipping(order: dict) -> dict:
+    shipping = as_dict(order.get("shipping_json"))
+    shipping_address = as_dict(shipping.get("address"))
+    customer = as_dict(order.get("customer_json"))
+    customer_address = as_dict(customer.get("address"))
+    return {
+        **order,
+        "phone": first_non_empty(order.get("phone"), customer.get("phone")),
+        "shipping_name": first_non_empty(order.get("shipping_name"), shipping.get("name"), customer.get("name")),
+        "shipping_line1": first_non_empty(order.get("shipping_line1"), shipping_address.get("line1"), customer_address.get("line1")),
+        "shipping_line2": first_non_empty(order.get("shipping_line2"), shipping_address.get("line2"), customer_address.get("line2")),
+        "shipping_city": first_non_empty(order.get("shipping_city"), shipping_address.get("city"), customer_address.get("city")),
+        "shipping_state": first_non_empty(order.get("shipping_state"), shipping_address.get("state"), customer_address.get("state")),
+        "shipping_postal_code": first_non_empty(order.get("shipping_postal_code"), shipping_address.get("postal_code"), customer_address.get("postal_code")),
+        "shipping_country": first_non_empty(order.get("shipping_country"), shipping_address.get("country"), customer_address.get("country")),
     }
 
 
@@ -1003,13 +1030,17 @@ def create_checkout(request: CheckoutRequest):
         if expires_at_epoch:
             expires_at_iso = datetime.fromtimestamp(expires_at_epoch, tz=timezone.utc).isoformat()
 
+        session_shipping_fields = {
+            k: v for k, v in extract_shipping_fields(session_dict).items()
+            if first_non_empty(v) is not None
+        }
         supabase.table("orders").update({
             "stripe_session_id": session.id,
             "stripe_payment_intent_id": session_dict.get("payment_intent"),
             "stripe_customer_id": session_dict.get("customer"),
             "session_json": session_dict,
             "email": as_dict(session_dict.get("customer_details")).get("email") or request.customer_email,
-            **extract_shipping_fields(session_dict),
+            **session_shipping_fields,
             "expires_at": expires_at_iso,
             "updated_at": now_iso(),
         }).eq("id", created_order["id"]).execute()
@@ -1094,6 +1125,10 @@ async def stripe_webhook(request: Request):
         release_reserved_stock(items)
         changed = True
 
+    webhook_shipping_fields = {
+        k: v for k, v in extract_shipping_fields(data_obj).items()
+        if first_non_empty(v) is not None
+    }
     update_payload = {
         "updated_at": now_iso(),
         "event_json": event_dict,
@@ -1106,7 +1141,7 @@ async def stripe_webhook(request: Request):
         "customer_json": data_obj.get("customer_details") or order.get("customer_json"),
         "currency": data_obj.get("currency") or order.get("currency"),
         "amount_total": (data_obj.get("amount_total") / 100.0) if data_obj.get("amount_total") else order.get("amount_total"),
-        **extract_shipping_fields(data_obj),
+        **webhook_shipping_fields,
     }
 
     if target_status and (changed or current_status != ORDER_PAID):
@@ -1126,6 +1161,46 @@ async def stripe_webhook(request: Request):
 def list_orders():
     data = supabase.table("orders").select("*").order("created_at", desc=True).limit(100).execute()
     return data.data
+
+
+@app.get("/orders/track")
+def track_orders(email: str):
+    normalized = str(email or "").strip().lower()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="email is required")
+    data = (
+        supabase.table("orders")
+        .select("*")
+        .ilike("email", normalized)
+        .eq("status", ORDER_PAID)
+        .order("created_at", desc=False)
+        .limit(200)
+        .execute()
+    )
+    items = [enrich_order_shipping(row) for row in (data.data or [])]
+    numbered = [{**row, "user_order_number": idx + 1} for idx, row in enumerate(items)]
+    return list(reversed(numbered))
+
+
+@app.get("/orders/track/{order_id}")
+def track_order_details(order_id: int, email: str):
+    normalized = str(email or "").strip().lower()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="email is required")
+    data = (
+        supabase.table("orders")
+        .select("*")
+        .ilike("email", normalized)
+        .eq("status", ORDER_PAID)
+        .order("created_at", desc=False)
+        .limit(200)
+        .execute()
+    )
+    items = [enrich_order_shipping(row) for row in (data.data or [])]
+    for idx, row in enumerate(items, start=1):
+        if int(row.get("id") or 0) == order_id:
+            return {**row, "user_order_number": idx}
+    raise HTTPException(status_code=404, detail="Order not found")
 
 
 @app.get("/orders/{id_or_session}")
