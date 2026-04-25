@@ -5,6 +5,7 @@ export const metadata = {
   description: 'Detailed order view for operations.',
 }
 
-export default function OrderDetailsPage({ params }) {
-  return <OrderDetailsClient id={params.id} />
+export default async function OrderDetailsPage({ params }) {
+  const { id } = await params
+  return <OrderDetailsClient id={id} />
 }

@@ -91,7 +91,7 @@ export default function ProductCard({ product }) {
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 
-        <div style={{position:'relative',aspectRatio:'3/4',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
+        <div style={{position:'relative',aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
 
           {/* Все бейджи вместе */}
 <div style={{position:'absolute',top:10,left:10,zIndex:3,display:'flex',flexDirection:'column',gap:4}}>

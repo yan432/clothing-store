@@ -223,10 +223,13 @@ export default function ProductEditorClient({ id }) {
     setError('')
     setMessage('')
     try {
-      const res = await fetch(getApiUrl('/products/' + id), {
+      // Move selected image to front of list (makes it the cover)
+      const urls = product.image_urls || []
+      const reordered = [imageUrl, ...urls.filter(u => u !== imageUrl)]
+      const res = await fetch(getApiUrl('/products/' + id + '/images/reorder'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_url: imageUrl }),
+        body: JSON.stringify({ image_urls: reordered }),
       })
       if (!res.ok) {
         const text = await res.text()
@@ -236,6 +239,32 @@ export default function ProductEditorClient({ id }) {
       setMessage('Cover image updated')
     } catch (e) {
       setError(e.message || 'Failed to set cover')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleReorderImage(fromIdx, toIdx) {
+    const urls = [...(product.image_urls || [])]
+    if (toIdx < 0 || toIdx >= urls.length) return
+    const [moved] = urls.splice(fromIdx, 1)
+    urls.splice(toIdx, 0, moved)
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await fetch(getApiUrl('/products/' + id + '/images/reorder'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image_urls: urls }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Failed to reorder images')
+      }
+      await reloadProduct()
+    } catch (e) {
+      setError(e.message || 'Failed to reorder images')
     } finally {
       setSaving(false)
     }
@@ -353,21 +382,37 @@ export default function ProductEditorClient({ id }) {
               </label>
               {Array.isArray(product?.image_urls) && product.image_urls.length > 0 && (
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(92px, 1fr))',gap:8,marginTop:10}}>
-                  {product.image_urls.map((url) => (
-                    <div key={url} style={{position:'relative',aspectRatio:'3/4',borderRadius:8,overflow:'hidden',border:'1px solid #e8e8e2'}}>
+                  {product.image_urls.map((url, idx) => (
+                    <div key={url} style={{position:'relative',aspectRatio:'4/5',borderRadius:8,overflow:'hidden',border: product.image_url === url ? '2px solid #111' : '1px solid #e8e8e2'}}>
                       <img src={url} alt="product" style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                      <button
-                        type="button"
-                        onClick={() => handleSetAsCover(url)}
-                        style={{position:'absolute',left:4,top:4,background:'rgba(255,255,255,0.88)',color:'#111',border:'none',borderRadius:6,padding:'2px 6px',fontSize:11,cursor:'pointer'}}>
-                        {product.image_url === url ? 'Cover' : 'Set cover'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteImage(url)}
-                        style={{position:'absolute',top:4,right:4,background:'rgba(17,17,17,0.8)',color:'#fff',border:'none',borderRadius:6,padding:'2px 6px',fontSize:11,cursor:'pointer'}}>
-                        Delete
-                      </button>
+                      {/* Cover label */}
+                      {product.image_url === url && (
+                        <div style={{position:'absolute',left:4,bottom:4,background:'#111',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:5,pointerEvents:'none'}}>Cover</div>
+                      )}
+                      {/* Reorder arrows */}
+                      <div style={{position:'absolute',left:4,top:4,display:'flex',flexDirection:'column',gap:2}}>
+                        {idx > 0 && (
+                          <button type="button" onClick={() => handleReorderImage(idx, idx - 1)}
+                            style={{background:'rgba(255,255,255,0.9)',border:'none',borderRadius:4,width:20,height:20,fontSize:12,cursor:'pointer',lineHeight:1,padding:0}}>↑</button>
+                        )}
+                        {idx < product.image_urls.length - 1 && (
+                          <button type="button" onClick={() => handleReorderImage(idx, idx + 1)}
+                            style={{background:'rgba(255,255,255,0.9)',border:'none',borderRadius:4,width:20,height:20,fontSize:12,cursor:'pointer',lineHeight:1,padding:0}}>↓</button>
+                        )}
+                      </div>
+                      {/* Set cover / Delete */}
+                      <div style={{position:'absolute',top:4,right:4,display:'flex',flexDirection:'column',gap:2,alignItems:'flex-end'}}>
+                        {product.image_url !== url && (
+                          <button type="button" onClick={() => handleSetAsCover(url)}
+                            style={{background:'rgba(255,255,255,0.88)',color:'#111',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            ★ Cover
+                          </button>
+                        )}
+                        <button type="button" onClick={() => handleDeleteImage(url)}
+                          style={{background:'rgba(17,17,17,0.8)',color:'#fff',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer'}}>
+                          ✕
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

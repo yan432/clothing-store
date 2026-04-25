@@ -637,10 +637,11 @@ def _storage_path_from_public_url(public_url: str) -> Optional[str]:
 
 
 def _decorate_product_with_images(product: dict) -> dict:
-    # Сначала пробуем Storage (живые файлы)
+    # Get live files from Storage
     storage_urls = _storage_public_urls_for_product(product["id"])
+    storage_set = set(storage_urls)
 
-    # Fallback: image_urls из БД (заполняется при загрузке фото)
+    # DB image_urls is the source of truth for ordering
     db_urls = product.get("image_urls") or []
     if isinstance(db_urls, str):
         try:
@@ -649,7 +650,14 @@ def _decorate_product_with_images(product: dict) -> dict:
         except Exception:
             db_urls = []
 
-    image_urls = storage_urls if storage_urls else list(db_urls)
+    # Respect DB order, but also include any Storage files not yet in DB
+    db_in_storage = [u for u in db_urls if u in storage_set]
+    storage_not_in_db = [u for u in storage_urls if u not in set(db_urls)]
+    if db_in_storage or storage_not_in_db:
+        image_urls = db_in_storage + storage_not_in_db
+    else:
+        # Fallback: no storage, use raw DB list
+        image_urls = list(db_urls)
 
     legacy_cover = product.get("image_url")
     if legacy_cover and legacy_cover not in image_urls:
@@ -916,8 +924,18 @@ async def update_product_image(
         )
         uploaded_urls.append(supabase.storage.from_("product-images").get_public_url(path))
 
-    cover = uploaded_urls[0]
-    data = supabase.table("products").update({"image_url": cover}).eq("id", product_id).execute()
+    # Append new URLs to existing image_urls in DB (preserve order)
+    existing = get_product_row(product_id)
+    existing_urls = existing.get("image_urls") or []
+    if isinstance(existing_urls, str):
+        try:
+            import json as _json
+            existing_urls = _json.loads(existing_urls)
+        except Exception:
+            existing_urls = []
+    merged = list(existing_urls) + [u for u in uploaded_urls if u not in existing_urls]
+    cover = existing.get("image_url") or merged[0]
+    data = supabase.table("products").update({"image_url": cover, "image_urls": merged}).eq("id", product_id).execute()
     if not data.data:
         raise HTTPException(status_code=404, detail="Товар не найден")
     return _decorate_product_with_images(data.data[0])
@@ -931,9 +949,36 @@ def delete_product_image(product_id: int, payload: ProductImageDelete):
         raise HTTPException(status_code=400, detail="Invalid image URL")
 
     supabase.storage.from_("product-images").remove([path])
-    updated = _decorate_product_with_images(product)
-    next_cover = updated["image_urls"][0] if updated["image_urls"] else None
-    data = supabase.table("products").update({"image_url": next_cover}).eq("id", product_id).execute()
+
+    # Remove from DB image_urls list
+    db_urls = product.get("image_urls") or []
+    if isinstance(db_urls, str):
+        try:
+            import json as _json
+            db_urls = _json.loads(db_urls)
+        except Exception:
+            db_urls = []
+    remaining = [u for u in db_urls if u != payload.image_url]
+    next_cover = remaining[0] if remaining else None
+    data = supabase.table("products").update({"image_url": next_cover, "image_urls": remaining}).eq("id", product_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return _decorate_product_with_images(data.data[0])
+
+
+class ProductImagesReorder(BaseModel):
+    image_urls: list[str]
+
+@app.put("/products/{product_id}/images/reorder")
+def reorder_product_images(product_id: int, payload: ProductImagesReorder):
+    """Save a new image order. First URL becomes the cover."""
+    if not payload.image_urls:
+        raise HTTPException(status_code=400, detail="image_urls must not be empty")
+    cover = payload.image_urls[0]
+    data = supabase.table("products").update({
+        "image_url": cover,
+        "image_urls": payload.image_urls,
+    }).eq("id", product_id).execute()
     if not data.data:
         raise HTTPException(status_code=404, detail="Товар не найден")
     return _decorate_product_with_images(data.data[0])

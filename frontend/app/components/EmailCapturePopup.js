@@ -19,11 +19,23 @@ export default function EmailCapturePopup() {
     return !sessionStorage.getItem(SESSION_KEY)
   }, [])
 
+  const forceShow = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('popup') === '1'
+  }, [])
+
   useEffect(() => {
-    // Не показываем залогиненым пользователям
-    if (authLoading) return
-    if (user) return
-    if (!canShow) return
+    // Skip for logged-in users unless ?popup=1 is in the URL (for testing)
+    if (!forceShow) {
+      if (authLoading) return
+      if (user) return
+    }
+    if (!canShow && !forceShow) return
+
+    if (forceShow) {
+      setVisible(true)
+      return
+    }
 
     const onScroll = () => {
       if (window.scrollY < 320) return
@@ -32,7 +44,7 @@ export default function EmailCapturePopup() {
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [canShow, user, authLoading])
+  }, [canShow, user, authLoading, forceShow])
 
   function closePopup() {
     setVisible(false)
