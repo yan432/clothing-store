@@ -2,7 +2,10 @@ from datetime import datetime, timezone
 import os
 import random
 import re
+import smtplib
 import string
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from urllib.parse import unquote, urlparse
 import uuid
 from typing import Any, Optional
@@ -47,6 +50,12 @@ RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Store <onboarding@resend.dev>")
 ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
+
+# Zoho SMTP (приоритет над Resend если настроен)
+ZOHO_SMTP_HOST = os.getenv("ZOHO_SMTP_HOST", "smtp.zoho.eu")
+ZOHO_SMTP_PORT = int(os.getenv("ZOHO_SMTP_PORT", "587"))
+ZOHO_SMTP_USER = os.getenv("ZOHO_SMTP_USER", "")
+ZOHO_SMTP_PASSWORD = os.getenv("ZOHO_SMTP_PASSWORD", "")
 
 
 class Product(BaseModel):
@@ -351,6 +360,46 @@ def increment_promo_usage_if_needed(order: dict) -> None:
     supabase.table("promo_codes").update({"used_count": used_count + 1}).eq("id", promo["id"]).execute()
 
 
+def get_setting(key: str, default: str = "") -> str:
+    try:
+        row = supabase.table("settings").select("value").eq("key", key).limit(1).execute()
+        if row.data:
+            return str(row.data[0].get("value") or default)
+    except Exception:
+        pass
+    return default
+
+
+def get_settings_bulk(keys: list[str]) -> dict:
+    try:
+        rows = supabase.table("settings").select("key,value").in_("key", keys).execute()
+        return {r["key"]: str(r.get("value") or "") for r in (rows.data or [])}
+    except Exception:
+        return {}
+
+
+def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name: str = "") -> bool:
+    if not ZOHO_SMTP_USER or not ZOHO_SMTP_PASSWORD:
+        return False
+    try:
+        msg = MIMEMultipart("alternative")
+        display_name = from_name or get_setting("email_from_name", "EDM Clothes")
+        msg["From"] = f"{display_name} <{ZOHO_SMTP_USER}>"
+        msg["To"] = to_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(text, "plain", "utf-8"))
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=10) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
+            server.sendmail(ZOHO_SMTP_USER, to_email, msg.as_string())
+        return True
+    except Exception as exc:
+        print(f"Zoho SMTP error: {exc}")
+        return False
+
+
 def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None:
     if not RESEND_API_KEY:
         print("Resend is not configured: RESEND_API_KEY is missing")
@@ -366,21 +415,23 @@ def send_resend_email(to_email: str, subject: str, html: str, text: str) -> None
                 "Authorization": f"Bearer {RESEND_API_KEY}",
                 "Content-Type": "application/json",
             },
-            json={
-                "from": sender,
-                "to": [target],
-                "subject": subject,
-                "html": html,
-                "text": text,
-            },
+            json={"from": sender, "to": [target], "subject": subject, "html": html, "text": text},
             timeout=8,
         )
         if response.status_code >= 400:
             print(f"Resend email failed ({response.status_code}): {response.text[:300]}")
     except requests.RequestException as exc:
-        # Email delivery failure should not block order flow/webhook processing.
         print(f"Resend email request error: {exc}")
+
+
+def send_email(to_email: str, subject: str, html: str, text: str) -> None:
+    """Отправляет через Zoho SMTP (приоритет) или Resend как fallback."""
+    target = str(to_email or "").strip()
+    if not target:
         return
+    if send_email_zoho(target, subject, html, text):
+        return
+    send_resend_email(target, subject, html, text)
 
 
 def order_items_html(items: list[dict]) -> str:
@@ -431,6 +482,12 @@ def send_order_confirmation_emails(order: dict) -> None:
         str(order.get("shipping_country") or "").strip(),
     ]).strip(", ").strip()
 
+    # Загружаем настройки из БД
+    cfg = get_settings_bulk([
+        "email_order_subject", "email_order_greeting",
+        "email_order_message", "email_order_footer", "email_admin_subject",
+    ])
+
     items_html = order_items_html(items)
     items_text = order_items_text(items)
     promo_row_html = ""
@@ -439,64 +496,82 @@ def send_order_confirmation_emails(order: dict) -> None:
         promo_row_html = f"<tr><td style='padding:4px 0'>Discount</td><td></td><td style='text-align:right'>-{money_eur(promo_discount)}</td></tr>"
         promo_row_text = f"Discount: -{money_eur(promo_discount)}\n"
 
-    customer_subject = f"Order confirmation #{order_id} — STORE"
+    subject_tpl = cfg.get("email_order_subject") or "Order confirmation #{order_id} — EDM Clothes"
+    greeting_tpl = cfg.get("email_order_greeting") or "Thanks for your order, {customer_name}!"
+    message_tpl = cfg.get("email_order_message") or "We received your order and started processing it."
+    footer_tpl = cfg.get("email_order_footer") or "EDM Clothes"
+
+    def fmt(s):
+        return s.replace("{order_id}", str(order_id)).replace("{customer_name}", customer_name).replace("{total}", money_eur(total))
+
+    customer_subject = fmt(subject_tpl)
+    greeting = fmt(greeting_tpl)
+    message = fmt(message_tpl)
+    footer = fmt(footer_tpl)
+
     customer_html = f"""
-      <div style="font-family:Arial,sans-serif;color:#111">
-        <h2>Thanks for your order, {customer_name}!</h2>
-        <p>We received your order and started processing it.</p>
-        <p><strong>Order #{order_id}</strong><br/>Reference: {order_ref or '-'}</p>
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr><th align="left">Item</th><th align="center">Qty</th><th align="right">Total</th></tr></thead>
+      <div style="font-family:Arial,sans-serif;color:#111;max-width:560px;margin:0 auto">
+        <h2 style="margin-bottom:4px">{greeting}</h2>
+        <p style="color:#555">{message}</p>
+        <p><strong>Order #{order_id}</strong> &nbsp;·&nbsp; Ref: {order_ref or '-'}</p>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0">
+          <thead><tr style="border-bottom:2px solid #eee">
+            <th align="left" style="padding:6px 0">Item</th>
+            <th align="center" style="padding:6px 0">Qty</th>
+            <th align="right" style="padding:6px 0">Price</th>
+          </tr></thead>
           <tbody>{items_html}</tbody>
         </table>
-        <hr/>
-        <table style="width:100%">
-          <tr><td>Subtotal</td><td align="right">{money_eur(subtotal)}</td></tr>
+        <table style="width:100%;margin-bottom:16px">
+          <tr><td style="color:#888">Subtotal</td><td align="right">{money_eur(subtotal)}</td></tr>
           {promo_row_html}
-          <tr><td>Shipping</td><td align="right">{money_eur(shipping)}</td></tr>
-          <tr><td><strong>Total</strong></td><td align="right"><strong>{money_eur(total)}</strong></td></tr>
+          <tr><td style="color:#888">Shipping</td><td align="right">{money_eur(shipping)}</td></tr>
+          <tr style="font-weight:700;font-size:16px">
+            <td style="padding-top:8px">Total</td>
+            <td align="right" style="padding-top:8px">{money_eur(total)}</td>
+          </tr>
         </table>
-        <p style="margin-top:14px"><strong>Shipping address:</strong><br/>{shipping_address or 'Not provided'}</p>
+        <p><strong>Shipping address:</strong><br/>{shipping_address or 'Not provided'}</p>
+        <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
+        <p style="font-size:12px;color:#aaa">{footer}</p>
       </div>
     """
     customer_text = (
-        f"Thanks for your order, {customer_name}!\n\n"
-        f"Order #{order_id}\nReference: {order_ref or '-'}\n\n"
+        f"{greeting}\n\n{message}\n\n"
+        f"Order #{order_id} · Ref: {order_ref or '-'}\n\n"
         f"{items_text}\n\n"
         f"Subtotal: {money_eur(subtotal)}\n"
         f"{promo_row_text}"
         f"Shipping: {money_eur(shipping)}\n"
         f"Total: {money_eur(total)}\n\n"
-        f"Shipping address: {shipping_address or 'Not provided'}\n"
+        f"Shipping address: {shipping_address or 'Not provided'}\n\n"
+        f"{footer}"
     )
-    send_resend_email(customer_email, customer_subject, customer_html, customer_text)
+    send_email(customer_email, customer_subject, customer_html, customer_text)
 
     admin_target = str(ORDER_ALERT_EMAIL or "").strip()
     if admin_target:
-        admin_subject = f"New paid order #{order_id} — {money_eur(total)}"
+        admin_subj_tpl = cfg.get("email_admin_subject") or "New order #{order_id} — {total}"
+        admin_subject = fmt(admin_subj_tpl)
         admin_html = f"""
           <div style="font-family:Arial,sans-serif;color:#111">
             <h2>New paid order received</h2>
-            <p><strong>Order #{order_id}</strong><br/>Reference: {order_ref or '-'}</p>
-            <p><strong>Customer email:</strong> {customer_email or '-'}</p>
+            <p><strong>Order #{order_id}</strong> · Ref: {order_ref or '-'}</p>
+            <p><strong>Customer:</strong> {customer_email or '-'}</p>
             <p><strong>Shipping:</strong> {shipping_address or 'Not provided'}</p>
             <table style="width:100%;border-collapse:collapse">
               <thead><tr><th align="left">Item</th><th align="center">Qty</th><th align="right">Total</th></tr></thead>
               <tbody>{items_html}</tbody>
             </table>
             <hr/>
-            <p><strong>Total:</strong> {money_eur(total)}</p>
+            <p><strong>Total: {money_eur(total)}</strong></p>
           </div>
         """
         admin_text = (
-            f"New paid order received\n\n"
-            f"Order #{order_id}\nReference: {order_ref or '-'}\n"
-            f"Customer email: {customer_email or '-'}\n"
-            f"Shipping: {shipping_address or 'Not provided'}\n\n"
-            f"{items_text}\n\n"
-            f"Total: {money_eur(total)}\n"
+            f"New order #{order_id}\nCustomer: {customer_email}\n"
+            f"Shipping: {shipping_address or '-'}\n\n{items_text}\n\nTotal: {money_eur(total)}"
         )
-        send_resend_email(admin_target, admin_subject, admin_html, admin_text)
+        send_email(admin_target, admin_subject, admin_html, admin_text)
 
 
 def _make_slug(name: str) -> str:
@@ -1369,6 +1444,23 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
     capture_subscriber_email(email, payload.source or "unknown", payload.metadata or {})
+    promo_code = get_setting("popup_promo_code", "WELCOME10")
+    return {"ok": True, "promo_code": promo_code}
+
+
+@app.get("/settings")
+def get_all_settings():
+    data = supabase.table("settings").select("key,value").execute()
+    return {row["key"]: row.get("value", "") for row in (data.data or [])}
+
+
+@app.put("/settings")
+def update_settings(payload: dict):
+    for key, value in payload.items():
+        supabase.table("settings").upsert(
+            {"key": key, "value": str(value), "updated_at": now_iso()},
+            on_conflict="key"
+        ).execute()
     return {"ok": True}
 
 
