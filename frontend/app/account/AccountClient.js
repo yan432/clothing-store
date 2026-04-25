@@ -272,25 +272,31 @@ function NewsletterSection({ user }) {
 
   async function subscribe() {
     setLoading(true); setMsg(null)
-    await fetch(getApiUrl('/email-subscribers/capture'), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: user.email, source: 'account_settings' }),
-    })
-    setSubscribed(true)
-    setMsg({ ok: true, text: 'You\'re now subscribed!' })
-    setTimeout(() => setMsg(null), 3000)
+    try {
+      const res = await fetch(getApiUrl('/email-subscribers/capture'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email, source: 'account_settings' }),
+      })
+      if (!res.ok) throw new Error()
+      setSubscribed(true)
+      setMsg({ ok: true, text: 'You\'re now subscribed!' })
+      setTimeout(() => setMsg(null), 3000)
+    } catch { setMsg({ ok: false, text: 'Failed to subscribe. Please try again.' }) }
     setLoading(false)
   }
 
   async function unsubscribe() {
     setLoading(true); setMsg(null)
-    await fetch(getApiUrl('/email-subscribers/unsubscribe'), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: user.email }),
-    })
-    setSubscribed(false)
-    setMsg({ ok: true, text: 'Unsubscribed' })
-    setTimeout(() => setMsg(null), 3000)
+    try {
+      const res = await fetch(getApiUrl('/email-subscribers/unsubscribe'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: user.email }),
+      })
+      if (!res.ok) throw new Error()
+      setSubscribed(false)
+      setMsg({ ok: true, text: 'Unsubscribed' })
+      setTimeout(() => setMsg(null), 3000)
+    } catch { setMsg({ ok: false, text: 'Failed to unsubscribe. Please try again.' }) }
     setLoading(false)
   }
 
