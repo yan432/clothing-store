@@ -562,10 +562,24 @@ def _storage_path_from_public_url(public_url: str) -> Optional[str]:
 
 
 def _decorate_product_with_images(product: dict) -> dict:
-    image_urls = _storage_public_urls_for_product(product["id"])
+    # Сначала пробуем Storage (живые файлы)
+    storage_urls = _storage_public_urls_for_product(product["id"])
+
+    # Fallback: image_urls из БД (заполняется при загрузке фото)
+    db_urls = product.get("image_urls") or []
+    if isinstance(db_urls, str):
+        try:
+            import json as _json
+            db_urls = _json.loads(db_urls)
+        except Exception:
+            db_urls = []
+
+    image_urls = storage_urls if storage_urls else list(db_urls)
+
     legacy_cover = product.get("image_url")
     if legacy_cover and legacy_cover not in image_urls:
         image_urls = [legacy_cover, *image_urls]
+
     cover = image_urls[0] if image_urls else legacy_cover
     return {
         **product,
@@ -681,16 +695,28 @@ def root():
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
     products = data.data or []
-    return [
-        {
+    result = []
+    for p in products:
+        db_urls = p.get("image_urls") or []
+        if isinstance(db_urls, str):
+            try:
+                import json as _json
+                db_urls = _json.loads(db_urls)
+            except Exception:
+                db_urls = []
+        cover = p.get("image_url")
+        if cover and cover not in db_urls:
+            db_urls = [cover, *db_urls]
+        result.append({
             **p,
+            "image_urls": db_urls,
+            "image_url": db_urls[0] if db_urls else cover,
             **stock_snapshot_for_product(p),
             "tags": compute_auto_tags(p),
             "compare_price": p.get("compare_price"),
             "discount_percent": compute_discount_percent(p.get("price"), p.get("compare_price")),
-        }
-        for p in products
-    ]
+        })
+    return result
 
 
 @app.get("/products/admin")
