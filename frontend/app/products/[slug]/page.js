@@ -116,17 +116,32 @@ export default async function ProductPage({ params }) {
                   }} />
                   {/* Variant swatches */}
                   {Array.isArray(product.color_variants) && product.color_variants.map(v => (
-                    <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
-                      style={{
-                        width:28,height:28,borderRadius:'50%',
-                        background: v.color_hex || '#ccc',
-                        border:'2px solid transparent',
-                        boxShadow:'0 0 0 1.5px #ccc',
-                        flexShrink:0,
-                        display:'block',
-                        opacity: v.in_stock ? 1 : 0.4,
-                        textDecoration:'none',
-                      }} />
+                    v.is_hidden ? (
+                      /* Hidden = coming soon, show as dim swatch, no link */
+                      <div key={v.id} title={v.color_name + ' — coming soon'}
+                        style={{
+                          width:28,height:28,borderRadius:'50%',
+                          background: v.color_hex || '#ccc',
+                          border:'2px solid transparent',
+                          boxShadow:'0 0 0 1.5px #ccc',
+                          flexShrink:0,
+                          opacity:0.35,
+                          cursor:'default',
+                          position:'relative',
+                        }} />
+                    ) : (
+                      <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
+                        style={{
+                          width:28,height:28,borderRadius:'50%',
+                          background: v.color_hex || '#ccc',
+                          border:'2px solid transparent',
+                          boxShadow:'0 0 0 1.5px #ccc',
+                          flexShrink:0,
+                          display:'block',
+                          opacity: v.in_stock ? 1 : 0.55,
+                          textDecoration:'none',
+                        }} />
+                    )
                   ))}
                 </div>
               </div>

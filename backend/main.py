@@ -822,7 +822,7 @@ def _get_color_variants(product: dict) -> list:
         return []
     rows = supabase.table("products").select(
         "id, name, slug, color_name, color_hex, image_url, image_urls, available_stock, stock, is_hidden"
-    ).eq("color_group_id", group_id).eq("is_hidden", False).execute()
+    ).eq("color_group_id", group_id).execute()
     variants = []
     for row in (rows.data or []):
         if row["id"] == product["id"]:
@@ -838,6 +838,7 @@ def _get_color_variants(product: dict) -> list:
             "image_url": cover,
             "hover_image_url": db_urls[1] if len(db_urls) > 1 else cover,
             "in_stock": (row.get("available_stock") or row.get("stock") or 0) > 0,
+            "is_hidden": bool(row.get("is_hidden")),
         })
     return variants
 
