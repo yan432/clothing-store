@@ -75,10 +75,15 @@ export function AuthProvider({ children }) {
     return { error }
   }
 
+  async function reauthenticate(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    return { error }
+  }
+
   const isAdmin = isAdminEmail(user?.email)
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, verifySignUpCode, resendSignUpCode, requestPasswordReset, updatePassword, updateEmail, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, verifySignUpCode, resendSignUpCode, requestPasswordReset, updatePassword, updateEmail, reauthenticate, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )
