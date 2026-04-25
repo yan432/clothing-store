@@ -59,7 +59,7 @@ export default function Footer() {
 
         {/* Brand */}
         <div>
-          <p style={{fontSize:20,fontWeight:700,letterSpacing:'0.15em',margin:'0 0 16px'}}>STORE</p>
+          <p style={{fontSize:20,fontWeight:700,letterSpacing:'0.06em',margin:'0 0 16px'}}>edm.clothes</p>
           <p style={{fontSize:13,color:'#666',lineHeight:1.7,margin:'0 0 20px'}}>
             Minimal essentials designed for everyday wear. Made in Ukraine.
           </p>
@@ -182,7 +182,7 @@ export default function Footer() {
       {/* Bottom */}
       <div style={{borderTop:'1px solid #111',padding:'20px 24px',textAlign:'center'}}>
         <p style={{fontSize:12,color:'#333',margin:0}}>
-          © {new Date().getFullYear()} STORE. Made in Ukraine.
+          © {new Date().getFullYear()} edm.clothes. Made in Ukraine.
         </p>
       </div>
     </footer>
