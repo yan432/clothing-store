@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../lib/api'
@@ -22,28 +22,19 @@ const COUNTRIES = [
   ['GB','United Kingdom'],['US','United States'],
 ]
 
-// ── Shared styles ─────────────────────────────────────────────────────────────
+// ── Shared ────────────────────────────────────────────────────────────────────
 const inp = (err) => ({
   padding: '11px 14px', borderRadius: 10, fontSize: 14, outline: 'none',
-  width: '100%', minHeight: 44,
+  width: '100%', minHeight: 44, boxSizing: 'border-box',
   border: err ? '1.5px solid #ef4444' : '1px solid #e5e5e3',
-  background: '#fff', boxSizing: 'border-box', appearance: 'auto',
-})
-const primaryBtn = (loading) => ({
-  padding: '11px 24px', borderRadius: 999, fontSize: 14, fontWeight: 600,
-  border: 'none', background: '#111', color: '#fff',
-  cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1,
-})
-const ghostBtn = () => ({
-  padding: '11px 22px', borderRadius: 999, fontSize: 14, fontWeight: 500,
-  border: '1.5px solid #e5e5e3', background: '#fff', color: '#555', cursor: 'pointer',
+  background: '#fff',
 })
 
 function MsgBox({ ok, text }) {
   if (!text) return null
   return (
     <div style={{
-      borderRadius: 10, padding: '10px 14px', fontSize: 13, marginTop: 12,
+      borderRadius: 10, padding: '10px 14px', fontSize: 13, marginTop: 10,
       background: ok ? '#ecfdf3' : '#fef2f2',
       border: `1px solid ${ok ? '#bbf7d0' : '#fecaca'}`,
       color: ok ? '#166534' : '#b91c1c',
@@ -51,22 +42,36 @@ function MsgBox({ ok, text }) {
   )
 }
 
-function SubLabel({ children }) {
-  return <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 14px' }}>{children}</p>
+function SectionCard({ title, children }) {
+  return (
+    <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: '22px 24px', background: '#fff' }}>
+      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#aaa', margin: '0 0 18px' }}>{title}</p>
+      {children}
+    </div>
+  )
 }
 
-// ── Personal info ─────────────────────────────────────────────────────────────
+function SaveBtn({ onClick, loading, label = 'Save' }) {
+  return (
+    <button onClick={onClick} disabled={loading}
+      style={{ marginTop: 16, padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1 }}>
+      {loading ? 'Saving...' : label}
+    </button>
+  )
+}
+
+// ── Personal info section ─────────────────────────────────────────────────────
 function InfoSection({ user }) {
-  const empty = { first_name: '', last_name: '', phone: '', address: '', city: '', zip: '', country: 'DE' }
-  const [form, setForm] = useState(empty)
+  const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', address: '', city: '', zip: '', country: 'DE' })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState(null) // { ok, text }
+  const [msg, setMsg] = useState(null)
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   useEffect(() => {
     if (!user?.email) return
     async function load() {
-      // 1. Try saved profile
+      // 1. Try saved profile first
       try {
         const r = await fetch(`${getApiUrl('/user-profile')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
         const d = await r.json()
@@ -76,21 +81,18 @@ function InfoSection({ user }) {
           return
         }
       } catch {}
-
-      // 2. Fallback: fill from most recent order
+      // 2. Pre-fill from most recent order if profile is empty
       try {
         const r = await fetch(`${getApiUrl('/orders/track')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
         if (r.ok) {
           const orders = await r.json()
           if (orders.length > 0) {
-            const o = orders[0] // most recent first
-            const nameParts = (o.shipping_name || '').trim().split(' ')
-            const guessFirst = o.first_name || nameParts[0] || ''
-            const guessLast  = o.last_name  || nameParts.slice(1).join(' ') || ''
+            const o = orders[0]
+            const parts = (o.shipping_name || '').trim().split(' ')
             setForm(f => ({
               ...f,
-              first_name: guessFirst,
-              last_name:  guessLast,
+              first_name: o.first_name || parts[0] || '',
+              last_name:  o.last_name  || parts.slice(1).join(' ') || '',
               phone:      o.phone || '',
               address:    o.shipping_line1 || '',
               city:       o.shipping_city  || '',
@@ -104,8 +106,6 @@ function InfoSection({ user }) {
     }
     load()
   }, [user?.email])
-
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   async function save() {
     setSaving(true); setMsg(null)
@@ -122,17 +122,16 @@ function InfoSection({ user }) {
     setSaving(false)
   }
 
-  if (loading) return <p style={{ color: '#aaa', fontSize: 14 }}>Loading...</p>
+  if (loading) return <SectionCard title="Personal info"><p style={{ color: '#aaa', fontSize: 14 }}>Loading...</p></SectionCard>
 
   return (
-    <>
-      <SubLabel>Shipping details</SubLabel>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 520 }}>
+    <SectionCard title="Personal info">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 500 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <input placeholder="First name" value={form.first_name || ''} onChange={e => set('first_name', e.target.value)} style={inp()} />
           <input placeholder="Last name"  value={form.last_name  || ''} onChange={e => set('last_name',  e.target.value)} style={inp()} />
         </div>
-        <input placeholder="Phone e.g. +49 151 234 567" value={form.phone || ''} onChange={e => set('phone', e.target.value)} style={inp()} />
+        <input placeholder="Phone" value={form.phone || ''} onChange={e => set('phone', e.target.value)} style={inp()} />
         <input placeholder="Street address" value={form.address || ''} onChange={e => set('address', e.target.value)} style={inp()} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <input placeholder="City" value={form.city || ''} onChange={e => set('city', e.target.value)} style={inp()} />
@@ -143,24 +142,18 @@ function InfoSection({ user }) {
         </select>
       </div>
       {msg && <MsgBox ok={msg.ok} text={msg.text} />}
-      <div style={{ marginTop: 16 }}>
-        <button onClick={save} disabled={saving} style={primaryBtn(saving)}>
-          {saving ? 'Saving...' : 'Save details'}
-        </button>
-      </div>
-    </>
+      <SaveBtn onClick={save} loading={saving} />
+    </SectionCard>
   )
 }
 
-// ── Security ──────────────────────────────────────────────────────────────────
+// ── Security section ──────────────────────────────────────────────────────────
 function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, requestPasswordReset }) {
-  // Password
   const [pw, setPw] = useState({ old: '', next: '', confirm: '' })
   const [showPw, setShowPw] = useState(false)
   const [pwMsg, setPwMsg] = useState(null)
   const [pwLoading, setPwLoading] = useState(false)
 
-  // Email
   const [newEmail, setNewEmail] = useState('')
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
@@ -171,27 +164,25 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
     { label: 'One uppercase letter',  ok: /[A-Z]/.test(pw.next) },
     { label: 'One number',            ok: /\d/.test(pw.next) },
   ]
-  const pwValid = checks.every(c => c.ok)
 
   async function changePassword() {
     setPwMsg(null)
     if (!pw.old) { setPwMsg({ ok: false, text: 'Enter your current password' }); return }
-    if (!pwValid) { setPwMsg({ ok: false, text: 'New password does not meet requirements' }); return }
+    if (!checks.every(c => c.ok)) { setPwMsg({ ok: false, text: 'New password does not meet requirements' }); return }
     if (pw.next !== pw.confirm) { setPwMsg({ ok: false, text: 'Passwords do not match' }); return }
     setPwLoading(true)
     const { error: reErr } = await reauthenticate(user.email, pw.old)
     if (reErr) { setPwMsg({ ok: false, text: 'Current password is incorrect' }); setPwLoading(false); return }
     const { error } = await updatePassword(pw.next)
     if (error) setPwMsg({ ok: false, text: error.message })
-    else { setPwMsg({ ok: true, text: 'Password updated successfully' }); setPw({ old: '', next: '', confirm: '' }) }
+    else { setPwMsg({ ok: true, text: 'Password updated' }); setPw({ old: '', next: '', confirm: '' }) }
     setPwLoading(false)
   }
 
   async function sendReset() {
     setPwLoading(true); setPwMsg(null)
     const { error } = await requestPasswordReset(user.email)
-    if (error) setPwMsg({ ok: false, text: error.message })
-    else setPwMsg({ ok: true, text: `Reset link sent to ${user.email}` })
+    setPwMsg(error ? { ok: false, text: error.message } : { ok: true, text: `Reset link sent to ${user.email}` })
     setPwLoading(false)
   }
 
@@ -199,21 +190,20 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
     setEmailMsg(null)
     const val = newEmail.trim()
     if (!val || !val.includes('@')) { setEmailMsg({ ok: false, text: 'Enter a valid email' }); return }
-    if (val.toLowerCase() === user?.email?.toLowerCase()) { setEmailMsg({ ok: false, text: 'This is already your email' }); return }
+    if (val.toLowerCase() === user?.email?.toLowerCase()) { setEmailMsg({ ok: false, text: 'This is already your current email' }); return }
     setEmailLoading(true)
     const { error } = await updateEmail(val)
     if (error) setEmailMsg({ ok: false, text: error.message })
-    else setEmailMsg({ ok: true, text: 'Confirmation link sent. Click it in your new inbox to confirm the change.' })
+    else setEmailMsg({ ok: true, text: 'Confirmation sent. Click the link in your new inbox to confirm the change.' })
     setEmailLoading(false)
   }
 
   return (
-    <>
+    <SectionCard title="Security">
       {/* Password */}
-      <div style={{ marginBottom: 32 }}>
-        <SubLabel>Change password</SubLabel>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
-          {/* Current password */}
+      <div style={{ maxWidth: 420 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', color: '#555' }}>Change password</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ position: 'relative' }}>
             <input type={showPw ? 'text' : 'password'} placeholder="Current password"
               value={pw.old} onChange={e => setPw(p => ({ ...p, old: e.target.value }))}
@@ -223,11 +213,8 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
               {showPw ? 'Hide' : 'Show'}
             </button>
           </div>
-
-          {/* New password */}
           <input type={showPw ? 'text' : 'password'} placeholder="New password"
             value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} style={inp()} />
-
           {pw.next && (
             <div style={{ border: '1px solid #ecece8', borderRadius: 8, padding: '8px 12px', fontSize: 12, background: '#fafaf8' }}>
               {checks.map((c, i) => (
@@ -235,42 +222,41 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
               ))}
             </div>
           )}
-
           <input type={showPw ? 'text' : 'password'} placeholder="Confirm new password"
             value={pw.confirm} onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} style={inp()} />
         </div>
         {pwMsg && <MsgBox ok={pwMsg.ok} text={pwMsg.text} />}
-        <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button onClick={changePassword} disabled={pwLoading} style={primaryBtn(pwLoading)}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 14 }}>
+          <button onClick={changePassword} disabled={pwLoading}
+            style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: pwLoading ? 'default' : 'pointer', opacity: pwLoading ? 0.65 : 1 }}>
             {pwLoading ? 'Saving...' : 'Update password'}
           </button>
           <button onClick={sendReset} disabled={pwLoading}
             style={{ background: 'none', border: 'none', fontSize: 13, color: '#888', textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>
-            Forgot password? Reset via email
+            Forgot? Reset via email
           </button>
         </div>
       </div>
 
+      <div style={{ height: 1, background: '#ecece8', margin: '24px 0' }} />
+
       {/* Email */}
-      <div>
-        <SubLabel>Change email</SubLabel>
-        <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px' }}>Current: <strong style={{ color: '#111' }}>{user?.email}</strong></p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 420 }}>
-          <input type="email" placeholder="New email address"
-            value={newEmail} onChange={e => setNewEmail(e.target.value)} style={inp()} />
-        </div>
+      <div style={{ maxWidth: 420 }}>
+        <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 6px', color: '#555' }}>Change email</p>
+        <p style={{ fontSize: 13, color: '#aaa', margin: '0 0 10px' }}>Current: <strong style={{ color: '#111' }}>{user?.email}</strong></p>
+        <input type="email" placeholder="New email address"
+          value={newEmail} onChange={e => setNewEmail(e.target.value)} style={inp()} />
         {emailMsg && <MsgBox ok={emailMsg.ok} text={emailMsg.text} />}
-        <div style={{ marginTop: 14 }}>
-          <button onClick={changeEmail} disabled={emailLoading} style={primaryBtn(emailLoading)}>
-            {emailLoading ? 'Sending...' : 'Send confirmation'}
-          </button>
-        </div>
+        <button onClick={changeEmail} disabled={emailLoading}
+          style={{ marginTop: 14, padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: emailLoading ? 'default' : 'pointer', opacity: emailLoading ? 0.65 : 1 }}>
+          {emailLoading ? 'Sending...' : 'Send confirmation'}
+        </button>
       </div>
-    </>
+    </SectionCard>
   )
 }
 
-// ── Newsletter ────────────────────────────────────────────────────────────────
+// ── Newsletter section ────────────────────────────────────────────────────────
 function NewsletterSection({ user }) {
   const [subscribed, setSubscribed] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -292,56 +278,56 @@ function NewsletterSection({ user }) {
         body: JSON.stringify({ email: user.email }),
       })
       setSubscribed(false)
-      setMsg({ ok: true, text: 'Unsubscribed from newsletter' })
+      setMsg({ ok: true, text: 'Unsubscribed' })
     } else {
       await fetch(getApiUrl('/email-subscribers/capture'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email, source: 'account_settings' }),
       })
       setSubscribed(true)
-      setMsg({ ok: true, text: 'Subscribed to newsletter!' })
+      setMsg({ ok: true, text: 'Subscribed!' })
     }
     setTimeout(() => setMsg(null), 3000)
     setLoading(false)
   }
 
-  if (subscribed === null) return <p style={{ fontSize: 14, color: '#aaa' }}>Loading...</p>
-
   return (
-    <>
-      <SubLabel>Newsletter preferences</SubLabel>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div
-          onClick={loading ? null : toggle}
-          style={{
-            width: 44, height: 24, borderRadius: 999, flexShrink: 0,
-            background: subscribed ? '#111' : '#e5e5e3',
-            position: 'relative', cursor: loading ? 'default' : 'pointer',
-            transition: 'background 0.2s',
-          }}>
-          <div style={{
-            position: 'absolute', top: 3, left: subscribed ? 23 : 3,
-            width: 18, height: 18, borderRadius: '50%', background: '#fff',
-            transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-          }} />
+    <SectionCard title="Newsletter">
+      {subscribed === null ? (
+        <p style={{ fontSize: 14, color: '#aaa' }}>Loading...</p>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div onClick={loading ? null : toggle}
+            style={{
+              width: 44, height: 24, borderRadius: 999, flexShrink: 0,
+              background: subscribed ? '#111' : '#e5e5e3',
+              position: 'relative', cursor: loading ? 'default' : 'pointer',
+              transition: 'background 0.2s',
+            }}>
+            <div style={{
+              position: 'absolute', top: 3, left: subscribed ? 23 : 3,
+              width: 18, height: 18, borderRadius: '50%', background: '#fff',
+              transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
+            }} />
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
+              {subscribed ? 'Subscribed to newsletter' : 'Not subscribed'}
+            </p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#aaa' }}>
+              {subscribed
+                ? 'You receive news and promotions from edm.clothes'
+                : 'Subscribe to get exclusive offers and updates'}
+            </p>
+          </div>
         </div>
-        <div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
-            {subscribed ? 'Subscribed' : 'Not subscribed'}
-          </p>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: '#aaa' }}>
-            {subscribed
-              ? 'You receive news and promotions from edm.clothes'
-              : 'Subscribe to receive news and exclusive offers'}
-          </p>
-        </div>
-      </div>
+      )}
       {msg && <MsgBox ok={msg.ok} text={msg.text} />}
-    </>
+    </SectionCard>
   )
 }
 
-// ── Orders ────────────────────────────────────────────────────────────────────
+// ── Orders section ────────────────────────────────────────────────────────────
 function formatDate(v) {
   if (!v) return '-'
   const d = new Date(v)
@@ -371,7 +357,7 @@ function OrdersSection({ user }) {
   }, [user?.email])
 
   if (loading) return <p style={{ fontSize: 14, color: '#aaa' }}>Loading your orders...</p>
-  if (err) return <p style={{ fontSize: 14, color: '#b91c1c' }}>Error: {err}</p>
+  if (err)     return <p style={{ fontSize: 14, color: '#b91c1c' }}>Error: {err}</p>
   if (orders.length === 0) return <p style={{ fontSize: 14, color: '#888' }}>No orders yet.</p>
 
   return (
@@ -379,7 +365,7 @@ function OrdersSection({ user }) {
       {orders.map(o => {
         const items = Array.isArray(o.items_json) ? o.items_json : []
         return (
-          <div key={o.id} style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '14px 16px', background: '#fff' }}>
+          <div key={o.id} style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '14px 16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Order #{o.user_order_number || o.id}</p>
@@ -403,21 +389,14 @@ function OrdersSection({ user }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const SUB_TABS = [
-  { id: 'info',       label: 'Personal info' },
-  { id: 'security',   label: 'Security' },
-  { id: 'newsletter', label: 'Newsletter' },
-]
-
-export default function AccountClient({ activeTab, activeSub }) {
+export default function AccountClient({ activeTab }) {
   const { user, signOut, updatePassword, updateEmail, reauthenticate, requestPasswordReset } = useAuth()
-
   const isOrders = activeTab === 'orders'
 
   return (
-    <main style={{ maxWidth: 960, margin: '0 auto', padding: '36px 20px 70px' }}>
+    <main style={{ maxWidth: 860, margin: '0 auto', padding: '36px 20px 70px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
         <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>My account</h1>
         {user && (
           <button onClick={signOut}
@@ -428,76 +407,42 @@ export default function AccountClient({ activeTab, activeSub }) {
       </div>
       {user && <p style={{ fontSize: 13, color: '#aaa', marginBottom: 28 }}>{user.email}</p>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: 24, alignItems: 'start' }}>
-        {/* Sidebar */}
-        <nav style={{ border: '1px solid #ecece8', borderRadius: 12, overflow: 'hidden' }}>
-          {[{ id: 'account', label: 'My account' }, { id: 'orders', label: 'Orders' }].map((item, i, arr) => {
-            const active = isOrders ? item.id === 'orders' : item.id === 'account'
-            return (
-              <a key={item.id}
-                href={item.id === 'account' ? '/account' : '/account?tab=orders'}
-                style={{
-                  display: 'block', padding: '13px 16px', fontSize: 14,
-                  fontWeight: active ? 600 : 400, color: active ? '#111' : '#555',
-                  textDecoration: 'none', background: active ? '#f5f5f3' : '#fff',
-                  borderBottom: i < arr.length - 1 ? '1px solid #ecece8' : 'none',
-                }}>
-                {item.label}
-              </a>
-            )
-          })}
-        </nav>
-
-        {/* Content */}
-        <div style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '24px', background: '#fff', minHeight: 300 }}>
-          {isOrders ? (
-            <>
-              <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 20px' }}>Orders</h2>
-              {!user
-                ? <p style={{ fontSize: 14, color: '#888' }}>Sign in to view your orders.</p>
-                : <OrdersSection user={user} />
-              }
-            </>
-          ) : (
-            <>
-              {/* Sub-tabs */}
-              <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid #ecece8' }}>
-                {SUB_TABS.map(tab => {
-                  const active = tab.id === activeSub
-                  return (
-                    <a key={tab.id}
-                      href={tab.id === 'info' ? '/account' : `/account?sub=${tab.id}`}
-                      style={{
-                        padding: '10px 18px', fontSize: 13, fontWeight: active ? 600 : 400,
-                        color: active ? '#111' : '#888', textDecoration: 'none',
-                        borderBottom: active ? '2px solid #111' : '2px solid transparent',
-                        marginBottom: -1,
-                      }}>
-                      {tab.label}
-                    </a>
-                  )
-                })}
-              </div>
-
-              {!user ? (
-                <p style={{ fontSize: 14, color: '#888' }}>Sign in to manage your account.</p>
-              ) : activeSub === 'info' ? (
-                <InfoSection user={user} />
-              ) : activeSub === 'security' ? (
-                <SecuritySection
-                  user={user}
-                  updatePassword={updatePassword}
-                  updateEmail={updateEmail}
-                  reauthenticate={reauthenticate}
-                  requestPasswordReset={requestPasswordReset}
-                />
-              ) : activeSub === 'newsletter' ? (
-                <NewsletterSection user={user} />
-              ) : null}
-            </>
-          )}
-        </div>
+      {/* Nav */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid #ecece8' }}>
+        {[{ id: 'account', label: 'My account' }, { id: 'orders', label: 'Orders' }].map(tab => {
+          const active = isOrders ? tab.id === 'orders' : tab.id === 'account'
+          return (
+            <a key={tab.id}
+              href={tab.id === 'account' ? '/account' : '/account?tab=orders'}
+              style={{
+                padding: '10px 20px', fontSize: 14, fontWeight: active ? 600 : 400,
+                color: active ? '#111' : '#888', textDecoration: 'none',
+                borderBottom: active ? '2px solid #111' : '2px solid transparent',
+                marginBottom: -1,
+              }}>
+              {tab.label}
+            </a>
+          )
+        })}
       </div>
+
+      {!user ? (
+        <p style={{ fontSize: 14, color: '#888' }}>Sign in to view your account.</p>
+      ) : isOrders ? (
+        <OrdersSection user={user} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <InfoSection user={user} />
+          <SecuritySection
+            user={user}
+            updatePassword={updatePassword}
+            updateEmail={updateEmail}
+            reauthenticate={reauthenticate}
+            requestPasswordReset={requestPasswordReset}
+          />
+          <NewsletterSection user={user} />
+        </div>
+      )}
     </main>
   )
 }
