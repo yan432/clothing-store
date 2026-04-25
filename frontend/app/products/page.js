@@ -24,8 +24,36 @@ async function getProducts() {
   }
 }
 
+function buildColorSiblingsMap(products) {
+  // Group products by color_group_id, return a map: product.id → sibling variants
+  const groups = {}
+  for (const p of products) {
+    if (!p.color_group_id) continue
+    if (!groups[p.color_group_id]) groups[p.color_group_id] = []
+    const db_urls = Array.isArray(p.image_urls) ? p.image_urls : []
+    groups[p.color_group_id].push({
+      id: p.id,
+      slug: p.slug || String(p.id),
+      color_name: p.color_name,
+      color_hex: p.color_hex,
+      image_url: p.image_url,
+      image_urls: db_urls,
+      hover_image_url: db_urls[1] || p.image_url,
+      in_stock: (p.available_stock ?? p.stock ?? 0) > 0,
+    })
+  }
+  const map = {}
+  for (const [, members] of Object.entries(groups)) {
+    for (const m of members) {
+      map[m.id] = members.filter(s => s.id !== m.id)
+    }
+  }
+  return map
+}
+
 export default async function ProductsPage({ searchParams }) {
   const { products, fetchError } = await getProducts()
+  const colorSiblingsMap = buildColorSiblingsMap(products)
   const params = await searchParams
   const normalizeList = (value) => {
     if (Array.isArray(value)) return value.filter(Boolean)
@@ -323,7 +351,7 @@ export default async function ProductsPage({ searchParams }) {
             ) : (
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))',gap:'48px 24px'}}>
                 {sorted.map(product => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard key={product.id} product={product} colorSiblings={colorSiblingsMap[product.id] || []} />
                 ))}
               </div>
             )}

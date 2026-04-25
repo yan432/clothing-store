@@ -95,12 +95,42 @@ export default async function ProductPage({ params }) {
               <p className="product-detail-price" style={{fontWeight:600,margin:0}}>{priceLabel}</p>
               <p style={{fontSize:14,color:'#8a8a84',margin:0}}>incl. tax</p>
             </div>
-            <p style={{fontSize:14,color:'#666660',margin:0}}>
-              Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{(product.category || 'Standard').toLowerCase()}</span>
-            </p>
-            <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:'-6px 0 0'}}>
+            <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:0}}>
               {!isInStock ? 'Out of stock' : isLowStock ? 'LOW STOCK' : 'In stock'}
             </p>
+
+            {/* Color swatches — shown only when color_name is set */}
+            {product.color_name && (
+              <div>
+                <p style={{fontSize:13,color:'#666660',margin:'0 0 8px'}}>
+                  Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{product.color_name}</span>
+                </p>
+                <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+                  {/* Current product swatch */}
+                  <div title={product.color_name} style={{
+                    width:28,height:28,borderRadius:'50%',
+                    background: product.color_hex || '#ccc',
+                    border:'2.5px solid #111',
+                    boxShadow:'0 0 0 2px #fff inset',
+                    flexShrink:0,
+                  }} />
+                  {/* Variant swatches */}
+                  {Array.isArray(product.color_variants) && product.color_variants.map(v => (
+                    <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
+                      style={{
+                        width:28,height:28,borderRadius:'50%',
+                        background: v.color_hex || '#ccc',
+                        border:'2px solid transparent',
+                        boxShadow:'0 0 0 1.5px #ccc',
+                        flexShrink:0,
+                        display:'block',
+                        opacity: v.in_stock ? 1 : 0.4,
+                        textDecoration:'none',
+                      }} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {sizeOptions.length > 0 && (
               <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>

@@ -1,16 +1,21 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, colorSiblings = [] }) {
   const [hovered, setHovered] = useState(false)
   const [secondaryReady, setSecondaryReady] = useState(false)
+  const [swatchVariant, setSwatchVariant] = useState(null) // hovered color variant
   const touchTimerRef = useRef(null)
   const leaveTimerRef = useRef(null)
 
+  // When a swatch is hovered, show that variant's photo
+  const activeProduct = swatchVariant || product
+  const activeSlug = swatchVariant ? (swatchVariant.slug || swatchVariant.id) : (product.slug || product.id)
+
   const price = Number(product.price || 0)
-  const images = Array.isArray(product.image_urls) && product.image_urls.length > 0
-    ? product.image_urls
-    : (product.image_url ? [product.image_url] : [])
+  const images = Array.isArray(activeProduct.image_urls) && activeProduct.image_urls.length > 0
+    ? activeProduct.image_urls
+    : (activeProduct.image_url ? [activeProduct.image_url] : [])
   const primaryImage = images[0]
   const secondaryImage = images[1]
 
@@ -87,7 +92,7 @@ export default function ProductCard({ product }) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}>
-      <a href={'/products/' + (product.slug || product.id)}
+      <a href={'/products/' + activeSlug}
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 
@@ -169,6 +174,40 @@ export default function ProductCard({ product }) {
           {description || 'Minimal everyday essential. Tap to view full details.'}
         </p>
       </a>
+
+      {/* Color swatches — only when there are siblings */}
+      {colorSiblings.length > 0 && product.color_name && (
+        <div style={{display:'flex',gap:6,flexWrap:'wrap',paddingTop:2}}>
+          {/* Current product swatch (always active) */}
+          <div
+            title={product.color_name}
+            style={{
+              width:20,height:20,borderRadius:'50%',
+              background: product.color_hex || '#ccc',
+              border:'2px solid #111',
+              boxShadow:'0 0 0 2px #fff inset',
+              cursor:'default',flexShrink:0,
+            }}
+          />
+          {colorSiblings.map(v => (
+            <a
+              key={v.id}
+              href={'/products/' + (v.slug || v.id)}
+              title={v.color_name}
+              onMouseEnter={() => setSwatchVariant(v)}
+              onMouseLeave={() => setSwatchVariant(null)}
+              style={{
+                width:20,height:20,borderRadius:'50%',
+                background: v.color_hex || '#ccc',
+                border:'2px solid transparent',
+                boxShadow:'0 0 0 1.5px #ccc',
+                flexShrink:0,display:'block',
+                opacity: v.in_stock !== false ? 1 : 0.35,
+              }}
+            />
+          ))}
+        </div>
+      )}
     </article>
   )
 }

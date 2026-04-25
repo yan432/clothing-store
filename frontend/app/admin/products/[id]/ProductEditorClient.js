@@ -35,6 +35,9 @@ export default function ProductEditorClient({ id }) {
     order_mode: 'standard',
     order_priority: '0',
     slug: '',
+    color_name: '',
+    color_hex: '',
+    color_group_id: '',
   })
 
   useEffect(() => {
@@ -85,6 +88,9 @@ export default function ProductEditorClient({ id }) {
           order_mode: orderMode,
           order_priority: String(Number.isFinite(parsedPriority) ? parsedPriority : 0),
           slug: p.slug || '',
+          color_name: p.color_name || '',
+          color_hex: p.color_hex || '',
+          color_group_id: p.color_group_id || '',
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -136,6 +142,9 @@ export default function ProductEditorClient({ id }) {
         reserved_stock: Math.max(0, Number(form.reserved_stock || 0)),
         is_hidden: Boolean(form.is_hidden),
         slug: form.slug.trim() || undefined,
+        color_name: form.color_name.trim() || null,
+        color_hex: form.color_hex.trim() || null,
+        color_group_id: form.color_group_id.trim() || null,
         tags: [
           ...baseTags,
           form.is_new ? 'new' : null,
@@ -337,6 +346,46 @@ export default function ProductEditorClient({ id }) {
               </div>
               <span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>Оставь пустым — сгенерируется автоматически из названия</span>
             </label>
+
+            {/* Color variants */}
+            <div style={{border:'1px solid #ecece8',borderRadius:10,padding:14,background:'#fafaf8'}}>
+              <p style={{fontSize:12,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'#888',margin:'0 0 12px'}}>Color variants</p>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                <label style={{fontSize:13,color:'#444'}}>Color name
+                  <input
+                    value={form.color_name}
+                    onChange={(e) => setField('color_name', e.target.value)}
+                    placeholder="Black"
+                    style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
+                  />
+                </label>
+                <label style={{fontSize:13,color:'#444'}}>Color hex
+                  <div style={{display:'flex',gap:6,alignItems:'center',marginTop:6}}>
+                    <input
+                      type="color"
+                      value={form.color_hex || '#000000'}
+                      onChange={(e) => setField('color_hex', e.target.value)}
+                      style={{width:40,height:40,border:'1px solid #ddd',borderRadius:8,padding:2,cursor:'pointer'}}
+                    />
+                    <input
+                      value={form.color_hex}
+                      onChange={(e) => setField('color_hex', e.target.value)}
+                      placeholder="#1a1a1a"
+                      style={{flex:1,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
+                    />
+                  </div>
+                </label>
+              </div>
+              <label style={{fontSize:13,color:'#444'}}>Color group ID
+                <input
+                  value={form.color_group_id}
+                  onChange={(e) => setField('color_group_id', e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''))}
+                  placeholder="edm-module-longsleeve"
+                  style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}}
+                />
+                <span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>Same value on all color variants of one design. Leave blank for single-color products.</span>
+              </label>
+            </div>
 
             <label style={{fontSize:13,color:'#444'}}>Description
               <textarea value={form.description} onChange={(e) => setField('description', e.target.value)} rows={4} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />

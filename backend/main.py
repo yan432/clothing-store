@@ -74,6 +74,9 @@ class Product(BaseModel):
     is_hidden: bool = False
     tags: list = []
     slug: Optional[str] = None
+    color_name: Optional[str] = None
+    color_hex: Optional[str] = None
+    color_group_id: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
@@ -91,6 +94,9 @@ class ProductUpdate(BaseModel):
     is_hidden: Optional[bool] = None
     tags: Optional[list] = None
     slug: Optional[str] = None
+    color_name: Optional[str] = None
+    color_hex: Optional[str] = None
+    color_group_id: Optional[str] = None
 
 
 class ProductImageDelete(BaseModel):
@@ -809,14 +815,44 @@ def get_products_admin():
     return [{**p, **stock_snapshot_for_product(p)} for p in data.data]
 
 
+def _get_color_variants(product: dict) -> list:
+    """Return sibling color variants (excluding current product), or []."""
+    group_id = product.get("color_group_id")
+    if not group_id:
+        return []
+    rows = supabase.table("products").select(
+        "id, name, slug, color_name, color_hex, image_url, image_urls, available_stock, stock, is_hidden"
+    ).eq("color_group_id", group_id).eq("is_hidden", False).execute()
+    variants = []
+    for row in (rows.data or []):
+        if row["id"] == product["id"]:
+            continue
+        cover = row.get("image_url")
+        db_urls = row.get("image_urls") or []
+        variants.append({
+            "id": row["id"],
+            "name": row["name"],
+            "slug": row.get("slug") or str(row["id"]),
+            "color_name": row.get("color_name"),
+            "color_hex": row.get("color_hex"),
+            "image_url": cover,
+            "hover_image_url": db_urls[1] if len(db_urls) > 1 else cover,
+            "in_stock": (row.get("available_stock") or row.get("stock") or 0) > 0,
+        })
+    return variants
+
+
 @app.get("/products/{product_id}")
 def get_product(product_id: str):
     if product_id.lstrip('-').isdigit():
-        return _decorate_product_with_images(get_visible_product_row(int(product_id)))
-    data = supabase.table("products").select("*").eq("slug", product_id).eq("is_hidden", False).execute()
-    if not data.data:
-        raise HTTPException(status_code=404, detail="Товар не найден")
-    return _decorate_product_with_images(data.data[0])
+        product = _decorate_product_with_images(get_visible_product_row(int(product_id)))
+    else:
+        data = supabase.table("products").select("*").eq("slug", product_id).eq("is_hidden", False).execute()
+        if not data.data:
+            raise HTTPException(status_code=404, detail="Товар не найден")
+        product = _decorate_product_with_images(data.data[0])
+    product["color_variants"] = _get_color_variants(product)
+    return product
 
 
 @app.get("/products/admin/{product_id}")

@@ -66,28 +66,6 @@ export default function ProductGallery({ product }) {
 
   return (
     <div className="product-gallery">
-      <div className="product-gallery-thumbs">
-        {images.map((src, index) => (
-          <button
-            key={src + index}
-            onClick={() => setActiveIndex(index)}
-            onMouseEnter={() => setActiveIndex(index)}
-            onFocus={() => setActiveIndex(index)}
-            aria-label={`Show image ${index + 1}`}
-            style={{
-              border:'1px solid ' + (activeIndex === index ? '#111' : '#e5e5e0'),
-              background:'#fff',
-              borderRadius:10,
-              width:'100%',
-              aspectRatio:'3 / 4',
-              overflow:'hidden',
-              cursor:'pointer',
-              padding:0,
-            }}>
-            <img src={src} alt={product.name + ' thumbnail ' + (index + 1)} style={{width:'100%',height:'100%',objectFit:'cover'}} />
-          </button>
-        ))}
-      </div>
       <div
         className="product-gallery-main"
         onTouchStart={onTouchStart}
@@ -125,6 +103,32 @@ export default function ProductGallery({ product }) {
           </>
         )}
       </div>
+
+      {images.length > 1 && (
+        <div className="product-gallery-thumbs">
+          {images.map((src, index) => (
+            <button
+              key={src + index}
+              onClick={() => setActiveIndex(index)}
+              onMouseEnter={() => setActiveIndex(index)}
+              onFocus={() => setActiveIndex(index)}
+              aria-label={`Show image ${index + 1}`}
+              style={{
+                border:'2px solid ' + (activeIndex === index ? '#111' : 'transparent'),
+                background:'#f5f5f3',
+                borderRadius:8,
+                width:72,
+                height:90,
+                overflow:'hidden',
+                cursor:'pointer',
+                padding:0,
+                flexShrink:0,
+              }}>
+              <img src={src} alt={product.name + ' thumbnail ' + (index + 1)} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
