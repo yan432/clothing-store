@@ -102,6 +102,16 @@ export default function AccountOrderDetailsClient({ orderId }) {
 
   const items = Array.isArray(order.items_json) ? order.items_json : []
 
+  function statusBadge(s) {
+    if (s === 'paid')           return { label:'Paid',       bg:'#dcfce7', color:'#166534' }
+    if (s === 'shipped')        return { label:'Shipped',    bg:'#dbeafe', color:'#1d4ed8' }
+    if (s === 'delivered')      return { label:'Delivered',  bg:'#dcfce7', color:'#15803d' }
+    if (s === 'pending')        return { label:'Processing', bg:'#fef3c7', color:'#92400e' }
+    if (s === 'cancelled')      return { label:'Cancelled',  bg:'#f3f4f6', color:'#374151' }
+    return { label: s || 'Unknown', bg:'#f3f3f0', color:'#4f4f49' }
+  }
+  const badge = statusBadge(order.status)
+
   return (
     <main style={{maxWidth:1120,margin:'0 auto',padding:'36px 20px 70px'}}>
       <div style={{marginBottom:18}}>
@@ -113,11 +123,32 @@ export default function AccountOrderDetailsClient({ orderId }) {
           <h1 style={{fontSize:32,lineHeight:1.1,fontWeight:500,margin:0}}>
             Order #{order.user_order_number || order.id}
           </h1>
-          <span style={{fontSize:12,fontWeight:600,color:'#166534',background:'#dcfce7',padding:'6px 10px',borderRadius:999}}>
-            Paid
+          <span style={{fontSize:13,fontWeight:600,color:badge.color,background:badge.bg,padding:'6px 12px',borderRadius:999}}>
+            {badge.label}
           </span>
         </div>
         <p style={{margin:'8px 0 0',fontSize:13,color:'#666'}}>Placed: {formatDate(order.created_at)}</p>
+
+        {/* Tracking info */}
+        {(order.tracking_number || order.tracking_url) && (
+          <div style={{marginTop:16,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'14px 18px'}}>
+            <p style={{margin:'0 0 6px',fontWeight:700,fontSize:14,color:'#166534'}}>📦 Tracking information</p>
+            {order.tracking_number && (
+              <p style={{margin:'0 0 4px',fontSize:14,color:'#1a1a18'}}>
+                Tracking number: <strong>{order.tracking_number}</strong>
+              </p>
+            )}
+            {order.tracking_url && (
+              <a href={order.tracking_url} target="_blank" rel="noopener noreferrer"
+                style={{fontSize:14,color:'#2563eb',fontWeight:600}}>
+                Track your package →
+              </a>
+            )}
+            {order.shipped_at && (
+              <p style={{margin:'8px 0 0',fontSize:12,color:'#888'}}>Shipped: {formatDate(order.shipped_at)}</p>
+            )}
+          </div>
+        )}
 
         <section style={{marginTop:18,border:'1px solid #ecece8',borderRadius:12,padding:16}}>
           <h2 style={{fontSize:16,fontWeight:600,margin:'0 0 10px'}}>Items</h2>

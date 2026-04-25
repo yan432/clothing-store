@@ -343,6 +343,16 @@ function formatItem(item) {
   return `${name}${size ? ` (${size})` : ''} ×${qty}`
 }
 
+function orderStatusBadge(status) {
+  if (status === 'paid')           return { label: 'Paid',       bg: '#dcfce7', color: '#166534' }
+  if (status === 'shipped')        return { label: 'Shipped',    bg: '#dbeafe', color: '#1d4ed8' }
+  if (status === 'delivered')      return { label: 'Delivered',  bg: '#dcfce7', color: '#15803d' }
+  if (status === 'pending')        return { label: 'Processing', bg: '#fef3c7', color: '#92400e' }
+  if (status === 'payment_failed') return { label: 'Pay failed', bg: '#fee2e2', color: '#991b1b' }
+  if (status === 'cancelled')      return { label: 'Cancelled',  bg: '#f3f4f6', color: '#374151' }
+  return { label: status || 'Unknown', bg: '#f3f3f0', color: '#4f4f49' }
+}
+
 function OrdersSection({ user }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -364,6 +374,7 @@ function OrdersSection({ user }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {orders.map(o => {
         const items = Array.isArray(o.items_json) ? o.items_json : []
+        const badge = orderStatusBadge(o.status)
         return (
           <div key={o.id} style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '14px 16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -371,12 +382,25 @@ function OrdersSection({ user }) {
                 <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Order #{o.user_order_number || o.id}</p>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: '#888' }}>{formatDate(o.created_at)}</p>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#166534', background: '#dcfce7', padding: '5px 10px', borderRadius: 999 }}>Paid</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: badge.color, background: badge.bg, padding: '5px 10px', borderRadius: 999 }}>
+                {badge.label}
+              </span>
             </div>
             <div style={{ marginTop: 10, fontSize: 13, color: '#555' }}>
               <p style={{ margin: '0 0 2px' }}>{items.map(formatItem).join(', ') || '—'}</p>
               <p style={{ margin: 0, fontWeight: 500 }}>{formatMoney(o.amount_total, o.currency || 'EUR')}</p>
             </div>
+            {/* Tracking info if available */}
+            {(o.tracking_number || o.tracking_url) && (
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12 }}>
+                {o.tracking_number && <p style={{ margin: '0 0 2px', color: '#166534' }}>Tracking: <strong>{o.tracking_number}</strong></p>}
+                {o.tracking_url && (
+                  <a href={o.tracking_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 600 }}>
+                    Track your package →
+                  </a>
+                )}
+              </div>
+            )}
             <Link href={`/account/orders/${o.id}`}
               style={{ display: 'inline-block', marginTop: 10, fontSize: 13, fontWeight: 600, color: '#111', textDecoration: 'underline' }}>
               View details

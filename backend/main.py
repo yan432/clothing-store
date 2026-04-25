@@ -1505,7 +1505,7 @@ def track_orders(email: str):
         supabase.table("orders")
         .select("*")
         .ilike("email", normalized)
-        .eq("status", ORDER_PAID)
+        .not_.in_("status", ["payment_failed", "cancelled"])
         .order("created_at", desc=False)
         .limit(200)
         .execute()
@@ -1524,7 +1524,7 @@ def track_order_details(order_id: int, email: str):
         supabase.table("orders")
         .select("*")
         .ilike("email", normalized)
-        .eq("status", ORDER_PAID)
+        .not_.in_("status", ["payment_failed", "cancelled"])
         .order("created_at", desc=False)
         .limit(200)
         .execute()
@@ -1540,18 +1540,146 @@ def track_order_details(order_id: int, email: str):
 def get_order(id_or_session: str):
     result = supabase.table("orders").select("*").eq("stripe_session_id", id_or_session).limit(1).execute()
     if result.data:
-        return result.data[0]
+        return enrich_order_shipping(result.data[0])
 
     result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
     if result.data:
-        return result.data[0]
+        return enrich_order_shipping(result.data[0])
 
     if id_or_session.isdigit():
         result = supabase.table("orders").select("*").eq("id", int(id_or_session)).limit(1).execute()
         if result.data:
-            return result.data[0]
+            return enrich_order_shipping(result.data[0])
 
     raise HTTPException(status_code=404, detail="Order not found")
+
+
+# ── Admin order management ────────────────────────────────────────────────────
+
+VALID_ORDER_STATUSES = {"pending", "paid", "shipped", "delivered", "cancelled", "payment_failed"}
+
+
+class OrderUpdatePayload(BaseModel):
+    status: Optional[str] = None
+    tracking_number: Optional[str] = None
+    tracking_url: Optional[str] = None
+
+
+@app.patch("/orders/{order_id}")
+def update_order_admin(order_id: int, payload: OrderUpdatePayload):
+    updates: dict = {"updated_at": now_iso()}
+    if payload.status is not None:
+        if payload.status not in VALID_ORDER_STATUSES:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(sorted(VALID_ORDER_STATUSES))}")
+        updates["status"] = payload.status
+        if payload.status == "shipped":
+            # Only set shipped_at once
+            row = supabase.table("orders").select("shipped_at").eq("id", order_id).limit(1).execute()
+            if row.data and not row.data[0].get("shipped_at"):
+                updates["shipped_at"] = now_iso()
+    if payload.tracking_number is not None:
+        updates["tracking_number"] = payload.tracking_number or None
+    if payload.tracking_url is not None:
+        updates["tracking_url"] = payload.tracking_url or None
+
+    result = supabase.table("orders").update(updates).eq("id", order_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return enrich_order_shipping(result.data[0])
+
+
+@app.delete("/orders/{order_id}")
+def delete_order_admin(order_id: int):
+    supabase.table("orders").delete().eq("id", order_id).execute()
+    return {"ok": True}
+
+
+def build_shipping_notification_email(order: dict) -> tuple[str, str]:
+    """Returns (html, text) for the shipping notification email."""
+    first_name = (str(order.get("shipping_name") or "").split() or ["there"])[0]
+    order_id_val = order.get("id", "")
+    tracking_number = str(order.get("tracking_number") or "").strip()
+    tracking_url = str(order.get("tracking_url") or "").strip()
+    items = order.get("items_json") or []
+    items_html_str = order_items_html(items)
+    items_text_str = order_items_text(items)
+    total = to_float(order.get("amount_total"))
+    store_url = FRONTEND_URL.rstrip("/")
+
+    tracking_block_html = ""
+    tracking_block_text = ""
+    if tracking_number or tracking_url:
+        track_rows = ""
+        if tracking_number:
+            track_rows += f"<p style='margin:4px 0;font-size:14px;color:#1a1a18'>Tracking number: <strong>{tracking_number}</strong></p>"
+        if tracking_url:
+            track_rows += f"<p style='margin:4px 0;font-size:14px'><a href='{tracking_url}' style='color:#2563eb;font-weight:600'>Track your package →</a></p>"
+        tracking_block_html = f"""
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:20px 0">
+          <p style="margin:0 0 8px;font-weight:700;font-size:15px;color:#166534">📦 Tracking information</p>
+          {track_rows}
+        </div>"""
+        tracking_block_text = (
+            f"\nTracking number: {tracking_number}\n" if tracking_number else ""
+        ) + (f"Track here: {tracking_url}\n" if tracking_url else "")
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f9f9f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e8e8e4">
+  <div style="background:#111;padding:24px 32px">
+    <p style="margin:0;font-size:20px;font-weight:700;letter-spacing:0.06em;color:#fff">edm.clothes</p>
+  </div>
+  <div style="padding:32px">
+    <h1 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#1a1a18">Your order is on the way! 🚀</h1>
+    <p style="font-size:15px;color:#555;margin:0 0 20px">Hi {first_name}, great news — your order #{order_id_val} has been shipped.</p>
+    {tracking_block_html}
+    <h2 style="font-size:14px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px">Order summary</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr style="border-bottom:2px solid #f0f0ee">
+          <th style="padding:6px 0;text-align:left;color:#888;font-weight:500">Item</th>
+          <th style="padding:6px 0;text-align:center;color:#888;font-weight:500">Qty</th>
+          <th style="padding:6px 0;text-align:right;color:#888;font-weight:500">Price</th>
+        </tr>
+      </thead>
+      <tbody>{items_html_str}</tbody>
+    </table>
+    <p style="margin:16px 0 0;font-size:15px;font-weight:700;text-align:right">Total: {money_eur(total)}</p>
+    <div style="margin-top:28px;padding-top:20px;border-top:1px solid #f0f0ee;text-align:center">
+      <p style="font-size:13px;color:#888;margin:0">Questions? Reply to this email or visit <a href="{store_url}" style="color:#111">{store_url.replace("https://","")}</a></p>
+    </div>
+  </div>
+</div>
+</body></html>"""
+
+    text = f"""Your order #{order_id_val} has been shipped!
+
+Hi {first_name}, your edm.clothes order is on its way.
+{tracking_block_text}
+Order summary:
+{items_text_str}
+
+Total: {money_eur(total)}
+
+Questions? Contact us at {store_url}
+"""
+    return html, text
+
+
+@app.post("/orders/{order_id}/notify-shipped")
+def notify_order_shipped(order_id: int):
+    result = supabase.table("orders").select("*").eq("id", order_id).limit(1).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order = enrich_order_shipping(result.data[0])
+    customer_email = str(order.get("email") or "").strip()
+    if not customer_email:
+        raise HTTPException(status_code=400, detail="Order has no customer email")
+    html, text = build_shipping_notification_email(order)
+    send_email(customer_email, f"Your order #{order_id} has been shipped! 🚀", html, text)
+    supabase.table("orders").update({"shipped_at": now_iso(), "updated_at": now_iso()}).eq("id", order_id).execute()
+    return {"ok": True}
 
 
 @app.post("/email-subscribers/capture")
