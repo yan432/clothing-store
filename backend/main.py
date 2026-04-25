@@ -1677,3 +1677,76 @@ def export_email_subscribers_csv():
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=email_subscribers.csv"},
     )
+
+
+# ── Newsletter subscription status / toggle ──────────────────────────────────
+
+@app.get("/email-subscribers/status")
+def get_subscriber_status(email: str):
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    result = (
+        supabase.table("email_subscribers")
+        .select("is_active")
+        .eq("email", email)
+        .limit(1)
+        .execute()
+    )
+    if result.data:
+        return {"subscribed": bool(result.data[0].get("is_active", False))}
+    return {"subscribed": False}
+
+
+@app.post("/email-subscribers/unsubscribe")
+def unsubscribe_email(payload: dict):
+    email = normalize_email(str(payload.get("email") or ""))
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    supabase.table("email_subscribers").update({"is_active": False}).eq("email", email).execute()
+    return {"ok": True}
+
+
+# ── User profile (shipping details) ──────────────────────────────────────────
+
+class UserProfileUpdate(BaseModel):
+    email: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    zip: Optional[str] = None
+    country: Optional[str] = None
+
+
+@app.get("/user-profile")
+def get_user_profile(email: str):
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    result = (
+        supabase.table("user_profiles")
+        .select("*")
+        .eq("email", email)
+        .limit(1)
+        .execute()
+    )
+    if result.data:
+        return result.data[0]
+    return {}
+
+
+@app.put("/user-profile")
+def update_user_profile(payload: UserProfileUpdate):
+    email = normalize_email(payload.email)
+    if not email:
+        raise HTTPException(status_code=400, detail="Email required")
+    data = {k: v for k, v in payload.dict().items() if k != "email" and v is not None}
+    data["updated_at"] = now_iso()
+    result = (
+        supabase.table("user_profiles")
+        .upsert({"email": email, **data}, on_conflict="email")
+        .execute()
+    )
+    return result.data[0] if result.data else {"ok": True}
