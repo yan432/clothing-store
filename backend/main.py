@@ -11,7 +11,7 @@ import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -1585,6 +1585,26 @@ def get_homepage_slides_admin():
     data = supabase.table("homepage_slides").select("*").order("sort_order").execute()
     return data.data or []
 
+@app.post("/homepage-slides/upload")
+async def upload_and_create_homepage_slide(
+    file: UploadFile = File(...),
+    href: str = Form("/products"),
+    title: str = Form(""),
+):
+    """Upload a photo and create a slide in one shot."""
+    ext = (file.filename or "jpg").rsplit(".", 1)[-1].lower()
+    path = f"homepage/{uuid.uuid4()}.{ext}"
+    content = await file.read()
+    supabase.storage.from_("product-images").upload(path, content, {"content-type": file.content_type})
+    url = supabase.storage.from_("product-images").get_public_url(path)
+    existing = supabase.table("homepage_slides").select("sort_order").order("sort_order", desc=True).limit(1).execute()
+    next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
+    slide_data = {"image_url": url, "href": href or "/products", "title": title or None, "sort_order": next_order, "is_active": True}
+    data = supabase.table("homepage_slides").insert(slide_data).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create slide")
+    return data.data[0]
+
 @app.post("/homepage-slides")
 def create_homepage_slide(slide: HomepageSlide):
     data = supabase.table("homepage_slides").insert(slide.dict()).execute()
@@ -1610,39 +1630,6 @@ def update_homepage_slide(slide_id: int, slide: HomepageSlideUpdate):
 def delete_homepage_slide(slide_id: int):
     supabase.table("homepage_slides").delete().eq("id", slide_id).execute()
     return {"ok": True}
-
-@app.put("/homepage-slides/{slide_id}/image")
-async def upload_homepage_slide_image(slide_id: int, file: UploadFile = File(...)):
-    ext = (file.filename or "jpg").rsplit(".", 1)[-1].lower()
-    path = f"homepage/{slide_id}/{uuid.uuid4()}.{ext}"
-    content = await file.read()
-    supabase.storage.from_("product-images").upload(path, content, {"content-type": file.content_type})
-    url = supabase.storage.from_("product-images").get_public_url(path)
-    data = supabase.table("homepage_slides").update({"image_url": url}).eq("id", slide_id).execute()
-    if not data.data:
-        raise HTTPException(status_code=404, detail="Slide not found")
-    return data.data[0]
-
-@app.post("/homepage-slides/upload")
-async def upload_and_create_homepage_slide(
-    file: UploadFile = File(...),
-    href: str = "/products",
-    title: str = "",
-):
-    """Upload a photo and create a slide in one shot."""
-    ext = (file.filename or "jpg").rsplit(".", 1)[-1].lower()
-    temp_name = f"homepage/tmp/{uuid.uuid4()}.{ext}"
-    content = await file.read()
-    supabase.storage.from_("product-images").upload(temp_name, content, {"content-type": file.content_type})
-    url = supabase.storage.from_("product-images").get_public_url(temp_name)
-    # Get current max sort_order
-    existing = supabase.table("homepage_slides").select("sort_order").order("sort_order", desc=True).limit(1).execute()
-    next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
-    slide_data = {"image_url": url, "href": href or "/products", "title": title or None, "sort_order": next_order, "is_active": True}
-    data = supabase.table("homepage_slides").insert(slide_data).execute()
-    if not data.data:
-        raise HTTPException(status_code=500, detail="Failed to create slide")
-    return data.data[0]
 
 
 @app.get("/email-subscribers")
