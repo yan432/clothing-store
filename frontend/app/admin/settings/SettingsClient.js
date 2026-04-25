@@ -5,6 +5,16 @@ import { getApiUrl } from '../../lib/api'
 
 const FIELDS = [
   {
+    section: 'SEO',
+    fields: [
+      { key: 'seo_site_name',            label: 'Site name',                  placeholder: 'edm.clothes',                                hint: 'Used in browser tab and as suffix in all page titles' },
+      { key: 'seo_home_title',           label: 'Homepage — title',           placeholder: 'edm.clothes — Minimal Clothing',              hint: 'Leave blank to use site name' },
+      { key: 'seo_home_description',     label: 'Homepage — description',     placeholder: 'Minimal essentials designed for everyday wear. Made in Ukraine.', hint: 'Shown in Google search results, ~155 chars', multiline: true },
+      { key: 'seo_products_title',       label: 'Shop page — title',          placeholder: 'Shop — edm.clothes',                         hint: '' },
+      { key: 'seo_products_description', label: 'Shop page — description',    placeholder: 'Browse the full edm.clothes collection.',     hint: '', multiline: true },
+    ],
+  },
+  {
     section: 'General',
     fields: [
       { key: 'email_from_name', label: 'Sender name', placeholder: 'EDM Clothes', hint: 'Shown in the "From" field in all emails' },

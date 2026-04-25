@@ -1,13 +1,17 @@
 import ProductCard from '../components/ProductCard'
 import { getApiUrl } from '../lib/api'
 
-export const metadata = {
-  title: 'All Products',
-  description: 'Browse our full collection.',
-  openGraph: {
-    title: 'All Products — edm.clothes',
-    description: 'Browse our full collection.',
-  },
+export async function generateMetadata() {
+  try {
+    const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
+    const s = res.ok ? await res.json() : {}
+    return {
+      title: s.seo_products_title || 'Shop',
+      description: s.seo_products_description || 'Browse our full collection.',
+    }
+  } catch {
+    return { title: 'Shop', description: 'Browse our full collection.' }
+  }
 }
 
 async function getProducts() {

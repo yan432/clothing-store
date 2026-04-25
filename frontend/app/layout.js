@@ -6,12 +6,38 @@ import NavBar from './components/NavBar'
 import DrawerWrapper from './components/DrawerWrapper'
 import Footer from './components/Footer'
 import EmailCapturePopup from './components/EmailCapturePopup'
+import { getApiUrl } from './lib/api'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
-  title: { default: 'edm.clothes — Minimal Clothing', template: '%s — edm.clothes' },
-  description: 'Minimal essentials designed for everyday wear.',
+async function getSeoSettings() {
+  try {
+    const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
+    if (!res.ok) return {}
+    const data = await res.json()
+    return data || {}
+  } catch {
+    return {}
+  }
+}
+
+export async function generateMetadata() {
+  const s = await getSeoSettings()
+  const siteName = s.seo_site_name || 'edm.clothes'
+  const homeTitle = s.seo_home_title || `${siteName} — Minimal Clothing`
+  const description = s.seo_home_description || 'Minimal essentials designed for everyday wear. Made in Ukraine.'
+
+  return {
+    title: { default: homeTitle, template: `%s — ${siteName}` },
+    description,
+    icons: { icon: '/icon.png', apple: '/icon.png' },
+    openGraph: {
+      siteName,
+      description,
+      locale: 'en_US',
+      type: 'website',
+    },
+  }
 }
 
 export default function RootLayout({ children }) {
