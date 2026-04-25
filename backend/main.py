@@ -862,11 +862,19 @@ def get_product_admin(product_id: int):
 
 @app.post("/products")
 def create_product(product: Product):
-    payload = product.dict()
+    payload = {k: v for k, v in product.dict().items() if v is not None}
     if not payload.get("slug"):
         payload["slug"] = _unique_slug(_make_slug(product.name))
+    payload.setdefault("stock", 0)
+    payload.setdefault("is_hidden", False)
+    payload.setdefault("tags", [])
 
-    data = supabase.table("products").insert(payload).execute()
+    try:
+        data = supabase.table("products").insert(payload).execute()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Insert returned no data")
     new_product = data.data[0]
 
     urls = _storage_public_urls_for_product(new_product["id"])
