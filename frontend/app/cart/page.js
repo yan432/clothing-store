@@ -42,7 +42,7 @@ export default function CartPage() {
           </a>
         </div>
       ) : (
-        <div style={{display:'grid',gridTemplateColumns:'1fr 380px',gap:32,alignItems:'start'}}>
+        <div className="cart-layout">
           <div>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
               <h1 style={{fontSize:24,fontWeight:600,margin:0}}>Cart</h1>
@@ -74,8 +74,7 @@ export default function CartPage() {
 
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
               {cart.map(item => (
-                <div key={item.id + (item.size || '')}
-                  style={{background:'#fff',border:'1px solid #f0f0ee',borderRadius:16,padding:16,display:'flex',gap:16,alignItems:'center'}}>
+                <div key={item.id + (item.size || '')} className="cart-item">
                   <div style={{width:90,height:90,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0}}>
                     {item.image_url
                       ? <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
@@ -94,7 +93,7 @@ export default function CartPage() {
                     <button onClick={() => updateQty(item.id, item.qty + 1, item.size)}
                       style={{width:32,height:32,borderRadius:'50%',border:'1.5px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
                   </div>
-                  <div style={{textAlign:'right',minWidth:80}}>
+                  <div className="cart-item-price">
                     <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>€{(item.price * item.qty).toFixed(2)}</p>
                     <button onClick={() => removeFromCart(item.id, item.size)}
                       style={{background:'none',border:'none',cursor:'pointer',color:'#bbb',fontSize:12,textDecoration:'underline',padding:0}}>
@@ -111,7 +110,7 @@ export default function CartPage() {
             </button>
           </div>
 
-          <div style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>
+          <div className="cart-summary">
             <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>Order summary</h2>
 
             <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>

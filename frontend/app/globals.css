@@ -209,6 +209,60 @@ a { text-decoration: none; color: inherit; }
   }
 }
 
+/* ── Cart ───────────────────────────────────────────── */
+.cart-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 32px;
+  align-items: start;
+}
+
+.cart-summary {
+  background: #fafaf8;
+  border: 1px solid #f0f0ee;
+  border-radius: 20px;
+  padding: 24px;
+  position: sticky;
+  top: 100px;
+}
+
+.cart-item {
+  background: #fff;
+  border: 1px solid #f0f0ee;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.cart-item-price {
+  text-align: right;
+  min-width: 80px;
+}
+
+@media (max-width: 700px) {
+  .cart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-summary {
+    position: static;
+    order: -1; /* summary сверху на мобилке */
+  }
+
+  .cart-item {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .cart-item-price {
+    min-width: unset;
+    flex: 1;
+    text-align: right;
+  }
+}
+
 /* ── Footer ─────────────────────────────────────────── */
 .footer-link {
   display: block;
