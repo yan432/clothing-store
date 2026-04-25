@@ -1,5 +1,6 @@
 import AddToCartButton from '../../components/AddToCartButton'
 import ProductGallery from '../../components/ProductGallery'
+import ProductViewTracker from '../../components/ProductViewTracker'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 
@@ -74,6 +75,7 @@ export default async function ProductPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
+      <ProductViewTracker productId={product.id} />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
         <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</a>
 

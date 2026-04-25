@@ -3,6 +3,7 @@ import { useCart } from '../context/CartContext'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
+import { trackCheckoutStarted } from '../lib/track'
 
 const SHIPPING = 30
 
@@ -55,7 +56,9 @@ export default function ConfirmPage() {
   useEffect(() => {
     const saved = sessionStorage.getItem('checkout_details')
     if (!saved) { router.push('/checkout'); return }
-    setDetails(JSON.parse(saved))
+    const parsed = JSON.parse(saved)
+    setDetails(parsed)
+    trackCheckoutStarted(parsed.email || null)
   }, [])
 
   if (!details || cart.length === 0) return null

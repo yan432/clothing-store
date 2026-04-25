@@ -1460,6 +1460,21 @@ async def stripe_webhook(request: Request):
             update_payload["cancelled_at"] = now_iso()
 
     supabase.table("orders").update(update_payload).eq("id", order["id"]).execute()
+
+    # Record purchase event for marketing tracking
+    if target_status == ORDER_PAID:
+        order_email = update_payload.get("email") or order.get("email")
+        record_user_event(
+            session_id=order.get("client_reference_id") or "webhook",
+            event_type="purchase",
+            email=order_email,
+            order_id=order.get("id"),
+            metadata={
+                "amount_total": float(update_payload.get("amount_total") or order.get("amount_total") or 0),
+                "items_count": len(order.get("items_json") or []),
+            },
+        )
+
     capture_subscriber_email(
         update_payload.get("email") or order.get("email"),
         "order_webhook",
@@ -1755,3 +1770,91 @@ def update_user_profile(payload: UserProfileUpdate):
         .execute()
     )
     return result.data[0] if result.data else {"ok": True}
+
+
+# ── User events (marketing/ML tracking) ──────────────────────────────────────
+
+ALLOWED_EVENT_TYPES = {
+    "product_view", "cart_add", "checkout_started",
+    "purchase", "login", "wishlist_add",
+}
+
+class UserEventPayload(BaseModel):
+    session_id: str
+    event_type: str
+    email: Optional[str] = None
+    product_id: Optional[int] = None
+    order_id: Optional[int] = None
+    metadata: Optional[dict] = None
+
+
+def record_user_event(
+    session_id: str,
+    event_type: str,
+    email: Optional[str] = None,
+    product_id: Optional[int] = None,
+    order_id: Optional[int] = None,
+    metadata: Optional[dict] = None,
+) -> None:
+    """Insert a user_events row and update user_profiles aggregates."""
+    now = now_iso()
+    email_norm = normalize_email(email) if email else None
+    try:
+        supabase.table("user_events").insert({
+            "session_id": session_id,
+            "event_type": event_type,
+            "email": email_norm or None,
+            "product_id": product_id,
+            "order_id": order_id,
+            "metadata": metadata or {},
+            "created_at": now,
+        }).execute()
+    except Exception:
+        pass  # never block the main flow
+
+    if not email_norm:
+        return
+
+    # Update user_profiles aggregates
+    try:
+        profile = (
+            supabase.table("user_profiles")
+            .select("id,total_events,total_orders,total_spent,last_login_at,last_purchase_at")
+            .eq("email", email_norm)
+            .limit(1)
+            .execute()
+        )
+        row = profile.data[0] if profile.data else None
+        updates: dict = {
+            "email": email_norm,
+            "updated_at": now,
+            "total_events": int((row or {}).get("total_events") or 0) + 1,
+        }
+        if event_type == "login":
+            updates["last_login_at"] = now
+        if event_type == "purchase":
+            updates["last_purchase_at"] = now
+            updates["total_orders"] = int((row or {}).get("total_orders") or 0) + 1
+            updates["total_spent"] = float((row or {}).get("total_spent") or 0) + float(
+                (metadata or {}).get("amount_total", 0)
+            )
+        supabase.table("user_profiles").upsert(updates, on_conflict="email").execute()
+    except Exception:
+        pass
+
+
+@app.post("/events")
+def track_event(payload: UserEventPayload):
+    if payload.event_type not in ALLOWED_EVENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown event_type: {payload.event_type}")
+    if not payload.session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+    record_user_event(
+        session_id=payload.session_id,
+        event_type=payload.event_type,
+        email=payload.email,
+        product_id=payload.product_id,
+        order_id=payload.order_id,
+        metadata=payload.metadata,
+    )
+    return {"ok": True}

@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { createClient } from '../lib/supabase'
 import { isAdminEmail } from '../lib/admin'
+import { trackLogin } from '../lib/track'
 
 const AuthContext = createContext()
 
@@ -49,6 +50,7 @@ export function AuthProvider({ children }) {
 
   async function signIn(email, password) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (!error) trackLogin(email)
     return { error }
   }
 

@@ -1,5 +1,6 @@
 'use client'
 import { createContext, useContext, useState, useEffect } from 'react'
+import { trackCartAdd } from '../lib/track'
 
 const CartContext = createContext()
 
@@ -41,6 +42,7 @@ export function CartProvider({ children }) {
     } else {
       save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
+    trackCartAdd(product.id)
     setDrawerOpen(true)
     return { ok: true }
   }
