@@ -16,7 +16,7 @@ export async function generateMetadata({ params }) {
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
 
   return {
-    title: product.name + ' — STORE',
+    title: product.name + ' — edm.clothes',
     description: product.description,
     openGraph: {
       title: product.name,
@@ -189,7 +189,7 @@ export default async function ProductPage({ params }) {
 
             <div style={{border:'1px solid #e7e7e2',borderRadius:8,overflow:'hidden'}}>
               <div style={{padding:'14px 16px',fontSize:14,borderBottom:'1px solid #e7e7e2'}}>
-                Sold and shipped by STORE
+                Sold and shipped by edm.clothes
               </div>
               <div style={{padding:'14px 16px',fontSize:14,borderBottom:'1px solid #e7e7e2'}}>
                 Free standard delivery for this item

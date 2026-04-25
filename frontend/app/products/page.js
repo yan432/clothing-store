@@ -5,7 +5,7 @@ export const metadata = {
   title: 'All Products',
   description: 'Browse our full collection.',
   openGraph: {
-    title: 'All Products — STORE',
+    title: 'All Products — edm.clothes',
     description: 'Browse our full collection.',
   },
 }

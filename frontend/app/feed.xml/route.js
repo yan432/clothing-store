@@ -16,14 +16,14 @@ export async function GET() {
       <g:price>${p.price} EUR</g:price>
       <g:availability>${p.stock > 0 ? 'in stock' : 'out of stock'}</g:availability>
       <g:condition>new</g:condition>
-      <g:brand>STORE</g:brand>
+      <g:brand>edm.clothes</g:brand>
       <g:google_product_category>Apparel &amp; Accessories</g:google_product_category>
     </item>`).join('')
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
   <channel>
-    <title>STORE</title>
+    <title>edm.clothes</title>
     <link>${baseUrl}</link>
     <description>Minimal clothing store</description>
     ${items}

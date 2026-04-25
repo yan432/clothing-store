@@ -98,7 +98,7 @@ export default function NavBar() {
 
   return (
     <nav style={{position:'sticky',top:0,zIndex:50,borderBottom:'1px solid #f0f0ee',background:'rgba(255,255,255,0.85)',backdropFilter:'blur(12px)',padding:'16px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-      <a href="/" style={{fontSize:15,fontWeight:600,letterSpacing:'0.1em',textDecoration:'none',color:'inherit'}}>STORE</a>
+      <a href="/" style={{fontSize:15,fontWeight:600,letterSpacing:'0.06em',textDecoration:'none',color:'inherit'}}>edm.clothes</a>
       <div style={{display:'flex',gap:24,fontSize:14,color:'#666',alignItems:'center'}}>
         <a href="/products" style={{color:'inherit',textDecoration:'none'}}>Shop</a>
         {isAdmin && (

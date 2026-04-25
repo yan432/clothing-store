@@ -10,7 +10,7 @@ import EmailCapturePopup from './components/EmailCapturePopup'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: { default: 'STORE — Minimal Clothing', template: '%s — STORE' },
+  title: { default: 'edm.clothes — Minimal Clothing', template: '%s — edm.clothes' },
   description: 'Minimal essentials designed for everyday wear.',
 }
 
