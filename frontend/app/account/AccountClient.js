@@ -270,23 +270,26 @@ function NewsletterSection({ user }) {
       .catch(() => setSubscribed(false))
   }, [user?.email])
 
-  async function toggle() {
+  async function subscribe() {
     setLoading(true); setMsg(null)
-    if (subscribed) {
-      await fetch(getApiUrl('/email-subscribers/unsubscribe'), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email }),
-      })
-      setSubscribed(false)
-      setMsg({ ok: true, text: 'Unsubscribed' })
-    } else {
-      await fetch(getApiUrl('/email-subscribers/capture'), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, source: 'account_settings' }),
-      })
-      setSubscribed(true)
-      setMsg({ ok: true, text: 'Subscribed!' })
-    }
+    await fetch(getApiUrl('/email-subscribers/capture'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, source: 'account_settings' }),
+    })
+    setSubscribed(true)
+    setMsg({ ok: true, text: 'You\'re now subscribed!' })
+    setTimeout(() => setMsg(null), 3000)
+    setLoading(false)
+  }
+
+  async function unsubscribe() {
+    setLoading(true); setMsg(null)
+    await fetch(getApiUrl('/email-subscribers/unsubscribe'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email }),
+    })
+    setSubscribed(false)
+    setMsg({ ok: true, text: 'Unsubscribed' })
     setTimeout(() => setMsg(null), 3000)
     setLoading(false)
   }
@@ -295,31 +298,22 @@ function NewsletterSection({ user }) {
     <SectionCard title="Newsletter">
       {subscribed === null ? (
         <p style={{ fontSize: 14, color: '#aaa' }}>Loading...</p>
+      ) : subscribed ? (
+        <div>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>You're subscribed to the newsletter</p>
+          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#888' }}>You receive news and exclusive offers from edm.clothes</p>
+          <button onClick={unsubscribe} disabled={loading}
+            style={{ marginTop: 12, background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#aaa', textDecoration: 'underline', cursor: loading ? 'default' : 'pointer' }}>
+            {loading ? 'Unsubscribing...' : 'Unsubscribe'}
+          </button>
+        </div>
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div onClick={loading ? null : toggle}
-            style={{
-              width: 44, height: 24, borderRadius: 999, flexShrink: 0,
-              background: subscribed ? '#111' : '#e5e5e3',
-              position: 'relative', cursor: loading ? 'default' : 'pointer',
-              transition: 'background 0.2s',
-            }}>
-            <div style={{
-              position: 'absolute', top: 3, left: subscribed ? 23 : 3,
-              width: 18, height: 18, borderRadius: '50%', background: '#fff',
-              transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.18)',
-            }} />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
-              {subscribed ? 'Subscribed to newsletter' : 'Not subscribed'}
-            </p>
-            <p style={{ margin: '2px 0 0', fontSize: 12, color: '#aaa' }}>
-              {subscribed
-                ? 'You receive news and promotions from edm.clothes'
-                : 'Subscribe to get exclusive offers and updates'}
-            </p>
-          </div>
+        <div>
+          <p style={{ margin: '0 0 12px', fontSize: 14, color: '#555' }}>Subscribe to receive news and exclusive offers from edm.clothes</p>
+          <button onClick={subscribe} disabled={loading}
+            style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1 }}>
+            {loading ? 'Subscribing...' : 'Subscribe'}
+          </button>
         </div>
       )}
       {msg && <MsgBox ok={msg.ok} text={msg.text} />}
@@ -389,60 +383,74 @@ function OrdersSection({ user }) {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+const NAV_ITEMS = [
+  { id: 'account', label: 'My account', href: '/account' },
+  { id: 'orders',  label: 'Orders',     href: '/account?tab=orders' },
+]
+
 export default function AccountClient({ activeTab }) {
   const { user, signOut, updatePassword, updateEmail, reauthenticate, requestPasswordReset } = useAuth()
   const isOrders = activeTab === 'orders'
 
   return (
-    <main style={{ maxWidth: 860, margin: '0 auto', padding: '36px 20px 70px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+    <main style={{ maxWidth: 920, margin: '0 auto', padding: '36px 20px 70px' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
         <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>My account</h1>
         {user && (
           <button onClick={signOut}
-            style={{ background: 'none', border: '1px solid #e5e5e3', padding: '8px 18px', borderRadius: 999, fontSize: 13, color: '#888', cursor: 'pointer' }}>
+            style={{ background: 'none', border: '1px solid #e5e5e3', padding: '7px 16px', borderRadius: 999, fontSize: 13, color: '#888', cursor: 'pointer' }}>
             Sign out
           </button>
         )}
       </div>
-      {user && <p style={{ fontSize: 13, color: '#aaa', marginBottom: 28 }}>{user.email}</p>}
 
-      {/* Nav */}
-      <div style={{ display: 'flex', gap: 0, marginBottom: 28, borderBottom: '1px solid #ecece8' }}>
-        {[{ id: 'account', label: 'My account' }, { id: 'orders', label: 'Orders' }].map(tab => {
-          const active = isOrders ? tab.id === 'orders' : tab.id === 'account'
-          return (
-            <a key={tab.id}
-              href={tab.id === 'account' ? '/account' : '/account?tab=orders'}
-              style={{
-                padding: '10px 20px', fontSize: 14, fontWeight: active ? 600 : 400,
-                color: active ? '#111' : '#888', textDecoration: 'none',
-                borderBottom: active ? '2px solid #111' : '2px solid transparent',
-                marginBottom: -1,
-              }}>
-              {tab.label}
-            </a>
-          )
-        })}
-      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 24, alignItems: 'start' }}>
+        {/* Sidebar */}
+        <nav style={{ border: '1px solid #ecece8', borderRadius: 12, overflow: 'hidden', position: 'sticky', top: 100 }}>
+          {user && (
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid #ecece8', background: '#fafaf8' }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#aaa', wordBreak: 'break-all' }}>{user.email}</p>
+            </div>
+          )}
+          {NAV_ITEMS.map((item, i) => {
+            const active = isOrders ? item.id === 'orders' : item.id === 'account'
+            return (
+              <a key={item.id} href={item.href}
+                style={{
+                  display: 'block', padding: '13px 16px', fontSize: 14,
+                  fontWeight: active ? 600 : 400,
+                  color: active ? '#111' : '#666',
+                  textDecoration: 'none',
+                  background: active ? '#f5f5f3' : '#fff',
+                  borderBottom: i < NAV_ITEMS.length - 1 ? '1px solid #ecece8' : 'none',
+                }}>
+                {item.label}
+              </a>
+            )
+          })}
+        </nav>
 
-      {!user ? (
-        <p style={{ fontSize: 14, color: '#888' }}>Sign in to view your account.</p>
-      ) : isOrders ? (
-        <OrdersSection user={user} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <InfoSection user={user} />
-          <SecuritySection
-            user={user}
-            updatePassword={updatePassword}
-            updateEmail={updateEmail}
-            reauthenticate={reauthenticate}
-            requestPasswordReset={requestPasswordReset}
-          />
-          <NewsletterSection user={user} />
+        {/* Content */}
+        <div>
+          {!user ? (
+            <p style={{ fontSize: 14, color: '#888' }}>Sign in to view your account.</p>
+          ) : isOrders ? (
+            <OrdersSection user={user} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <InfoSection user={user} />
+              <SecuritySection
+                user={user}
+                updatePassword={updatePassword}
+                updateEmail={updateEmail}
+                reauthenticate={reauthenticate}
+                requestPasswordReset={requestPasswordReset}
+              />
+              <NewsletterSection user={user} />
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </main>
   )
 }
