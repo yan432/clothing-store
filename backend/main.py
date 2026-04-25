@@ -1301,7 +1301,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 stripe_discounts = [{"coupon": coupon.id}]
 
         session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
+            payment_method_types=["card", "klarna", "paypal"],
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
