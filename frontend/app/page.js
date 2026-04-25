@@ -72,17 +72,7 @@ export default async function Home({ searchParams }) {
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', margin: '0 0 36px', lineHeight: 1.6 }}>
             {hero.subtitle}
           </p>
-          <a href="/products" style={{
-            display: 'inline-block',
-            border: '1.5px solid rgba(255,255,255,0.85)', borderRadius: 6,
-            padding: '12px 32px', fontSize: 12, fontWeight: 600,
-            letterSpacing: '0.16em', textTransform: 'uppercase',
-            color: '#fff', textDecoration: 'none',
-            transition: 'background 0.2s, color 0.2s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#111' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#fff' }}
-          >
+          <a href="/products" className="hero-cta">
             {hero.cta}
           </a>
         </div>
