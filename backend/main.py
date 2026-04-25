@@ -1554,6 +1554,97 @@ def update_settings(payload: dict):
     return {"ok": True}
 
 
+# ── Homepage slides ─────────────────────────────────────────────────────────
+
+class HomepageSlide(BaseModel):
+    image_url: str
+    href: str = '/products'
+    title: Optional[str] = None
+    sort_order: int = 0
+    is_active: bool = True
+
+class HomepageSlideUpdate(BaseModel):
+    image_url: Optional[str] = None
+    href: Optional[str] = None
+    title: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class HomepageSlidesReorder(BaseModel):
+    ids: list[int]  # ordered list of slide ids
+
+@app.get("/homepage-slides")
+def get_homepage_slides():
+    """Public: active slides ordered by sort_order."""
+    data = supabase.table("homepage_slides").select("*").eq("is_active", True).order("sort_order").execute()
+    return data.data or []
+
+@app.get("/homepage-slides/admin")
+def get_homepage_slides_admin():
+    """Admin: all slides."""
+    data = supabase.table("homepage_slides").select("*").order("sort_order").execute()
+    return data.data or []
+
+@app.post("/homepage-slides")
+def create_homepage_slide(slide: HomepageSlide):
+    data = supabase.table("homepage_slides").insert(slide.dict()).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create slide")
+    return data.data[0]
+
+@app.put("/homepage-slides/reorder")
+def reorder_homepage_slides(payload: HomepageSlidesReorder):
+    for order, slide_id in enumerate(payload.ids):
+        supabase.table("homepage_slides").update({"sort_order": order}).eq("id", slide_id).execute()
+    return {"ok": True}
+
+@app.put("/homepage-slides/{slide_id}")
+def update_homepage_slide(slide_id: int, slide: HomepageSlideUpdate):
+    updates = {k: v for k, v in slide.dict().items() if v is not None}
+    data = supabase.table("homepage_slides").update(updates).eq("id", slide_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    return data.data[0]
+
+@app.delete("/homepage-slides/{slide_id}")
+def delete_homepage_slide(slide_id: int):
+    supabase.table("homepage_slides").delete().eq("id", slide_id).execute()
+    return {"ok": True}
+
+@app.put("/homepage-slides/{slide_id}/image")
+async def upload_homepage_slide_image(slide_id: int, file: UploadFile = File(...)):
+    ext = (file.filename or "jpg").rsplit(".", 1)[-1].lower()
+    path = f"homepage/{slide_id}/{uuid.uuid4()}.{ext}"
+    content = await file.read()
+    supabase.storage.from_("product-images").upload(path, content, {"content-type": file.content_type})
+    url = supabase.storage.from_("product-images").get_public_url(path)
+    data = supabase.table("homepage_slides").update({"image_url": url}).eq("id", slide_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Slide not found")
+    return data.data[0]
+
+@app.post("/homepage-slides/upload")
+async def upload_and_create_homepage_slide(
+    file: UploadFile = File(...),
+    href: str = "/products",
+    title: str = "",
+):
+    """Upload a photo and create a slide in one shot."""
+    ext = (file.filename or "jpg").rsplit(".", 1)[-1].lower()
+    temp_name = f"homepage/tmp/{uuid.uuid4()}.{ext}"
+    content = await file.read()
+    supabase.storage.from_("product-images").upload(temp_name, content, {"content-type": file.content_type})
+    url = supabase.storage.from_("product-images").get_public_url(temp_name)
+    # Get current max sort_order
+    existing = supabase.table("homepage_slides").select("sort_order").order("sort_order", desc=True).limit(1).execute()
+    next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
+    slide_data = {"image_url": url, "href": href or "/products", "title": title or None, "sort_order": next_order, "is_active": True}
+    data = supabase.table("homepage_slides").insert(slide_data).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create slide")
+    return data.data[0]
+
+
 @app.get("/email-subscribers")
 def list_email_subscribers(limit: int = 500):
     safe_limit = max(1, min(int(limit or 500), 5000))

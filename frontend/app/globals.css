@@ -44,6 +44,14 @@ a { text-decoration: none; color: inherit; }
   color: #111;
 }
 
+/* Category tile hover */
+.category-tile-img {
+  transition: transform 500ms ease;
+}
+a:hover .category-tile-img {
+  transform: scale(1.04);
+}
+
 /* Carousel */
 .carousel-card:hover img {
   transform: scale(1.04);
