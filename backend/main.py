@@ -1696,7 +1696,10 @@ def get_subscriber_status(email: str):
         .execute()
     )
     if result.data:
-        return {"subscribed": bool(result.data[0].get("is_active", False))}
+        row = result.data[0]
+        # If is_active is NULL (column added later), treat existing row as subscribed
+        is_active = row.get("is_active")
+        return {"subscribed": is_active is not False}
     return {"subscribed": False}
 
 
