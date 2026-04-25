@@ -1655,15 +1655,12 @@ def delete_homepage_slide(slide_id: int):
 
 
 @app.get("/email-subscribers")
-def list_email_subscribers(limit: int = 500):
+def list_email_subscribers(limit: int = 500, all: bool = False):
     safe_limit = max(1, min(int(limit or 500), 5000))
-    data = (
-        supabase.table("email_subscribers")
-        .select("*")
-        .order("last_seen_at", desc=True)
-        .limit(safe_limit)
-        .execute()
-    )
+    query = supabase.table("email_subscribers").select("*")
+    if not all:
+        query = query.eq("is_active", True)
+    data = query.order("last_seen_at", desc=True).limit(safe_limit).execute()
     return data.data or []
 
 

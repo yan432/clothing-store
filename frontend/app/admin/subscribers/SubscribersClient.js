@@ -42,7 +42,7 @@ export default function SubscribersClient() {
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:18}}>
           <h1 style={{fontSize:30,fontWeight:600,margin:0}}>Subscribers</h1>
           <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <p style={{fontSize:14,color:'#80807a',margin:0}}>{items.length} total</p>
+            <p style={{fontSize:14,color:'#80807a',margin:0}}>{items.length} subscribed</p>
             <a
               href={getApiUrl('/email-subscribers/export.csv')}
               style={{background:'#111',color:'#fff',padding:'8px 12px',borderRadius:10,fontSize:13,textDecoration:'none'}}
@@ -59,14 +59,12 @@ export default function SubscribersClient() {
           <p style={{color:'#b91c1c'}}>Error: {error}</p>
         ) : (
           <div style={{overflowX:'auto',border:'1px solid #ecece8',borderRadius:14,background:'#fff'}}>
-            <table style={{width:'100%',borderCollapse:'collapse',minWidth:900}}>
+            <table style={{width:'100%',borderCollapse:'collapse',minWidth:700}}>
               <thead>
                 <tr style={{textAlign:'left',borderBottom:'1px solid #ecece8',background:'#fafaf8'}}>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Email</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>First source</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Last source</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Events</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>First seen</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Source</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Subscribed</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Last seen</th>
                 </tr>
               </thead>
@@ -75,15 +73,13 @@ export default function SubscribersClient() {
                   <tr key={row.id} style={{borderBottom:'1px solid #f2f2ef'}}>
                     <td style={{padding:'12px 14px',fontSize:13}}>{row.email}</td>
                     <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{row.first_source || '-'}</td>
-                    <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{row.last_source || '-'}</td>
-                    <td style={{padding:'12px 14px',fontSize:13}}>{row.events_count || 0}</td>
                     <td style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>{formatDate(row.first_seen_at)}</td>
                     <td style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>{formatDate(row.last_seen_at)}</td>
                   </tr>
                 ))}
                 {!items.length && (
                   <tr>
-                    <td colSpan={6} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No subscribers yet</td>
+                    <td colSpan={4} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No active subscribers</td>
                   </tr>
                 )}
               </tbody>
