@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
 import ProductCarousel from './components/ProductCarousel'
+import HeroCarousel from './components/HeroCarousel'
 
 async function getProducts() {
   try {
@@ -42,41 +43,50 @@ export default async function Home({ searchParams }) {
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
 
+  // Build carousel slides from products that have a good cover photo
+  // Prefer 'new' tagged products, then fill with others (max 6 slides)
+  const slideProducts = [
+    ...allProducts.filter(p => Array.isArray(p.tags) && p.tags.includes('new')),
+    ...allProducts.filter(p => !Array.isArray(p.tags) || !p.tags.includes('new')),
+  ]
+    .filter(p => p.image_url || (Array.isArray(p.image_urls) && p.image_urls[0]))
+    .slice(0, 6)
+
+  const carouselSlides = slideProducts.map(p => ({
+    image: (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url,
+    title: p.name,
+    label: p.category || '',
+    href: `/products/${p.slug || p.id}`,
+  }))
+
   return (
     <main style={{ paddingBottom: 80 }}>
 
-      {/* ── 1. HERO BANNER ─────────────────────────────── */}
-      <section style={{
-        position: 'relative', minHeight: '80vh', overflow: 'hidden',
-        borderRadius: '0 0 28px 28px',
-        background: '#1a1a18',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {hero.image && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            backgroundImage: `linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.2), rgba(0,0,0,.28)), url(${hero.image})`,
-            backgroundSize: 'cover', backgroundPosition: 'center',
-          }} aria-hidden="true" />
-        )}
-        <div style={{
-          position: 'relative', textAlign: 'center', color: '#fff',
-          padding: '0 24px', maxWidth: 640, width: '100%',
-        }}>
-          <p style={{ fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)', margin: '0 0 20px' }}>
-            {hero.season}
-          </p>
-          <h1 style={{ fontSize: 'clamp(40px, 7vw, 80px)', fontWeight: 600, lineHeight: 0.95, letterSpacing: '-0.01em', margin: '0 0 20px' }}>
-            {hero.title}
-          </h1>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', margin: '0 0 36px', lineHeight: 1.6 }}>
-            {hero.subtitle}
-          </p>
-          <a href="/products" className="hero-cta">
-            {hero.cta}
-          </a>
-        </div>
-      </section>
+      {/* ── 1. HERO CAROUSEL ───────────────────────────── */}
+      {carouselSlides.length > 0
+        ? <HeroCarousel slides={carouselSlides} />
+        : (
+          /* Fallback static banner if no products yet */
+          <section style={{
+            position: 'relative', minHeight: '80vh', overflow: 'hidden',
+            borderRadius: '0 0 28px 28px', background: '#1a1a18',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {hero.image && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: `linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.2), rgba(0,0,0,.28)), url(${hero.image})`,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+              }} aria-hidden="true" />
+            )}
+            <div style={{ position: 'relative', textAlign: 'center', color: '#fff', padding: '0 24px', maxWidth: 640 }}>
+              <h1 style={{ fontSize: 'clamp(40px, 7vw, 80px)', fontWeight: 600, lineHeight: 0.95, margin: '0 0 20px' }}>{hero.title}</h1>
+              <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', margin: '0 0 36px' }}>{hero.subtitle}</p>
+              <a href="/products" className="hero-cta">{hero.cta}</a>
+            </div>
+          </section>
+        )
+      }
 
       {/* ── 2. NEW ARRIVALS ────────────────────────────── */}
       {newArrivals.length > 0 && (
