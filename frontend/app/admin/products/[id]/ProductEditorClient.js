@@ -34,6 +34,7 @@ export default function ProductEditorClient({ id }) {
     custom_sizes: '',
     order_mode: 'standard',
     order_priority: '0',
+    slug: '',
   })
 
   useEffect(() => {
@@ -83,6 +84,7 @@ export default function ProductEditorClient({ id }) {
           custom_sizes: customSizes.join(', '),
           order_mode: orderMode,
           order_priority: String(Number.isFinite(parsedPriority) ? parsedPriority : 0),
+          slug: p.slug || '',
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -133,6 +135,7 @@ export default function ProductEditorClient({ id }) {
         available_stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: Math.max(0, Number(form.reserved_stock || 0)),
         is_hidden: Boolean(form.is_hidden),
+        slug: form.slug.trim() || undefined,
         tags: [
           ...baseTags,
           form.is_new ? 'new' : null,
@@ -291,6 +294,19 @@ export default function ProductEditorClient({ id }) {
 
             <label style={{fontSize:13,color:'#444'}}>Name
               <input value={form.name} onChange={(e) => setField('name', e.target.value)} required style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+            </label>
+
+            <label style={{fontSize:13,color:'#444'}}>URL slug (ссылка на карточку)
+              <div style={{display:'flex',alignItems:'center',gap:0,marginTop:6,border:'1px solid #ddd',borderRadius:10,overflow:'hidden'}}>
+                <span style={{padding:'10px 10px',background:'#f5f5f3',color:'#888',fontSize:13,borderRight:'1px solid #ddd',whiteSpace:'nowrap'}}>/products/</span>
+                <input
+                  value={form.slug}
+                  onChange={(e) => setField('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-'))}
+                  placeholder={form.name ? form.name.toLowerCase().replace(/\s+/g, '-') : 'auto'}
+                  style={{flex:1,border:'none',outline:'none',padding:'10px 12px',fontSize:14}}
+                />
+              </div>
+              <span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>Оставь пустым — сгенерируется автоматически из названия</span>
             </label>
 
             <label style={{fontSize:13,color:'#444'}}>Description

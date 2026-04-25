@@ -87,7 +87,7 @@ export default function ProductCard({ product }) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}>
-      <a href={'/products/' + product.id}
+      <a href={'/products/' + (product.slug || product.id)}
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 

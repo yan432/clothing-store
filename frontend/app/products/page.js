@@ -307,7 +307,7 @@ export default async function ProductsPage({ searchParams }) {
                 </details>
 
                 <button type="submit" style={{border:'1px solid #111',background:'#111',color:'#fff',padding:'10px 14px',fontSize:13,cursor:'pointer'}}>
-                  Update
+                  Search
                 </button>
                 {(q || selectedCategory || selectedSpecials.length > 0 || activeSort !== 'default') && (
                   <a href="/products" style={{fontSize:13,color:'#888',textDecoration:'none',padding:'10px 4px'}}>Clear ×</a>

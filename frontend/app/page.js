@@ -46,7 +46,7 @@ export default async function Home({ searchParams }) {
   const arrivalCards = newArrivals.length > 0
     ? newArrivals.map((item) => ({
       key: String(item.id),
-      href: `/products/${item.id}`,
+      href: `/products/${item.slug || item.id}`,
       image: (Array.isArray(item.image_urls) && item.image_urls[0]) || item.image_url || '',
       title: item.name || 'Product',
       price: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(item.price || 0)),

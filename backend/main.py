@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import os
 import random
+import re
 import string
 from urllib.parse import unquote, urlparse
 import uuid
@@ -22,7 +23,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         FRONTEND_URL,
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "https://www.edmclothes.net",
+        "https://edmclothes.net",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
@@ -61,6 +64,7 @@ class Product(BaseModel):
     reserved_stock: Optional[int] = None
     is_hidden: bool = False
     tags: list = []
+    slug: Optional[str] = None
 
 
 class ProductUpdate(BaseModel):
@@ -77,6 +81,7 @@ class ProductUpdate(BaseModel):
     reserved_stock: Optional[int] = None
     is_hidden: Optional[bool] = None
     tags: Optional[list] = None
+    slug: Optional[str] = None
 
 
 class ProductImageDelete(BaseModel):
@@ -494,6 +499,27 @@ def send_order_confirmation_emails(order: dict) -> None:
         send_resend_email(admin_target, admin_subject, admin_html, admin_text)
 
 
+def _make_slug(name: str) -> str:
+    slug = name.lower().strip()
+    slug = re.sub(r'[^\w\s-]', '', slug)
+    slug = re.sub(r'[\s_]+', '-', slug)
+    slug = re.sub(r'-+', '-', slug).strip('-')
+    return slug or 'product'
+
+
+def _unique_slug(base: str, exclude_id: int = None) -> str:
+    candidate = base
+    counter = 1
+    while True:
+        q = supabase.table("products").select("id").eq("slug", candidate)
+        if exclude_id:
+            q = q.neq("id", exclude_id)
+        if not q.execute().data:
+            return candidate
+        candidate = f"{base}-{counter}"
+        counter += 1
+
+
 def get_product_row(product_id: int) -> dict:
     data = supabase.table("products").select("*").eq("id", product_id).execute()
     if not data.data:
@@ -675,8 +701,13 @@ def get_products_admin():
 
 
 @app.get("/products/{product_id}")
-def get_product(product_id: int):
-    return _decorate_product_with_images(get_visible_product_row(product_id))
+def get_product(product_id: str):
+    if product_id.lstrip('-').isdigit():
+        return _decorate_product_with_images(get_visible_product_row(int(product_id)))
+    data = supabase.table("products").select("*").eq("slug", product_id).eq("is_hidden", False).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Товар не найден")
+    return _decorate_product_with_images(data.data[0])
 
 
 @app.get("/products/admin/{product_id}")
@@ -687,21 +718,15 @@ def get_product_admin(product_id: int):
 @app.post("/products")
 def create_product(product: Product):
     payload = product.dict()
-    # ... твоя логика остатков ...
-    
-    # Перед вставкой в базу, один раз вызываем сканирование папки
-    # (для одного товара при создании это не затормозит систему)
-    temp_id = str(uuid.uuid4()) # или используй логику получения ID после вставки
-    
-    # Вставляем запись
+    if not payload.get("slug"):
+        payload["slug"] = _unique_slug(_make_slug(product.name))
+
     data = supabase.table("products").insert(payload).execute()
     new_product = data.data[0]
-    
-    # Опционально: после вставки можно обновить image_urls, 
-    # если ты уже загрузил файлы в Storage в папку с ID товара
+
     urls = _storage_public_urls_for_product(new_product["id"])
     supabase.table("products").update({"image_urls": urls}).eq("id", new_product["id"]).execute()
-    
+
     return {**new_product, "image_urls": urls}
 
 
@@ -717,6 +742,12 @@ def update_product(product_id: int, product: ProductUpdate):
 
     next_available = updates.get("available_stock", get_available_stock_value(existing))
     updates["stock"] = next_available
+
+    if "slug" in updates and updates["slug"]:
+        clean = _make_slug(updates["slug"])
+        updates["slug"] = _unique_slug(clean, exclude_id=product_id)
+    elif "name" in updates and not existing.get("slug"):
+        updates["slug"] = _unique_slug(_make_slug(updates["name"]), exclude_id=product_id)
 
     data = supabase.table("products").update(updates).eq("id", product_id).execute()
     if not data.data:
