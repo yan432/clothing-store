@@ -24,7 +24,7 @@ const COUNTRIES = [
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = (err) => ({
-  padding: '11px 14px', borderRadius: 10, fontSize: 14, outline: 'none',
+  display: 'block', padding: '11px 14px', borderRadius: 10, fontSize: 14, outline: 'none',
   width: '100%', minHeight: 44, boxSizing: 'border-box',
   border: err ? '1.5px solid #ef4444' : '1px solid #e5e5e3',
   background: '#fff',

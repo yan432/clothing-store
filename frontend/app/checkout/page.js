@@ -462,7 +462,7 @@ export default function CheckoutPage() {
               />
             </div>
             <select value={form.country} onChange={e => set('country', e.target.value)}
-              style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',minHeight:48}}>
+              style={{display:'block',padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',minHeight:48}}>
               {COUNTRIES.map(([code, name]) => (
                 <option key={code} value={code}>{name}</option>
               ))}
