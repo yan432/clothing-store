@@ -25,6 +25,19 @@ a { text-decoration: none; color: inherit; }
   opacity: 0.6;
 }
 
+/* Carousel */
+.carousel-card:hover img {
+  transform: scale(1.04);
+}
+
+/* Hide scrollbar on carousel track */
+div[style*="scrollSnapType"] {
+  scrollbar-width: none;
+}
+div[style*="scrollSnapType"]::-webkit-scrollbar {
+  display: none;
+}
+
 .product-gallery {
   display: grid;
   grid-template-columns: 80px 1fr;

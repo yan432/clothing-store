@@ -1,22 +1,20 @@
-import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
+import ProductCarousel from './components/ProductCarousel'
 
-async function getNewArrivals() {
+async function getProducts() {
   try {
     const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
     if (!res.ok) return []
     const data = await res.json()
-    const list = Array.isArray(data) ? data : []
-    return list
-      .filter((item) => Array.isArray(item.tags) && item.tags.includes('new'))
-      .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
-      .slice(0, 4)
+    return Array.isArray(data) ? data.filter(p => !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]')) : []
   } catch {
     return []
   }
 }
+
+const W = 1160 // max content width
 
 export default async function Home({ searchParams }) {
   const params = searchParams || {}
@@ -31,148 +29,125 @@ export default async function Home({ searchParams }) {
     const qp = new URLSearchParams()
     Object.entries(params).forEach(([key, value]) => {
       if (value == null) return
-      if (Array.isArray(value)) {
-        value.forEach((v) => qp.append(key, String(v)))
-      } else {
-        qp.set(key, String(value))
-      }
+      if (Array.isArray(value)) value.forEach((v) => qp.append(key, String(v)))
+      else qp.set(key, String(value))
     })
     const query = qp.toString()
     redirect(query ? `/auth/reset?${query}` : '/auth/reset')
   }
 
-  const { hero, promoTiles, spotlight, arrivals } = homepageContent
-  const newArrivals = await getNewArrivals()
-  const arrivalCards = newArrivals.length > 0
-    ? newArrivals.map((item) => ({
-      key: String(item.id),
-      href: `/products/${item.slug || item.id}`,
-      image: (Array.isArray(item.image_urls) && item.image_urls[0]) || item.image_url || '',
-      title: item.name || 'Product',
-      price: new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(item.price || 0)),
-    }))
-    : arrivals.map((item) => ({
-      key: `${item.title}-${item.image}`,
-      href: '/products?special=new',
-      image: item.image,
-      title: item.title,
-      price: item.price,
-    }))
+  const { hero, promoTiles } = homepageContent
+  const allProducts = await getProducts()
+  const newArrivals = allProducts
+    .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
+    .slice(0, 4)
 
   return (
-    <main className="pb-20 md:pb-28">
-      <section className="relative min-h-[78vh] overflow-hidden rounded-b-[28px] bg-zinc-900 text-white">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.25), rgba(0,0,0,.32)), url(${hero.image})`,
-          }}
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto flex min-h-[78vh] max-w-6xl flex-col items-center justify-center px-6 text-center">
-          <p className="mb-5 text-[11px] uppercase tracking-[0.28em] text-zinc-200">{hero.season}</p>
-          <h1 className="mb-4 text-5xl font-semibold leading-[0.95] tracking-tight md:text-7xl">
+    <main style={{ paddingBottom: 80 }}>
+
+      {/* ── 1. HERO BANNER ─────────────────────────────── */}
+      <section style={{
+        position: 'relative', minHeight: '80vh', overflow: 'hidden',
+        borderRadius: '0 0 28px 28px',
+        background: '#1a1a18',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {hero.image && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            backgroundImage: `linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.2), rgba(0,0,0,.28)), url(${hero.image})`,
+            backgroundSize: 'cover', backgroundPosition: 'center',
+          }} aria-hidden="true" />
+        )}
+        <div style={{
+          position: 'relative', textAlign: 'center', color: '#fff',
+          padding: '0 24px', maxWidth: 640, width: '100%',
+        }}>
+          <p style={{ fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.7)', margin: '0 0 20px' }}>
+            {hero.season}
+          </p>
+          <h1 style={{ fontSize: 'clamp(40px, 7vw, 80px)', fontWeight: 600, lineHeight: 0.95, letterSpacing: '-0.01em', margin: '0 0 20px' }}>
             {hero.title}
           </h1>
-          <p className="mb-9 max-w-md text-base text-zinc-200 md:text-lg">{hero.subtitle}</p>
-          <Link
-  href="/products"
-  className="rounded-md border border-white bg-transparent px-8 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white hover:text-black"
->
-  {hero.cta}
-          </Link>
+          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.75)', margin: '0 0 36px', lineHeight: 1.6 }}>
+            {hero.subtitle}
+          </p>
+          <a href="/products" style={{
+            display: 'inline-block',
+            border: '1.5px solid rgba(255,255,255,0.85)', borderRadius: 6,
+            padding: '12px 32px', fontSize: 12, fontWeight: 600,
+            letterSpacing: '0.16em', textTransform: 'uppercase',
+            color: '#fff', textDecoration: 'none',
+            transition: 'background 0.2s, color 0.2s',
+          }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#111' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#fff' }}
+          >
+            {hero.cta}
+          </a>
         </div>
       </section>
 
-      <section className="mx-auto mt-14 max-w-6xl px-4 md:mt-20 md:px-6">
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-2 lg:max-w-none lg:grid-cols-4 lg:gap-5">
-          {promoTiles.map((tile) => (
-            <Link
-              key={tile.title}
-              href={tile.href}
-              className="group overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100"
-            >
-              <div
-                className="relative aspect-[3/4] bg-cover bg-center transition duration-500 group-hover:scale-105"
-                style={{ backgroundImage: `linear-gradient(to top, rgba(17,17,17,.04), rgba(17,17,17,.04)), url(${tile.image})` }}
-                aria-label={tile.title}
-              >
-              </div>
-              <div className="flex min-h-14 items-center justify-center bg-white px-4 py-3 text-center">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-900">
-                  {tile.title}
-                </p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto mt-16 max-w-6xl px-4 md:mt-24 md:px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-zinc-900 text-white">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: `linear-gradient(to top, rgba(0,0,0,.78), rgba(0,0,0,.28), rgba(0,0,0,.22)), url(${spotlight.image})`,
-            }}
-            aria-hidden="true"
-          />
-          <div className="relative flex min-h-[62vh] flex-col items-center justify-end px-6 pb-10 text-center md:min-h-[70vh]">
-            <h2 className="text-3xl font-semibold uppercase tracking-[0.1em] md:text-4xl">
-              {spotlight.title}
-            </h2>
-            <p className="mt-3 max-w-md text-sm text-zinc-200 md:text-base">{spotlight.subtitle}</p>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/products"
-                className="rounded-md border border-white bg-white px-7 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-black transition hover:bg-transparent hover:text-white"
-              >
-                {spotlight.primaryCta}
-              </Link>
-              <Link
-                href="/products"
-                className="rounded-md border border-white/75 px-7 py-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-white hover:text-black"
-              >
-                {spotlight.secondaryCta}
-              </Link>
-            </div>
+      {/* ── 2. NEW ARRIVALS ────────────────────────────── */}
+      {newArrivals.length > 0 && (
+        <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>New Arrivals</h2>
+            <a href="/products?special=new" style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+              View all →
+            </a>
           </div>
-        </div>
-      </section>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '32px 20px' }}>
+            {newArrivals.map(p => {
+              const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
+              const price = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(p.price || 0))
+              return (
+                <a key={p.id} href={`/products/${p.slug || p.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                  <div style={{ aspectRatio: '4/5', background: '#f5f5f3', borderRadius: 16, overflow: 'hidden', marginBottom: 14 }}>
+                    {img && <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+                  </div>
+                  <p style={{ fontSize: 11, color: '#9a9a92', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px' }}>{p.category || 'Essentials'}</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 5px', lineHeight: 1.3 }}>{p.name}</h3>
+                  <p style={{ fontSize: 15, fontWeight: 600, margin: 0, color: '#111' }}>{price}</p>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+      )}
 
-      <section className="mx-auto mt-16 max-w-6xl px-4 md:mt-24 md:px-6">
-        <div className="mb-8 flex items-center justify-between">
-          <h3 className="text-xl font-semibold uppercase tracking-[0.12em] text-zinc-900 md:text-2xl">
-            New Arrivals
-          </h3>
-          <Link href="/products?special=new" className="text-xs font-medium uppercase tracking-[0.1em] text-zinc-600 hover:text-zinc-900">
-            View all
-          </Link>
-        </div>
+      {/* ── 3. ALL PRODUCTS CAROUSEL ───────────────────── */}
+      {allProducts.length > 0 && (
+        <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>All Products</h2>
+            <a href="/products" style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+              View all →
+            </a>
+          </div>
+          <ProductCarousel products={allProducts} />
+        </section>
+      )}
 
-        <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 md:grid-cols-4 md:gap-5 lg:max-w-none">
-          {arrivalCards.map((item) => (
-            <Link
-              key={item.key}
-              href={item.href}
-              className="group rounded-2xl border border-zinc-200 bg-white p-2.5 md:p-3"
-            >
-              <div
-                className="aspect-[3/4] overflow-hidden rounded-xl bg-zinc-100 bg-cover bg-center transition duration-500 group-hover:scale-105"
-                style={{ backgroundImage: `url(${item.image})` }}
-                aria-label={item.title}
-              >
+      {/* ── 4. CATEGORIES ─────────────────────────────── */}
+      <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px', letterSpacing: '-0.01em' }}>Shop by category</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+          {promoTiles.map(tile => (
+            <a key={tile.title} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
+              <div style={{
+                aspectRatio: '4/5', backgroundImage: `url(${tile.image})`,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                transition: 'transform 500ms ease',
+              }} aria-label={tile.title} />
+              <div style={{ background: '#fff', padding: '14px 16px', textAlign: 'center' }}>
+                <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0, color: '#111' }}>{tile.title}</p>
               </div>
-              <div className="flex min-h-[66px] flex-col items-center justify-center pt-3 pb-1 text-center">
-                <p className="text-[11px] font-semibold uppercase leading-tight tracking-[0.08em] text-zinc-900 md:text-xs">
-                  {item.title}
-                </p>
-                <p className="mt-1 text-xs text-zinc-600 md:text-sm">{item.price}</p>
-              </div>
-            </Link>
+            </a>
           ))}
         </div>
       </section>
+
     </main>
   )
 }
