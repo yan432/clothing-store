@@ -288,6 +288,7 @@ def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Op
             "first_seen_at": now,
             "last_seen_at": now,
             "events_count": 1,
+            "is_active": True,
             "metadata_json": metadata or {},
             "created_at": now,
             "updated_at": now,
@@ -302,6 +303,7 @@ def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Op
         "source_counts": source_counts,
         "last_seen_at": now,
         "events_count": int(row.get("events_count") or 0) + 1,
+        "is_active": True,
         "metadata_json": merged_metadata,
         "updated_at": now,
     }).eq("id", row["id"]).execute()
