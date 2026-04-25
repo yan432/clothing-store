@@ -1,7 +1,7 @@
-const DEFAULT_ADMIN_EMAILS = ['admin@store.com', 'yan228322@gmail.com']
-
+// NEXT_PUBLIC_ADMIN_EMAILS используется только для показа/скрытия UI элементов
+// Реальная защита маршрутов происходит в middleware.js через приватный ADMIN_EMAILS
 function parseAdminEmails(raw) {
-  if (!raw) return DEFAULT_ADMIN_EMAILS
+  if (!raw) return []
   return raw
     .split(',')
     .map((v) => v.trim().toLowerCase())
