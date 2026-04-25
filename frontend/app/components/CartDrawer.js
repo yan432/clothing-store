@@ -120,9 +120,9 @@ export default function CartDrawer({ open, onClose }) {
               style={{width:'100%',background:'#000',color:'#fff',border:'none',padding:'16px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer',marginBottom:10}}>
               Checkout
             </button>
-            <button onClick={() => { onClose(); window.location.href = '/cart' }}
+            <button onClick={onClose}
               style={{width:'100%',background:'none',color:'#555',border:'1px solid #e5e5e3',padding:'14px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer'}}>
-              View cart
+              Continue shopping
             </button>
           </div>
         )}

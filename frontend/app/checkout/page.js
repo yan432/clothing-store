@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
@@ -119,13 +119,50 @@ export default function CheckoutPage() {
 
   const [form, setForm] = useState({
     firstName: '', lastName: '',
-    email: user?.email || '',
+    email: '',
     phone: '',
     address: '', city: '', zip: '',
     country: 'DE',
+    comment: '',
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+
+  // Pre-fill from sessionStorage (coming back from confirm) or from user profile
+  useEffect(() => {
+    const saved = sessionStorage.getItem('checkout_details')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        setForm(f => ({ ...f, ...parsed }))
+        return
+      } catch (_) {}
+    }
+    if (user?.email) {
+      fetch(getApiUrl('/user-profile'), {
+        headers: { 'x-user-email': user.email },
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(profile => {
+          if (profile) {
+            setForm(f => ({
+              firstName: profile.first_name || f.firstName,
+              lastName:  profile.last_name  || f.lastName,
+              email:     user.email,
+              phone:     profile.phone   || f.phone,
+              address:   profile.address || f.address,
+              city:      profile.city    || f.city,
+              zip:       profile.zip     || f.zip,
+              country:   profile.country || f.country,
+              comment:   f.comment,
+            }))
+          } else {
+            setForm(f => ({ ...f, email: user.email }))
+          }
+        })
+        .catch(() => setForm(f => ({ ...f, email: user.email })))
+    }
+  }, [user])
 
   const registerPasswordChecks = [
     { id: 'length', label: 'At least 8 characters', valid: authPassword.length >= 8 },
@@ -143,10 +180,13 @@ export default function CheckoutPage() {
     if (!form.firstName.trim()) e.firstName = 'Required'
     if (!form.lastName.trim()) e.lastName = 'Required'
     if (!form.email.trim()) e.email = 'Required'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = 'Enter a valid email address'
     if (!form.phone.trim()) e.phone = 'Required'
+    else if (!/^[+]?[\d][\d\s\-(). ]{5,}$/.test(form.phone.trim())) e.phone = 'Enter a valid phone number (e.g. +49 151 23456789)'
     if (!form.address.trim()) e.address = 'Required'
     if (!form.city.trim()) e.city = 'Required'
     if (!form.zip.trim()) e.zip = 'Required'
+    else if (!/^[A-Z0-9][A-Z0-9\s\-]{2,9}$/i.test(form.zip.trim())) e.zip = 'Enter a valid postal code'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -467,6 +507,18 @@ export default function CheckoutPage() {
                 <option key={code} value={code}>{name}</option>
               ))}
             </select>
+          </div>
+
+          {/* Order note */}
+          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Order note <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(optional)</span></p>
+            <textarea
+              placeholder="E.g. please deliver after 15 Jan, leave with neighbour, gift — no invoice, etc."
+              value={form.comment}
+              onChange={e => set('comment', e.target.value)}
+              rows={3}
+              style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%',boxSizing:'border-box',resize:'vertical',fontFamily:'inherit',color:'#1a1a18',lineHeight:1.5}}
+            />
           </div>
 
           <div style={{display:'flex',gap:12,alignItems:'center'}}>

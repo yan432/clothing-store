@@ -125,6 +125,7 @@ class CheckoutRequest(BaseModel):
     zip: Optional[str] = None
     country: Optional[str] = None
     promo_code: Optional[str] = None
+    comment: Optional[str] = None
     quick: bool = False  # True = quick checkout from cart; Stripe collects shipping
 
 
@@ -1255,6 +1256,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             metadata_json["promo_discount_type"] = promo.get("discount_type")
             metadata_json["promo_discount_value"] = promo.get("discount_value")
             metadata_json["promo_discount_amount"] = promo_discount
+        if payload.comment:
+            metadata_json["order_note"] = payload.comment[:500]
 
         order_insert = supabase.table("orders").insert({
             "client_reference_id": client_reference_id,
@@ -1317,6 +1320,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
                 "promo_code": str(promo.get("code")) if promo else "",
+                **({"order_note": payload.comment[:500]} if payload.comment else {}),
             },
             success_url=f"{checkout_origin}/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{checkout_origin}/cart",

@@ -123,6 +123,7 @@ export default function ConfirmPage() {
           zip: details.zip,
           country: details.country,
           promo_code: promoApplied?.code || null,
+          comment: details.comment || null,
           success_url: `${origin}/success`,
           cancel_url: `${origin}/cart`,
         }),
@@ -188,11 +189,19 @@ export default function ConfirmPage() {
           </div>
 
           {/* Contact */}
-          <div style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:14,padding:20,marginBottom:28}}>
+          <div style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:14,padding:20,marginBottom:details.comment ? 16 : 28}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:'0 0 10px'}}>Contact</p>
             <p style={{fontSize:14,color:'#555',margin:'0 0 4px'}}>{details.email}</p>
             <p style={{fontSize:14,color:'#555',margin:0}}>{details.phone}</p>
           </div>
+
+          {/* Order note */}
+          {details.comment && (
+            <div style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:14,padding:20,marginBottom:28}}>
+              <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:'0 0 10px'}}>Order note</p>
+              <p style={{fontSize:14,color:'#555',margin:0,whiteSpace:'pre-wrap',lineHeight:1.6}}>{details.comment}</p>
+            </div>
+          )}
 
           {/* Promo code */}
           <div style={{marginBottom:28}}>
