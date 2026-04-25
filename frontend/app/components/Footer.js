@@ -55,7 +55,7 @@ export default function Footer() {
 
   return (
     <footer style={{background:'#0a0a0a',color:'#fff',marginTop:80}}>
-      <div style={{maxWidth:1200,margin:'0 auto',padding:'60px 24px 40px',display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1.3fr',gap:48}}>
+      <div style={{maxWidth:1200,margin:'0 auto',padding:'60px 24px 40px'}} className="footer-grid">
 
         {/* Brand */}
         <div>
@@ -111,27 +111,18 @@ export default function Footer() {
           <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:'0 0 16px'}}>
             New releases and special offers — straight to your inbox.
           </p>
-          <form onSubmit={handleNewsletterSubmit} style={{display:'flex'}}>
+          <form onSubmit={handleNewsletterSubmit} className="footer-newsletter-form">
             <input
               type="email"
               placeholder="Your email"
               value={newsletterEmail}
               onChange={(e) => setNewsletterEmail(e.target.value)}
               required
-              style={{
-                flex:1,padding:'11px 16px',background:'#1a1a1a',
-                borderTop:'1px solid #2a2a2a',
-                borderBottom:'1px solid #2a2a2a',
-                borderLeft:'1px solid #2a2a2a',
-                borderRight:'none',
-                borderRadius:'8px 0 0 8px',
-                color:'#fff',fontSize:13,outline:'none'
-              }}
             />
             <button
               type="submit"
               disabled={newsletterLoading}
-              style={{minWidth:104,padding:'11px 18px',background:'#fff',color:'#000',border:'none',borderRadius:'0 8px 8px 0',fontSize:13,fontWeight:600,cursor:'pointer',opacity:newsletterLoading ? 0.7 : 1}}
+              style={{opacity: newsletterLoading ? 0.7 : 1}}
             >
               {newsletterLoading ? '...' : 'Subscribe'}
             </button>
@@ -144,7 +135,7 @@ export default function Footer() {
 
       {/* Payment methods */}
       <div style={{borderTop:'1px solid #1a1a1a',maxWidth:1200,margin:'0 auto',padding:'28px 24px'}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:16}}>
+        <div className="footer-bottom-row">
           <div style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
             <span style={{fontSize:12,color:'#444',marginRight:4}}>We accept</span>
             {/* Visa */}
@@ -178,7 +169,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <div style={{display:'flex',gap:20}}>
+          <div className="footer-legal-links">
             {[['Privacy Policy','/privacy'],['Terms','/terms'],['Imprint','/imprint']].map(([label, href]) => (
               <a key={label} href={href} className="footer-link" style={{fontSize:12,marginBottom:0}}>
                 {label}

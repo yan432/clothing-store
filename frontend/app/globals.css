@@ -207,7 +207,10 @@ a { text-decoration: none; color: inherit; }
   .product-detail-price {
     font-size: 28px;
   }
-  .footer-link {
+}
+
+/* ── Footer ─────────────────────────────────────────── */
+.footer-link {
   display: block;
   font-size: 13px;
   color: #999;
@@ -219,4 +222,99 @@ a { text-decoration: none; color: inherit; }
 .footer-link:hover {
   color: #fff;
 }
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1.3fr;
+  gap: 48px;
+}
+
+.footer-newsletter-form {
+  display: flex;
+  flex-direction: row;
+}
+
+.footer-newsletter-form input {
+  flex: 1;
+  padding: 11px 16px;
+  background: #1a1a1a;
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
+  border-left: 1px solid #2a2a2a;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: #fff;
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+}
+
+.footer-newsletter-form button {
+  min-width: 100px;
+  padding: 11px 18px;
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.footer-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-legal-links {
+  display: flex;
+  gap: 20px;
+}
+
+/* Tablet: 2-column footer */
+@media (max-width: 900px) {
+  .footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+  }
+}
+
+/* Mobile: single column footer */
+@media (max-width: 560px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .footer-newsletter-form {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .footer-newsletter-form input {
+    border-right: 1px solid #2a2a2a;
+    border-radius: 8px;
+    width: 100%;
+  }
+
+  .footer-newsletter-form button {
+    border-radius: 8px;
+    width: 100%;
+    min-width: unset;
+  }
+
+  .footer-bottom-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .footer-legal-links {
+    gap: 14px;
+    flex-wrap: wrap;
+  }
 }
