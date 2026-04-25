@@ -69,11 +69,9 @@ export default function EmailCapturePopup() {
       const data = await res.json().catch(() => ({}))
       setPromoCode(data.promo_code || 'WELCOME10')
       setDone(true)
-      setTimeout(closePopup, 6000)
     } catch (_) {
       setPromoCode('WELCOME10')
       setDone(true)
-      setTimeout(closePopup, 6000)
     } finally {
       setLoading(false)
     }
