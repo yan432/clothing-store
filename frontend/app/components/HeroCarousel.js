@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-export default function HeroCarousel({ slides }) {
+export default function HeroCarousel({ slides, fullWidth = false }) {
   const [idx, setIdx] = useState(0)
   const [drag, setDrag] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -42,7 +42,7 @@ export default function HeroCarousel({ slides }) {
 
   return (
     <div
-      style={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: '0 0 28px 28px', userSelect: 'none' }}
+      style={{ position: 'relative', width: '100%', overflow: 'hidden', userSelect: 'none' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

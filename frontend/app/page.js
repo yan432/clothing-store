@@ -52,7 +52,7 @@ export default async function Home({ searchParams }) {
       {/* ── 1. HERO BANNER ─────────────────────────────── */}
       <section style={{
         position: 'relative', minHeight: '80vh', overflow: 'hidden',
-        borderRadius: '0 0 28px 28px', background: '#1a1a18',
+        background: '#1a1a18',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{
@@ -104,8 +104,8 @@ export default async function Home({ searchParams }) {
 
       {/* ── 3. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
-        <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
-          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, label: '' }))} />
+        <section style={{ marginTop: 72 }}>
+          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, label: '' }))} fullWidth />
         </section>
       )}
 
