@@ -125,6 +125,7 @@ class CheckoutRequest(BaseModel):
     zip: Optional[str] = None
     country: Optional[str] = None
     promo_code: Optional[str] = None
+    quick: bool = False  # True = quick checkout from cart; Stripe collects shipping
 
 
 class PromoCodeCreate(BaseModel):
@@ -1300,20 +1301,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 )
                 stripe_discounts = [{"coupon": coupon.id}]
 
-        session = stripe.checkout.Session.create(
+        # For quick checkout (from cart) Stripe collects shipping; for normal
+        # checkout the customer already filled it in on our Details page.
+        stripe_session_params: dict = dict(
             payment_method_types=["card", "klarna", "paypal"],
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
             discounts=stripe_discounts,
             billing_address_collection="required",
-            shipping_address_collection={
-                "allowed_countries": [
-                    "US", "CA", "GB", "DE", "FR", "ES", "IT", "NL", "BE", "PL", "PT",
-                    "SE", "NO", "DK", "FI", "IE", "AT", "CH", "CZ"
-                ]
-            },
-            phone_number_collection={"enabled": True},
             customer_email=payload.customer_email,
             metadata={
                 "client_reference_id": client_reference_id,
@@ -1323,6 +1319,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             success_url=f"{checkout_origin}/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{checkout_origin}/cart",
         )
+        if payload.quick:
+            stripe_session_params["shipping_address_collection"] = {
+                "allowed_countries": [
+                    "US", "CA", "GB", "DE", "FR", "ES", "IT", "NL", "BE", "PL", "PT",
+                    "SE", "NO", "DK", "FI", "IE", "AT", "CH", "CZ"
+                ]
+            }
+            stripe_session_params["phone_number_collection"] = {"enabled": True}
+        session = stripe.checkout.Session.create(**stripe_session_params)
         session_dict = stripe_obj_to_dict(session)
         expires_at_epoch = session_dict.get("expires_at")
         expires_at_iso = None

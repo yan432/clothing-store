@@ -1,11 +1,40 @@
 'use client'
 import { useCart } from '../context/CartContext'
 import { useEffect, useState } from 'react'
+import { getApiUrl } from '../lib/api'
 
 export default function CartDrawer({ open, onClose }) {
   const { cart, removeFromCart, updateQty, total } = useCart()
   const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [quickLoading, setQuickLoading] = useState(false)
+
+  async function quickCheckout() {
+    setQuickLoading(true)
+    try {
+      const res = await fetch(getApiUrl('/checkout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: parseFloat(item.price),
+            quantity: item.qty,
+            image_url: item.image_url || null,
+            size: item.size || null,
+          })),
+          quick: true,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+      else alert('Checkout error: ' + JSON.stringify(data))
+    } catch (e) {
+      alert('Something went wrong: ' + e.message)
+    }
+    setQuickLoading(false)
+  }
 
   useEffect(() => {
     if (open) {
@@ -112,6 +141,8 @@ export default function CartDrawer({ open, onClose }) {
               <div style={{display:'flex',gap:10}}>
                 <button
                   type="button"
+                  onClick={quickCheckout}
+                  disabled={quickLoading}
                   style={{
                     flex:1,
                     background:'#000',
@@ -125,16 +156,19 @@ export default function CartDrawer({ open, onClose }) {
                     alignItems:'center',
                     justifyContent:'center',
                     gap:8,
-                    cursor:'default',
+                    cursor: quickLoading ? 'default' : 'pointer',
+                    opacity: quickLoading ? 0.7 : 1,
                   }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
                   </svg>
-                  Apple Pay
+                  {quickLoading ? '...' : 'Apple Pay'}
                 </button>
                 <button
                   type="button"
+                  onClick={quickCheckout}
+                  disabled={quickLoading}
                   style={{
                     flex:1,
                     background:'#003087',
@@ -148,13 +182,14 @@ export default function CartDrawer({ open, onClose }) {
                     alignItems:'center',
                     justifyContent:'center',
                     gap:8,
-                    cursor:'default',
+                    cursor: quickLoading ? 'default' : 'pointer',
+                    opacity: quickLoading ? 0.7 : 1,
                   }}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="white" aria-hidden="true">
                     <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.315 2.642 1.04 4.73-.315 2.386-1.167 4.006-2.53 4.823-1.22.737-2.808.908-4.148.908h-2.17L11.027 15.93l-.22 1.248-3.731 4.16zm12.585-9.199c-.115.607-.29 1.146-.534 1.613-.805 1.553-2.302 2.341-4.45 2.341H12.62a.67.67 0 0 0-.663.57l-1.137 7.198H7.076l3.655-4.073 3.6-20.41h3.5c1.358 0 2.322.298 2.875.891.56.6.746 1.544.572 2.814l-.617 3.055z"/>
                   </svg>
-                  PayPal
+                  {quickLoading ? '...' : 'PayPal'}
                 </button>
               </div>
               <div style={{display:'flex',alignItems:'center',gap:10,marginTop:12}}>
