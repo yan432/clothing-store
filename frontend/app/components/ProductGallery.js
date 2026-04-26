@@ -97,7 +97,7 @@ export default function ProductGallery({ product }) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
-        style={{background:'#f5f5f3',borderRadius:20,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',color:'#ccc'}}>
+        style={{background:'#f5f5f3',borderRadius:20,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',color:'#ccc',touchAction:'pan-y'}}>
         {hasImages ? (
           <div
             className="product-gallery-track"

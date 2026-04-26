@@ -42,7 +42,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
 
   return (
     <div
-      style={{ position: 'relative', width: '100%', overflow: 'hidden', userSelect: 'none' }}
+      style={{ position: 'relative', width: '100%', overflow: 'hidden', userSelect: 'none', touchAction: 'pan-y' }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
