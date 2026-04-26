@@ -66,9 +66,13 @@ export default function OrderDetailsClient({ id }) {
   const [trackingSaving, setTrackingSaving] = useState(false)
   const [trackingMsg, setTrackingMsg] = useState('')
 
-  // Notify
+  // Notify shipped
   const [notifying, setNotifying] = useState(false)
   const [notifyMsg, setNotifyMsg] = useState('')
+
+  // Resend confirmation
+  const [resending, setResending] = useState(false)
+  const [resendMsg, setResendMsg] = useState('')
 
   // Delete
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -388,13 +392,28 @@ export default function OrderDetailsClient({ id }) {
             <section style={{border:'1px solid #ecece8',borderRadius:12,padding:'16px 18px',background:'#fff'}}>
               <h2 style={{fontSize:13,fontWeight:700,color:'#888',textTransform:'uppercase',letterSpacing:'0.08em',margin:'0 0 8px'}}>Notify customer</h2>
               <p style={{fontSize:12,color:'#888',margin:'0 0 12px',lineHeight:1.5}}>
-                Sends a shipping notification email to <strong>{order.email}</strong> with tracking info.
+                Sends emails to <strong>{order.email}</strong>
               </p>
-              <button onClick={notifyShipped} disabled={notifying}
-                style={{width:'100%',background:'#0f766e',color:'#fff',border:'none',padding:'10px',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',opacity:notifying?0.6:1}}>
-                {notifying ? 'Sending…' : '📧 Send shipping email'}
-              </button>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                <button onClick={notifyShipped} disabled={notifying}
+                  style={{width:'100%',background:'#0f766e',color:'#fff',border:'none',padding:'10px',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',opacity:notifying?0.6:1}}>
+                  {notifying ? 'Sending…' : '📦 Send shipping notification'}
+                </button>
+                <button onClick={async () => {
+                  setResending(true); setResendMsg('')
+                  try {
+                    const res = await fetch(getApiUrl('/orders/' + id + '/resend-confirmation'), { method: 'POST' })
+                    if (!res.ok) throw new Error((await res.text()) || 'Failed')
+                    setResendMsg('Confirmation email sent ✓')
+                  } catch (e) { setResendMsg('Error: ' + e.message) }
+                  finally { setResending(false); setTimeout(() => setResendMsg(''), 5000) }
+                }} disabled={resending}
+                  style={{width:'100%',background:'#fff',color:'#374151',border:'1px solid #e5e7eb',padding:'10px',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',opacity:resending?0.6:1}}>
+                  {resending ? 'Sending…' : '📧 Resend order confirmation'}
+                </button>
+              </div>
               {notifyMsg && <p style={{fontSize:12,margin:'8px 0 0',color:notifyMsg.startsWith('Error')?'#b91c1c':'#16a34a'}}>{notifyMsg}</p>}
+              {resendMsg && <p style={{fontSize:12,margin:'4px 0 0',color:resendMsg.startsWith('Error')?'#b91c1c':'#16a34a'}}>{resendMsg}</p>}
             </section>
 
             {/* Delete */}

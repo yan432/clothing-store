@@ -53,6 +53,7 @@ export default function PromoCodesClient() {
     discount_value: '10',
     usage_limit: '',
     expires_at: '',
+    one_per_email: false,
   })
   const [editForm, setEditForm] = useState({
     code: '',
@@ -61,6 +62,7 @@ export default function PromoCodesClient() {
     usage_limit: '',
     expires_at: '',
     is_active: true,
+    one_per_email: false,
   })
 
   function setField(field, value) {
@@ -107,6 +109,7 @@ export default function PromoCodesClient() {
       usage_limit: row.usage_limit == null ? '' : String(row.usage_limit),
       expires_at: toDateTimeLocalInput(row.expires_at),
       is_active: row.is_active !== false,
+      one_per_email: Boolean(row.one_per_email),
     })
   }
 
@@ -126,6 +129,7 @@ export default function PromoCodesClient() {
         discount_value: form.discount_type === 'free_shipping' ? 0 : Number(form.discount_value || 0),
         usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
         expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null,
+        one_per_email: Boolean(form.one_per_email),
       }
       const res = await fetch(getApiUrl('/promo-codes'), {
         method: 'POST',
@@ -164,6 +168,7 @@ export default function PromoCodesClient() {
         usage_limit: editForm.usage_limit ? Number(editForm.usage_limit) : null,
         expires_at: editForm.expires_at ? new Date(editForm.expires_at).toISOString() : null,
         is_active: Boolean(editForm.is_active),
+        one_per_email: Boolean(editForm.one_per_email),
       }
       const res = await fetch(getApiUrl('/promo-codes/' + editingId), {
         method: 'PUT',
@@ -322,6 +327,11 @@ export default function PromoCodesClient() {
             </label>
           </div>
 
+          <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+            <input type="checkbox" checked={form.one_per_email} onChange={(e) => setField('one_per_email', e.target.checked)} />
+            One use per customer (e.g. WELCOME codes)
+          </label>
+
           <button
             type="submit"
             disabled={saving}
@@ -443,6 +453,10 @@ export default function PromoCodesClient() {
               <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer',marginTop:28}}>
                 <input type="checkbox" checked={editForm.is_active} onChange={(e) => setEditForm((prev) => ({ ...prev, is_active: e.target.checked }))} />
                 Active
+              </label>
+              <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer',marginTop:28}}>
+                <input type="checkbox" checked={editForm.one_per_email} onChange={(e) => setEditForm((prev) => ({ ...prev, one_per_email: e.target.checked }))} />
+                One use per customer
               </label>
             </div>
             <div style={{display:'flex',gap:8,marginTop:12}}>

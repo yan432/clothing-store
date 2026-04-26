@@ -135,6 +135,7 @@ class PromoCodeCreate(BaseModel):
     discount_value: Optional[float] = None
     expires_at: Optional[str] = None
     usage_limit: Optional[int] = None
+    one_per_email: Optional[bool] = False
 
 
 class PromoCodeUpdate(BaseModel):
@@ -144,6 +145,7 @@ class PromoCodeUpdate(BaseModel):
     expires_at: Optional[str] = None
     usage_limit: Optional[int] = None
     is_active: Optional[bool] = None
+    one_per_email: Optional[bool] = None
 
 
 class PromoCodeValidateResponse(BaseModel):
@@ -1105,6 +1107,7 @@ def create_promo_code(payload: PromoCodeCreate):
         "usage_limit": int(usage_limit) if usage_limit is not None else None,
         "used_count": 0,
         "is_active": True,
+        "one_per_email": bool(payload.one_per_email) if payload.one_per_email is not None else False,
     }
     data = supabase.table("promo_codes").insert(insert_payload).execute()
     if not data.data:
@@ -1238,7 +1241,43 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
 
     checkout_origin = resolve_checkout_origin(http_request, payload)
 
+    # Per-email usage check (e.g. WELCOME10 — one use per customer account)
+    if promo and promo.get("one_per_email") and payload.customer_email:
+        email_norm = normalize_email(payload.customer_email)
+        promo_code_norm = normalize_promo_code(promo.get("code"))
+        try:
+            already_used = (
+                supabase.table("orders")
+                .select("id")
+                .ilike("email", email_norm)
+                .in_("status", ["paid", "shipped", "delivered"])
+                .filter("metadata_json->>promo_code", "eq", promo_code_norm)
+                .limit(1)
+                .execute()
+            )
+            if already_used.data:
+                raise HTTPException(status_code=400, detail="This promo code can only be used once per account")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # If check fails, allow the order to continue
+
     should_charge_shipping = promo_type != "free_shipping"
+
+    # Apply percent/fixed discount to PRODUCT line items only (not shipping).
+    # We bake the discount into unit_amount instead of using Stripe coupons,
+    # so Stripe charges the same total as our internal calculation.
+    if promo and promo_type in ("percent", "fixed"):
+        promo_value = float(promo.get("discount_value") or 0)
+        if promo_type == "percent":
+            factor = 1.0 - promo_value / 100.0
+        else:  # fixed — distribute proportionally across items
+            factor = max(0.0, (subtotal - promo_discount) / subtotal) if subtotal > 0 else 1.0
+        line_items = [
+            {**li, "price_data": {**li["price_data"], "unit_amount": max(1, round(li["price_data"]["unit_amount"] * factor))}}
+            for li in line_items
+        ]
+
     if should_charge_shipping:
         line_items.append({
             "price_data": {
@@ -1290,26 +1329,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             {"client_reference_id": client_reference_id},
         )
 
-        stripe_discounts = None
-        if promo and promo_type in ("percent", "fixed"):
-            promo_value = float(promo.get("discount_value") or 0)
-            if promo_type == "percent":
-                coupon = stripe.Coupon.create(
-                    duration="once",
-                    percent_off=promo_value,
-                    name=f"Promo {promo.get('code')}",
-                    metadata={"promo_code": str(promo.get("code") or "")},
-                )
-                stripe_discounts = [{"coupon": coupon.id}]
-            elif promo_type == "fixed":
-                coupon = stripe.Coupon.create(
-                    duration="once",
-                    amount_off=int(round(promo_value * 100)),
-                    currency="eur",
-                    name=f"Promo {promo.get('code')}",
-                    metadata={"promo_code": str(promo.get("code") or "")},
-                )
-                stripe_discounts = [{"coupon": coupon.id}]
+        # Discount is already baked into product line item prices above.
+        # No Stripe coupons needed — they would apply to shipping too.
 
         # For quick checkout (from cart) Stripe collects shipping; for normal
         # checkout the customer already filled it in on our Details page.
@@ -1318,7 +1339,6 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
-            discounts=stripe_discounts,
             billing_address_collection="required",
             customer_email=payload.customer_email,
             metadata={
@@ -1432,6 +1452,15 @@ async def stripe_webhook(request: Request):
     items = order.get("items_json") or []
     changed = False
     if target_status == ORDER_PAID and current_status == ORDER_PENDING:
+        # Enrich order with Stripe-provided email & shipping before sending emails.
+        # For quick checkout the customer email/address is collected by Stripe,
+        # not our form — so the DB order might not have it yet at webhook time.
+        stripe_email = as_dict(data_obj.get("customer_details")).get("email")
+        if stripe_email:
+            order["email"] = stripe_email
+        for field, value in extract_shipping_fields(data_obj).items():
+            if first_non_empty(value) is not None:
+                order[field] = value
         finalize_paid_stock(items)
         increment_promo_usage_if_needed(order)
         send_order_confirmation_emails(order)
@@ -1717,6 +1746,22 @@ Total: {money_eur(total)}
 Questions? Contact us at {store_url}
 """
     return html, text
+
+
+@app.post("/orders/{order_id}/resend-confirmation")
+def resend_order_confirmation(order_id: int):
+    result = supabase.table("orders").select("*").eq("id", order_id).limit(1).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order = result.data[0]
+    customer_email = str(order.get("email") or "").strip()
+    if not customer_email:
+        raise HTTPException(status_code=400, detail="Order has no customer email")
+    try:
+        send_order_confirmation_emails(order)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {exc}") from exc
+    return {"ok": True}
 
 
 @app.post("/orders/{order_id}/notify-shipped")
