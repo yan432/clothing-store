@@ -147,8 +147,8 @@ export default function Footer() {
               { file: 'applepay.png',   alt: 'Apple Pay' },
               { file: 'googlepay.png',  alt: 'Google Pay' },
             ].map(({ file, alt }) => (
-              <div key={file} style={{height:32,display:'flex',alignItems:'center',justifyContent:'center',background:'#fff',borderRadius:6,padding:'4px 8px',boxSizing:'border-box'}}>
-                <img src={`/payment-icons/${file}`} alt={alt} style={{height:22,width:'auto',display:'block'}} />
+              <div key={file} style={{width:64,height:40,display:'flex',alignItems:'center',justifyContent:'center',background:'#fff',borderRadius:8,padding:'6px 8px',boxSizing:'border-box',flexShrink:0}}>
+                <img src={`/payment-icons/${file}`} alt={alt} style={{maxWidth:'100%',maxHeight:'100%',width:'auto',height:'auto',display:'block',objectFit:'contain'}} />
               </div>
             ))}
           </div>
