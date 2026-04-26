@@ -384,9 +384,9 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
     margin-bottom: 0 !important;
   }
 
-  /* Text area: inner padding */
+  /* Text area: inner padding — equal top/bottom so spacing looks balanced */
   .product-card-info {
-    padding: 10px 12px 14px;
+    padding: 12px 12px 12px;
   }
 
   /* Hide description on mobile (too cluttered) */
