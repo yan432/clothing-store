@@ -2,6 +2,17 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.announcement-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 28s linear infinite;
+}
+.announcement-track:hover { animation-play-state: paused; }
+
 body {
   background: #fafaf8;
   color: #1a1a18;

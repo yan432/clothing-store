@@ -2,6 +2,33 @@
 import { useCart } from '../context/CartContext'
 import { useEffect, useState } from 'react'
 
+const FREE_SHIPPING_THRESHOLD = 120
+
+function ShippingBar({ total }) {
+  const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - total)
+  const progress = Math.min(100, (total / FREE_SHIPPING_THRESHOLD) * 100)
+  const reached = remaining === 0
+
+  return (
+    <div style={{ padding: '10px 24px 12px', borderBottom: '1px solid #f0f0ee', background: '#fafaf8' }}>
+      <p style={{ fontSize: 12, color: reached ? '#166534' : '#555', margin: '0 0 7px', textAlign: 'center' }}>
+        {reached
+          ? '🎉 You\'ve unlocked free shipping!'
+          : <>Add <strong>€{remaining.toFixed(2)}</strong> more for free shipping</>
+        }
+      </p>
+      <div style={{ height: 4, borderRadius: 999, background: '#e5e5e3', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 999,
+          background: reached ? '#16a34a' : '#111',
+          width: `${progress}%`,
+          transition: 'width 0.4s ease',
+        }} />
+      </div>
+    </div>
+  )
+}
+
 export default function CartDrawer({ open, onClose }) {
   const { cart, removeFromCart, updateQty, total } = useCart()
   const [visible, setVisible] = useState(false)
@@ -49,6 +76,9 @@ export default function CartDrawer({ open, onClose }) {
             ×
           </button>
         </div>
+
+        {/* Free shipping progress bar */}
+        <ShippingBar total={total} />
 
         {/* Items */}
         <div style={{flex:1,overflowY:'auto',padding:'16px 24px'}}>

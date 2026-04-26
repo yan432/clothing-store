@@ -3,15 +3,28 @@ import { useEffect, useRef, useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 
+const SHOP_LINKS = [
+  { label: 'All products',  href: '/products',                    bold: false },
+  { label: 'New arrivals',  href: '/products?special=new',        bold: false },
+  { label: 'Sale',          href: '/products?special=sale',       bold: false },
+  null, // divider
+  { label: 'Tops',          href: '/products?category=Tops',      bold: false },
+  { label: 'Bottoms',       href: '/products?category=Bottoms',   bold: false },
+  { label: 'Outerwear',     href: '/products?category=Outerwear', bold: false },
+]
+
 export default function NavBar() {
   const { count, setDrawerOpen } = useCart()
   const { user, signOut, isAdmin } = useAuth()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isAdminOpen, setIsAdminOpen] = useState(false)
+  const [isShopOpen, setIsShopOpen] = useState(false)
   const menuRef = useRef(null)
   const adminMenuRef = useRef(null)
+  const shopMenuRef = useRef(null)
   const closeTimerRef = useRef(null)
   const closeAdminTimerRef = useRef(null)
+  const closeShopTimerRef = useRef(null)
 
   useEffect(() => {
     if (!isProfileOpen && !isAdminOpen) return
@@ -44,8 +57,17 @@ export default function NavBar() {
     return () => {
       if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
       if (closeAdminTimerRef.current) clearTimeout(closeAdminTimerRef.current)
+      if (closeShopTimerRef.current) clearTimeout(closeShopTimerRef.current)
     }
   }, [])
+
+  function openShopMenu() {
+    if (closeShopTimerRef.current) { clearTimeout(closeShopTimerRef.current); closeShopTimerRef.current = null }
+    setIsShopOpen(true)
+  }
+  function closeShopMenuWithDelay() {
+    closeShopTimerRef.current = setTimeout(() => { setIsShopOpen(false); closeShopTimerRef.current = null }, 160)
+  }
 
   function openProfileMenu() {
     if (closeTimerRef.current) {
@@ -100,7 +122,45 @@ export default function NavBar() {
     <nav style={{position:'sticky',top:0,zIndex:50,borderBottom:'1px solid #f0f0ee',background:'rgba(255,255,255,0.85)',backdropFilter:'blur(12px)',padding:'16px 24px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
       <a href="/" style={{fontSize:15,fontWeight:600,letterSpacing:'0.06em',textDecoration:'none',color:'inherit'}}>edm.clothes</a>
       <div style={{display:'flex',gap:24,fontSize:14,color:'#666',alignItems:'center'}}>
-        <a href="/products" style={{color:'inherit',textDecoration:'none'}}>Shop</a>
+
+        {/* Shop dropdown */}
+        <div
+          ref={shopMenuRef}
+          style={{position:'relative',display:'flex',alignItems:'center'}}
+          onMouseEnter={openShopMenu}
+          onMouseLeave={closeShopMenuWithDelay}
+        >
+          <a href="/products"
+            style={{color:'inherit',textDecoration:'none',display:'flex',alignItems:'center',gap:4}}
+            onFocus={openShopMenu}
+          >
+            Shop
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{opacity:0.5,marginTop:1}}>
+              <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </a>
+          {isShopOpen && (
+            <div style={{
+              position:'absolute',left:0,top:'100%',
+              background:'#fff',border:'1px solid #e8e8e5',borderRadius:12,
+              padding:'8px 0',marginTop:10,minWidth:180,
+              boxShadow:'0 14px 34px rgba(15,15,15,0.08)',zIndex:60,
+            }}>
+              {SHOP_LINKS.map((item, i) =>
+                item === null ? (
+                  <div key={i} style={{height:1,background:'#f0f0ee',margin:'6px 12px'}} />
+                ) : (
+                  <a key={item.href} href={item.href}
+                    onClick={() => setIsShopOpen(false)}
+                    style={{display:'block',padding:'9px 16px',fontSize:14,color:'#1a1a18',whiteSpace:'nowrap'}}
+                  >
+                    {item.label}
+                  </a>
+                )
+              )}
+            </div>
+          )}
+        </div>
         {isAdmin && (
           <div
             ref={adminMenuRef}

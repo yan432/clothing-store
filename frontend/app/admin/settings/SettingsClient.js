@@ -41,6 +41,13 @@ const FIELDS = [
       { key: 'popup_promo_code', label: 'Discount code shown in popup', placeholder: 'WELCOME10', hint: 'Create this code in Promo Codes first, then paste it here.' },
     ],
   },
+  {
+    section: 'Announcement bar',
+    fields: [
+      { key: 'announcement_bar_enabled', label: 'Enabled', placeholder: 'true', hint: 'Set to "true" to show the scrolling bar, "false" to hide it.' },
+      { key: 'announcement_bar_items',   label: 'Messages (one per line)', placeholder: 'FREE SHIPPING ON ALL ORDERS OVER €120\nNEW DROP — SPRING COLLECTION\nMADE IN UKRAINE', hint: 'Each line is one message. They scroll in a loop at the top of the page.', multiline: true },
+    ],
+  },
 ]
 
 function buildCustomerPreview(values) {

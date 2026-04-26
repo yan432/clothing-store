@@ -3,6 +3,7 @@ import './globals.css'
 import { CartProvider } from './context/CartContext'
 import { AuthProvider } from './context/AuthContext'
 import NavBar from './components/NavBar'
+import AnnouncementBar from './components/AnnouncementBar'
 import DrawerWrapper from './components/DrawerWrapper'
 import Footer from './components/Footer'
 import EmailCapturePopup from './components/EmailCapturePopup'
@@ -46,6 +47,7 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <AuthProvider>
           <CartProvider>
+            <AnnouncementBar />
             <NavBar />
             <DrawerWrapper />
             <EmailCapturePopup />
