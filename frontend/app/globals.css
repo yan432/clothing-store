@@ -4,7 +4,7 @@
 
 @keyframes marquee {
   0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  100% { transform: translateX(-25%); }
 }
 
 @keyframes megaSlideIn {
@@ -19,9 +19,9 @@
 .announcement-track {
   display: flex;
   width: max-content;
-  animation: marquee 28s linear infinite;
+  animation: marquee 32s linear infinite;
+  /* no hover pause — avoids glitch when mouse moves over bar */
 }
-.announcement-track:hover { animation-play-state: paused; }
 
 body {
   background: #fafaf8;

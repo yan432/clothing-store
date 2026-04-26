@@ -7,14 +7,13 @@ const DEFAULT_ITEMS = [
   'NEW DROP — SPRING COLLECTION',
   'MADE IN UKRAINE',
 ]
-const SEP = ' ― ' // — separator between messages
 
 export default function AnnouncementBar() {
   const [items, setItems] = useState(DEFAULT_ITEMS)
   const [enabled, setEnabled] = useState(true)
 
   useEffect(() => {
-    fetch(getApiUrl('/settings'), { next: { revalidate: 60 } })
+    fetch(getApiUrl('/settings'))
       .then(r => r.ok ? r.json() : null)
       .then(s => {
         if (!s) return
@@ -32,15 +31,9 @@ export default function AnnouncementBar() {
 
   if (!enabled) return null
 
-  // Build one full "segment" — all items joined with separator
-  const segment = items.map((item, i) => (
-    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
-      {item}
-      <span style={{ margin: '0 28px', opacity: 0.4 }}>✦</span>
-    </span>
-  ))
+  // Render 4 copies so the loop is seamless at any screen width
+  const copies = [0, 1, 2, 3]
 
-  // Duplicate the segment so the loop is seamless
   return (
     <div style={{
       background: '#0a0a0a',
@@ -53,12 +46,17 @@ export default function AnnouncementBar() {
       fontWeight: 500,
       letterSpacing: '0.1em',
       textTransform: 'uppercase',
+      userSelect: 'none',
     }}>
       <div className="announcement-track">
-        {/* Segment A */}
-        {segment}
-        {/* Segment B — identical copy for seamless loop */}
-        {segment}
+        {copies.map(c =>
+          items.map((item, i) => (
+            <span key={`${c}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>
+              {item}
+              <span style={{ margin: '0 28px', opacity: 0.35 }}>✦</span>
+            </span>
+          ))
+        )}
       </div>
     </div>
   )

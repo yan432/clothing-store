@@ -1,23 +1,22 @@
 import AddToCartButton from '../../components/AddToCartButton'
 import ProductGallery from '../../components/ProductGallery'
-import ProductViewTracker from '../../components/ProductViewTracker'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 
-async function getProduct(slug) {
-  const res = await fetch(getApiUrl('/products/' + slug), { cache: 'no-store' })
+async function getProduct(id) {
+  const res = await fetch(getApiUrl('/products/' + id), { cache: 'no-store' })
   if (!res.ok) return null
   return res.json()
 }
 
 export async function generateMetadata({ params }) {
-  const { slug } = await params
-  const product = await getProduct(slug)
+  const { id } = await params
+  const product = await getProduct(id)
   if (!product) return { title: 'Product not found' }
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
 
   return {
-    title: product.name + ' — edm.clothes',
+    title: product.name + ' — STORE',
     description: product.description,
     openGraph: {
       title: product.name,
@@ -35,8 +34,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function ProductPage({ params }) {
-  const { slug } = await params
-  const product = await getProduct(slug)
+  const { id } = await params
+  const product = await getProduct(id)
   if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Product not found</div>
   const availableStock = product.available_stock ?? product.stock ?? 0
   const isInStock = availableStock > 0
@@ -75,7 +74,6 @@ export default async function ProductPage({ params }) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <ProductViewTracker productId={product.id} />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
         <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</a>
 
@@ -97,57 +95,12 @@ export default async function ProductPage({ params }) {
               <p className="product-detail-price" style={{fontWeight:600,margin:0}}>{priceLabel}</p>
               <p style={{fontSize:14,color:'#8a8a84',margin:0}}>incl. tax</p>
             </div>
-            <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:0}}>
+            <p style={{fontSize:14,color:'#666660',margin:0}}>
+              Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{(product.category || 'Standard').toLowerCase()}</span>
+            </p>
+            <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:'-6px 0 0'}}>
               {!isInStock ? 'Out of stock' : isLowStock ? 'LOW STOCK' : 'In stock'}
             </p>
-
-            {/* Color swatches — shown only when color_name is set */}
-            {product.color_name && (
-              <div>
-                <p style={{fontSize:13,color:'#666660',margin:'0 0 8px'}}>
-                  Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{product.color_name}</span>
-                </p>
-                <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-                  {/* Current product swatch */}
-                  <div title={product.color_name} style={{
-                    width:28,height:28,borderRadius:'50%',
-                    background: product.color_hex || '#ccc',
-                    border:'2.5px solid #111',
-                    boxShadow:'0 0 0 2px #fff inset',
-                    flexShrink:0,
-                  }} />
-                  {/* Variant swatches */}
-                  {Array.isArray(product.color_variants) && product.color_variants.map(v => (
-                    v.is_hidden ? (
-                      /* Hidden = coming soon, show as dim swatch, no link */
-                      <div key={v.id} title={v.color_name + ' — coming soon'}
-                        style={{
-                          width:28,height:28,borderRadius:'50%',
-                          background: v.color_hex || '#ccc',
-                          border:'2px solid transparent',
-                          boxShadow:'0 0 0 1.5px #ccc',
-                          flexShrink:0,
-                          opacity:0.35,
-                          cursor:'default',
-                          position:'relative',
-                        }} />
-                    ) : (
-                      <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
-                        style={{
-                          width:28,height:28,borderRadius:'50%',
-                          background: v.color_hex || '#ccc',
-                          border:'2px solid transparent',
-                          boxShadow:'0 0 0 1.5px #ccc',
-                          flexShrink:0,
-                          display:'block',
-                          opacity: v.in_stock ? 1 : 0.55,
-                          textDecoration:'none',
-                        }} />
-                    )
-                  ))}
-                </div>
-              </div>
-            )}
 
             {sizeOptions.length > 0 && (
               <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
