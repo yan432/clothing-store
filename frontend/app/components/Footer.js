@@ -137,21 +137,19 @@ export default function Footer() {
       <div style={{borderTop:'1px solid #1a1a1a',maxWidth:1200,margin:'0 auto',padding:'24px 24px'}}>
         <div className="footer-bottom-row">
 
-          <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
             <span style={{fontSize:12,color:'#555',marginRight:4,whiteSpace:'nowrap'}}>We accept</span>
             {[
-              { file: 'Visa.png',       alt: 'Visa' },
-              { file: 'Mastercard.png', alt: 'Mastercard' },
+              { file: 'visa.png',       alt: 'Visa' },
+              { file: 'mastercard.png', alt: 'Mastercard' },
               { file: 'Maestro.png',    alt: 'Maestro' },
-              { file: 'PayPal.png',     alt: 'PayPal' },
-              { file: 'Klarna.png',     alt: 'Klarna' },
-              { file: 'ApplePay.png',   alt: 'Apple Pay' },
-              { file: 'GooglePay.png',  alt: 'Google Pay' },
+              { file: 'paypal.png',     alt: 'PayPal' },
+              { file: 'klarna.png',     alt: 'Klarna' },
+              { file: 'applepay.png',   alt: 'Apple Pay' },
+              { file: 'googlepay.png',  alt: 'Google Pay' },
               { file: 'Stripe.png',     alt: 'Stripe' },
             ].map(({ file, alt }) => (
-              <div key={file} style={{width:64,height:40,display:'flex',alignItems:'center',justifyContent:'center',background:'#fff',borderRadius:8,padding:'6px 8px',boxSizing:'border-box',flexShrink:0}}>
-                <img src={`/payment-icons/${file}`} alt={alt} style={{maxWidth:'100%',maxHeight:'100%',width:'auto',height:'auto',display:'block',objectFit:'contain'}} />
-              </div>
+              <img key={file} src={`/payment-icons/${file}`} alt={alt} width={70} height={48} style={{display:'block',flexShrink:0}} />
             ))}
           </div>
 
