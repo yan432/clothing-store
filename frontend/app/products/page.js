@@ -161,7 +161,7 @@ export default async function ProductsPage({ searchParams }) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}/>
-      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 28px' }}>
+      <main className="products-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 28px' }}>
 
         {fetchError && (
           <div style={{ marginBottom: 16, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
@@ -170,7 +170,7 @@ export default async function ProductsPage({ searchParams }) {
         )}
 
         {/* Title row */}
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div className="products-header-row" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
             {selectedCategory || 'All Products'}
           </h1>

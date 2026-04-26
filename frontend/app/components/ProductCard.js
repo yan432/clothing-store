@@ -96,7 +96,7 @@ export default function ProductCard({ product, colorSiblings = [] }) {
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 
-        <div style={{position:'relative',aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
+        <div className="product-card-img-wrap" style={{position:'relative',aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
 
           {/* Все бейджи вместе */}
 <div style={{position:'absolute',top:10,left:10,zIndex:3,display:'flex',flexDirection:'column',gap:4}}>
@@ -148,31 +148,33 @@ export default function ProductCard({ product, colorSiblings = [] }) {
           )}
         </div>
 
-        <p style={{fontSize:11,color:'#8f8f87',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
-          {product.category || 'Essentials'}
-        </p>
-        <h2 style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>
-          {product.name}
-        </h2>
-
-        {/* Цена с зачёркнутой если есть скидка */}
-        <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 8px'}}>
-          <p style={{fontSize:16,fontWeight:600,margin:0,color: discount ? '#ef4444' : 'inherit'}}>
-            {priceLabel}
+        <div className="product-card-info">
+          <p style={{fontSize:11,color:'#8f8f87',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
+            {product.category || 'Essentials'}
           </p>
-          {comparePriceLabel && (
-            <p style={{fontSize:14,fontWeight:400,margin:0,color:'#aaa',textDecoration:'line-through'}}>
-              {comparePriceLabel}
-            </p>
-          )}
-        </div>
+          <h2 style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>
+            {product.name}
+          </h2>
 
-        <p style={{
-          fontSize:13,color:'#6d6d66',lineHeight:1.5,margin:0,minHeight:40,
-          display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',
-        }}>
-          {description || 'Minimal everyday essential. Tap to view full details.'}
-        </p>
+          {/* Цена с зачёркнутой если есть скидка */}
+          <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 8px'}}>
+            <p style={{fontSize:16,fontWeight:600,margin:0,color: discount ? '#ef4444' : 'inherit'}}>
+              {priceLabel}
+            </p>
+            {comparePriceLabel && (
+              <p style={{fontSize:14,fontWeight:400,margin:0,color:'#aaa',textDecoration:'line-through'}}>
+                {comparePriceLabel}
+              </p>
+            )}
+          </div>
+
+          <p className="product-card-desc" style={{
+            fontSize:13,color:'#6d6d66',lineHeight:1.5,margin:0,minHeight:40,
+            display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',
+          }}>
+            {description || 'Minimal everyday essential. Tap to view full details.'}
+          </p>
+        </div>
       </a>
 
       {/* Color swatches — only when there are siblings */}
