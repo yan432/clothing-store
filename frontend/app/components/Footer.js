@@ -149,7 +149,7 @@ export default function Footer() {
               { file: 'googlepay.png',  alt: 'Google Pay' },
               { file: 'Stripe.png',     alt: 'Stripe' },
             ].map(({ file, alt }) => (
-              <img key={file} src={`/payment-icons/${file}`} alt={alt} width={70} height={48} style={{display:'block',flexShrink:0}} />
+              <img key={file} src={`/payment-icons/${file}`} alt={alt} width={46} height={32} style={{display:'block',flexShrink:0}} />
             ))}
           </div>
 
