@@ -343,16 +343,6 @@ export default function NavBar() {
                   </a>
                 ))}
               </div>
-              {/* Info */}
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Info</p>
-              <div style={{ marginBottom: 24 }}>
-                {INFO_LINKS.map(item => (
-                  <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
-                    {item.label}
-                  </a>
-                ))}
-              </div>
               {/* Account */}
               <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Account</p>
               <div>
@@ -381,6 +371,16 @@ export default function NavBar() {
                     </a>
                   </>
                 )}
+              </div>
+              {/* Info */}
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '24px 0 4px' }}>Info</p>
+              <div>
+                {INFO_LINKS.map(item => (
+                  <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                    {item.label}
+                  </a>
+                ))}
               </div>
             </div>
           </div>
