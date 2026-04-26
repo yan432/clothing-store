@@ -168,34 +168,23 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   font-size: 38px;
 }
 
-.products-layout {
+.products-grid {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 24px;
-}
-
-.products-categories-sidebar {
-  display: none;
-}
-
-.products-categories-mobile {
-  display: block;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px 16px;
 }
 
 @media (min-width: 680px) {
-  .products-layout {
-    grid-template-columns: 220px minmax(0, 1fr);
-    align-items: start;
+  .products-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 48px 20px;
   }
+}
 
-  .products-categories-sidebar {
-    display: block;
-    position: sticky;
-    top: 88px;
-  }
-
-  .products-categories-mobile {
-    display: none;
+@media (min-width: 1024px) {
+  .products-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 56px 24px;
   }
 }
 

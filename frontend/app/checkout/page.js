@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { getApiUrl } from '../lib/api'
+import { getApiUrl, getAdminApiUrl } from '../lib/api'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -49,7 +49,7 @@ const COUNTRIES = [
 ]
 
 const steps = [
-  { n: 1, label: 'Cart', done: true },
+  { n: 1, label: 'Cart', done: true, href: '/cart' },
   { n: 2, label: 'Details', active: true },
   { n: 3, label: 'Confirm', disabled: true },
   { n: 4, label: 'Payment', disabled: true },
@@ -76,19 +76,43 @@ function StepBar() {
       {steps.map((s, i) => (
         <div key={s.n} style={{display:'flex',alignItems:'center',flex: i < steps.length - 1 ? 1 : 'none'}}>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-            <div style={{
-              width:32,height:32,borderRadius:'50%',
-              background: s.active || s.done ? '#000' : 'transparent',
-              border: s.active || s.done ? 'none' : '1.5px solid #ccc',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:13,fontWeight:500,
-              color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
-            }}>
-              {s.done && !s.active ? '✓' : s.n}
-            </div>
-            <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0}}>
-              {s.label}
-            </p>
+            {s.href ? (
+              <a href={s.href} style={{textDecoration:'none'}}>
+                <div style={{
+                  width:32,height:32,borderRadius:'50%',
+                  background: s.active || s.done ? '#000' : 'transparent',
+                  border: s.active || s.done ? 'none' : '1.5px solid #ccc',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:13,fontWeight:500,
+                  color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
+                  cursor:'pointer',
+                }}>
+                  {s.done && !s.active ? '✓' : s.n}
+                </div>
+              </a>
+            ) : (
+              <div style={{
+                width:32,height:32,borderRadius:'50%',
+                background: s.active || s.done ? '#000' : 'transparent',
+                border: s.active || s.done ? 'none' : '1.5px solid #ccc',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:13,fontWeight:500,
+                color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
+              }}>
+                {s.done && !s.active ? '✓' : s.n}
+              </div>
+            )}
+            {s.href ? (
+              <a href={s.href} style={{textDecoration:'none'}}>
+                <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0,cursor:'pointer'}}>
+                  {s.label}
+                </p>
+              </a>
+            ) : (
+              <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0}}>
+                {s.label}
+              </p>
+            )}
           </div>
           {i < steps.length - 1 && (
             <div style={{flex:1,height:1,background:'#e5e5e3',margin:'0 8px',marginBottom:20}}/>
@@ -128,15 +152,23 @@ export default function CheckoutPage() {
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
 
-  // Pre-fill form: profile data always wins for logged-in users.
-  // For guests, restore from sessionStorage (coming back from confirm page).
+  // Pre-fill form:
+  // 1. If sessionStorage has data (returning from Confirm, or guest) → restore it (highest priority).
+  // 2. Otherwise, if logged in → fetch profile and fill fields.
   useEffect(() => {
+    const saved = sessionStorage.getItem('checkout_details')
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Object.keys(parsed).length) {
+          setForm(f => ({ ...f, ...parsed }))
+          return
+        }
+      } catch {}
+    }
+    // No saved data → first visit. Fill from profile if logged in.
     if (user?.email) {
-      // Restore comment from sessionStorage (not stored in profile)
-      let savedComment = ''
-      try { savedComment = JSON.parse(sessionStorage.getItem('checkout_details') || '{}').comment || '' } catch {}
-
-      fetch(getApiUrl('/user-profile'), { headers: { 'x-user-email': user.email } })
+      fetch(getAdminApiUrl('/user-profile') + '?email=' + encodeURIComponent(user.email))
         .then(r => r.ok ? r.json() : null)
         .then(profile => {
           setForm(f => ({
@@ -148,16 +180,10 @@ export default function CheckoutPage() {
             city:      profile?.city    || f.city,
             zip:       profile?.zip     || f.zip,
             country:   profile?.country || f.country,
-            comment:   savedComment || f.comment,
+            comment:   f.comment,
           }))
         })
         .catch(() => setForm(f => ({ ...f, email: user.email })))
-    } else {
-      // Guest: restore all fields from sessionStorage
-      try {
-        const parsed = JSON.parse(sessionStorage.getItem('checkout_details') || '{}')
-        if (Object.keys(parsed).length) setForm(f => ({ ...f, ...parsed }))
-      } catch {}
     }
   }, [user])
 

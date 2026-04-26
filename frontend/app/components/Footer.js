@@ -1,12 +1,26 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getApiUrl } from '../lib/api'
+
+const STATIC_SHOP_LINKS = [
+  ['All products', '/products'],
+  ['New arrivals', '/products?special=new'],
+  ['Sale',         '/products?special=sale'],
+]
 
 export default function Footer() {
   const [newsletterEmail, setNewsletterEmail] = useState('')
   const [newsletterLoading, setNewsletterLoading] = useState(false)
   const [newsletterMessage, setNewsletterMessage] = useState('')
+  const [categories, setCategories] = useState([])
+
+  useEffect(() => {
+    fetch(getApiUrl('/categories'))
+      .then(r => r.ok ? r.json() : [])
+      .then(cats => setCategories(Array.isArray(cats) ? cats : []))
+      .catch(() => {})
+  }, [])
 
   async function handleNewsletterSubmit(e) {
     e.preventDefault()
@@ -38,12 +52,8 @@ export default function Footer() {
   }
 
   const shopLinks = [
-    ['All products','/products'],
-    ['New arrivals','/products?special=new'],
-    ['Sale','/products?special=sale'],
-    ['Tops','/products?category=Tops'],
-    ['Bottoms','/products?category=Bottoms'],
-    ['Outerwear','/products?category=Outerwear'],
+    ...STATIC_SHOP_LINKS,
+    ...categories.map(cat => [cat, `/products?category=${encodeURIComponent(cat)}`]),
   ]
   const careLinks = [
     ['Contact us','mailto:info@edmclothes.com'],

@@ -819,6 +819,18 @@ def get_products():
     return result
 
 
+@app.get("/categories")
+def get_categories():
+    """Return distinct non-empty categories from visible products, sorted alphabetically."""
+    data = supabase.table("products").select("category").eq("is_hidden", False).execute()
+    cats = sorted({
+        p["category"].strip()
+        for p in (data.data or [])
+        if p.get("category") and p["category"].strip()
+    })
+    return cats
+
+
 @app.get("/products/admin")
 def get_products_admin():
     data = supabase.table("products").select("*").order("id").execute()

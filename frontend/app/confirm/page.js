@@ -8,8 +8,8 @@ import { trackCheckoutStarted } from '../lib/track'
 const SHIPPING = 30
 
 const steps = [
-  { n: 1, label: 'Cart', done: true },
-  { n: 2, label: 'Details', done: true },
+  { n: 1, label: 'Cart', done: true, href: '/cart' },
+  { n: 2, label: 'Details', done: true, href: '/checkout' },
   { n: 3, label: 'Confirm', active: true },
   { n: 4, label: 'Payment', disabled: true },
 ]
@@ -20,19 +20,43 @@ function StepBar() {
       {steps.map((s, i) => (
         <div key={s.n} style={{display:'flex',alignItems:'center',flex: i < steps.length - 1 ? 1 : 'none'}}>
           <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-            <div style={{
-              width:32,height:32,borderRadius:'50%',
-              background: s.active || s.done ? '#000' : 'transparent',
-              border: s.active || s.done ? 'none' : '1.5px solid #ccc',
-              display:'flex',alignItems:'center',justifyContent:'center',
-              fontSize:13,fontWeight:500,
-              color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
-            }}>
-              {s.done && !s.active ? '✓' : s.n}
-            </div>
-            <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0}}>
-              {s.label}
-            </p>
+            {s.href ? (
+              <a href={s.href} style={{textDecoration:'none'}}>
+                <div style={{
+                  width:32,height:32,borderRadius:'50%',
+                  background: s.active || s.done ? '#000' : 'transparent',
+                  border: s.active || s.done ? 'none' : '1.5px solid #ccc',
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:13,fontWeight:500,
+                  color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
+                  cursor:'pointer',
+                }}>
+                  {s.done && !s.active ? '✓' : s.n}
+                </div>
+              </a>
+            ) : (
+              <div style={{
+                width:32,height:32,borderRadius:'50%',
+                background: s.active || s.done ? '#000' : 'transparent',
+                border: s.active || s.done ? 'none' : '1.5px solid #ccc',
+                display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:13,fontWeight:500,
+                color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
+              }}>
+                {s.done && !s.active ? '✓' : s.n}
+              </div>
+            )}
+            {s.href ? (
+              <a href={s.href} style={{textDecoration:'none'}}>
+                <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0,cursor:'pointer'}}>
+                  {s.label}
+                </p>
+              </a>
+            ) : (
+              <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0}}>
+                {s.label}
+              </p>
+            )}
           </div>
           {i < steps.length - 1 && (
             <div style={{flex:1,height:1,background:'#e5e5e3',margin:'0 8px',marginBottom:20}}/>

@@ -1,6 +1,6 @@
 'use client'
 import { useCart } from '../context/CartContext'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const FREE_SHIPPING_THRESHOLD = 120
 
@@ -9,10 +9,29 @@ function ShippingBar({ total }) {
   const progress = Math.min(100, (total / FREE_SHIPPING_THRESHOLD) * 100)
   const reached = remaining === 0
 
+  // Text lags behind the bar by the bar's transition duration (500ms)
+  // so the bar visually fills first, then the message changes.
+  const [textReached, setTextReached] = useState(reached)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    clearTimeout(timerRef.current)
+    if (reached) {
+      timerRef.current = setTimeout(() => setTextReached(true), 500)
+    } else {
+      setTextReached(false)
+    }
+    return () => clearTimeout(timerRef.current)
+  }, [reached])
+
   return (
     <div style={{ padding: '10px 24px 12px', borderBottom: '1px solid #f0f0ee', background: '#fafaf8' }}>
-      <p style={{ fontSize: 12, color: reached ? '#166534' : '#555', margin: '0 0 7px', textAlign: 'center' }}>
-        {reached
+      <p style={{
+        fontSize: 12, margin: '0 0 7px', textAlign: 'center',
+        color: textReached ? '#166534' : '#555',
+        transition: 'color 0.3s ease',
+      }}>
+        {textReached
           ? '🎉 You\'ve unlocked free shipping!'
           : <>Add <strong>€{remaining.toFixed(2)}</strong> more for free shipping</>
         }
@@ -22,7 +41,7 @@ function ShippingBar({ total }) {
           height: '100%', borderRadius: 999,
           background: reached ? '#16a34a' : '#111',
           width: `${progress}%`,
-          transition: 'width 0.4s ease',
+          transition: 'width 0.5s ease, background 0.4s ease',
         }} />
       </div>
     </div>
