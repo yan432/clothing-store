@@ -1540,20 +1540,25 @@ def track_order_details(order_id: int, email: str):
 
 @app.get("/orders/{id_or_session}")
 def get_order(id_or_session: str):
-    result = supabase.table("orders").select("*").eq("stripe_session_id", id_or_session).limit(1).execute()
-    if result.data:
-        return enrich_order_shipping(result.data[0])
-
-    result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
-    if result.data:
-        return enrich_order_shipping(result.data[0])
-
-    if id_or_session.isdigit():
-        result = supabase.table("orders").select("*").eq("id", int(id_or_session)).limit(1).execute()
+    try:
+        result = supabase.table("orders").select("*").eq("stripe_session_id", id_or_session).limit(1).execute()
         if result.data:
-            return enrich_order_shipping(result.data[0])
+            return result.data[0]
 
-    raise HTTPException(status_code=404, detail="Order not found")
+        result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
+        if result.data:
+            return result.data[0]
+
+        if id_or_session.isdigit():
+            result = supabase.table("orders").select("*").eq("id", int(id_or_session)).limit(1).execute()
+            if result.data:
+                return result.data[0]
+
+        raise HTTPException(status_code=404, detail="Order not found")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"get_order error: {type(exc).__name__}: {exc}") from exc
 
 
 # ── Admin order management ────────────────────────────────────────────────────
@@ -1569,25 +1574,39 @@ class OrderUpdatePayload(BaseModel):
 
 @app.patch("/orders/{order_id}")
 def update_order_admin(order_id: int, payload: OrderUpdatePayload):
-    updates: dict = {"updated_at": now_iso()}
-    if payload.status is not None:
-        if payload.status not in VALID_ORDER_STATUSES:
-            raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(sorted(VALID_ORDER_STATUSES))}")
-        updates["status"] = payload.status
-        if payload.status == "shipped":
-            # Only set shipped_at once
-            row = supabase.table("orders").select("shipped_at").eq("id", order_id).limit(1).execute()
-            if row.data and not row.data[0].get("shipped_at"):
-                updates["shipped_at"] = now_iso()
-    if payload.tracking_number is not None:
-        updates["tracking_number"] = payload.tracking_number or None
-    if payload.tracking_url is not None:
-        updates["tracking_url"] = payload.tracking_url or None
+    try:
+        updates: dict = {"updated_at": now_iso()}
+        if payload.status is not None:
+            if payload.status not in VALID_ORDER_STATUSES:
+                raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(sorted(VALID_ORDER_STATUSES))}")
+            updates["status"] = payload.status
+            if payload.status == "shipped":
+                try:
+                    row = supabase.table("orders").select("shipped_at").eq("id", order_id).limit(1).execute()
+                    if row.data and not row.data[0].get("shipped_at"):
+                        updates["shipped_at"] = now_iso()
+                except Exception:
+                    updates["shipped_at"] = now_iso()
+        if payload.tracking_number is not None:
+            updates["tracking_number"] = payload.tracking_number or None
+        if payload.tracking_url is not None:
+            updates["tracking_url"] = payload.tracking_url or None
 
-    result = supabase.table("orders").update(updates).eq("id", order_id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return enrich_order_shipping(result.data[0])
+        # Remove tracking fields if columns don't exist yet (migration 013 pending)
+        safe_updates = {k: v for k, v in updates.items()
+                        if k not in ("tracking_number", "tracking_url", "shipped_at")}
+        try:
+            result = supabase.table("orders").update(updates).eq("id", order_id).execute()
+        except Exception:
+            result = supabase.table("orders").update(safe_updates).eq("id", order_id).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Order not found")
+        return result.data[0]
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"update_order error: {type(exc).__name__}: {exc}") from exc
 
 
 @app.delete("/orders/{order_id}")
