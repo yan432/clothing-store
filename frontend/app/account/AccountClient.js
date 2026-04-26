@@ -139,13 +139,13 @@ function InfoSection({ user }) {
   return (
     <SectionCard title="Personal info">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 500 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="account-2col">
           <input readOnly={ro} placeholder="First name" value={form.first_name || ''} onChange={e => set('first_name', e.target.value)} style={inp(false, ro)} />
           <input readOnly={ro} placeholder="Last name"  value={form.last_name  || ''} onChange={e => set('last_name',  e.target.value)} style={inp(false, ro)} />
         </div>
         <input readOnly={ro} placeholder="Phone" value={form.phone || ''} onChange={e => set('phone', e.target.value)} style={inp(false, ro)} />
         <input readOnly={ro} placeholder="Street address" value={form.address || ''} onChange={e => set('address', e.target.value)} style={inp(false, ro)} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="account-2col">
           <input readOnly={ro} placeholder="City" value={form.city || ''} onChange={e => set('city', e.target.value)} style={inp(false, ro)} />
           <input readOnly={ro} placeholder="ZIP / Postal code" value={form.zip || ''} onChange={e => set('zip', e.target.value)} style={inp(false, ro)} />
         </div>

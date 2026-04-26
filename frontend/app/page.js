@@ -83,7 +83,7 @@ export default async function Home({ searchParams }) {
               View all →
             </a>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '32px 20px' }}>
+          <div className="home-arrivals-grid">
             {newArrivals.map(p => {
               const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
               const price = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(p.price || 0))
@@ -112,7 +112,7 @@ export default async function Home({ searchParams }) {
       {/* ── 4. CATEGORIES ─────────────────────────────── */}
       <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>Shop by category</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
+        <div className="home-categories-grid">
           {promoTiles.map(tile => (
             <a key={tile.title} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
               <div className="category-tile-img" style={{ aspectRatio: '4/5', backgroundImage: `url(${tile.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} aria-label={tile.title} />

@@ -25,7 +25,7 @@ export default function CartPage() {
                 fontSize:13,fontWeight:500,
                 color: s.active ? '#fff' : s.disabled ? '#ccc' : '#888',
               }}>{s.n}</div>
-              <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0}}>{s.label}</p>
+              <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555'}}>{s.label}</p>
             </div>
             {i < steps.length - 1 && (
               <div style={{flex:1,height:1,background:'#e5e5e3',margin:'0 8px',marginBottom:20}}/>

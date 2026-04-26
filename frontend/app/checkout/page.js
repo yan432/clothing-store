@@ -104,12 +104,12 @@ function StepBar() {
             )}
             {s.href ? (
               <a href={s.href} style={{textDecoration:'none'}}>
-                <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0,cursor:'pointer'}}>
+                <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',cursor:'pointer'}}>
                   {s.label}
                 </p>
               </a>
             ) : (
-              <p style={{fontSize:13,fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',margin:0}}>
+              <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555'}}>
                 {s.label}
               </p>
             )}
@@ -323,7 +323,7 @@ export default function CheckoutPage() {
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
       <StepBar />
-      <div style={{display:'grid',gridTemplateColumns:'1fr 380px',gap:32,alignItems:'start'}}>
+      <div className="checkout-layout">
         <div>
           <h1 style={{fontSize:24,fontWeight:600,margin:'0 0 24px'}}>Details</h1>
 
@@ -466,7 +466,7 @@ export default function CheckoutPage() {
 
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Contact</p>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div className="checkout-2col">
               <FormField
                 placeholder="First name *"
                 fieldKey="firstName"
@@ -514,7 +514,7 @@ export default function CheckoutPage() {
               style={inputStyle('address')}
               onChange={e => { set('address', e.target.value); setErrors(err => ({...err, address: null})) }}
             />
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div className="checkout-2col">
               <FormField
                 placeholder="City *"
                 fieldKey="city"
@@ -569,7 +569,7 @@ export default function CheckoutPage() {
           </div>
         </div>
 
-        <div style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>
+        <div className="checkout-sidebar" style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>
           <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>Order summary</h2>
           <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
             {cart.map(item => (

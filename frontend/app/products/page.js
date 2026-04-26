@@ -177,10 +177,10 @@ export default async function ProductsPage({ searchParams }) {
           <span style={{ fontSize: 13, color: '#aaa' }}>{sorted.length} items</span>
         </div>
 
-        {/* Single filter row: search (desktop-left) + pills + sort */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 36, flexWrap: 'wrap' }}>
+        {/* Filter bar: desktop = single row, mobile = search + scrollable pills */}
+        <div className="products-filter-bar">
 
-          {/* Search — desktop: order -1 (leftmost), mobile: order 10 (below pills) */}
+          {/* Search */}
           <form method="get" className="products-search-form">
             {selectedCategory && <input type="hidden" name="category" value={selectedCategory} />}
             {selectedSpecials.map(s => <input key={s} type="hidden" name="special" value={s} />)}
@@ -195,74 +195,54 @@ export default async function ProductsPage({ searchParams }) {
             </div>
           </form>
 
-          {/* All */}
-          <a href={buildHref(q, '', selectedSpecials)}
-            style={{
+          {/* Pills — scrollable on mobile */}
+          <div className="products-pills">
+            <a href={buildHref(q, '', selectedSpecials)} style={{
               padding: '7px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500,
-              textDecoration: 'none', whiteSpace: 'nowrap',
+              textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
               background: !selectedCategory ? '#111' : 'transparent',
               color: !selectedCategory ? '#fff' : '#555',
-              border: '1.5px solid',
-              borderColor: !selectedCategory ? '#111' : '#e0e0de',
-            }}>
-            All
-          </a>
+              border: '1.5px solid', borderColor: !selectedCategory ? '#111' : '#e0e0de',
+            }}>All</a>
 
-          {categories.map(cat => {
-            const isActive = selectedCategory === cat
-            return (
-              <a key={cat}
-                href={buildHref(q, isActive ? '' : cat, selectedSpecials)}
-                style={{
+            {categories.map(cat => {
+              const isActive = selectedCategory === cat
+              return (
+                <a key={cat} href={buildHref(q, isActive ? '' : cat, selectedSpecials)} style={{
                   padding: '7px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500,
-                  textDecoration: 'none', whiteSpace: 'nowrap',
+                  textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
                   background: isActive ? '#111' : 'transparent',
                   color: isActive ? '#fff' : '#555',
-                  border: '1.5px solid',
-                  borderColor: isActive ? '#111' : '#e0e0de',
-                }}>
-                {cat}
-              </a>
-            )
-          })}
+                  border: '1.5px solid', borderColor: isActive ? '#111' : '#e0e0de',
+                }}>{cat}</a>
+              )
+            })}
 
-          {/* Divider before specials */}
-          <div style={{ width: 1, height: 22, background: '#e0e0de', margin: '0 2px', flexShrink: 0 }} />
+            <div style={{ width: 1, height: 22, background: '#e0e0de', margin: '0 2px', flexShrink: 0 }} />
 
-          {/* New / Sale */}
-          {['new', 'sale'].map(special => {
-            const isActive = selectedSpecials.includes(special)
-            const nextSpecials = isActive ? selectedSpecials.filter(s => s !== special) : [...selectedSpecials, special]
-            return (
-              <a key={special}
-                href={buildHref(q, selectedCategory, nextSpecials)}
-                style={{
+            {['new', 'sale'].map(special => {
+              const isActive = selectedSpecials.includes(special)
+              const nextSpecials = isActive ? selectedSpecials.filter(s => s !== special) : [...selectedSpecials, special]
+              return (
+                <a key={special} href={buildHref(q, selectedCategory, nextSpecials)} style={{
                   padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600,
-                  textDecoration: 'none', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em',
+                  textDecoration: 'none', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0,
                   background: isActive ? (special === 'sale' ? '#ef4444' : '#111') : 'transparent',
                   color: isActive ? '#fff' : '#888',
-                  border: '1.5px solid',
-                  borderColor: isActive ? (special === 'sale' ? '#ef4444' : '#111') : '#e0e0de',
-                }}>
-                {special}
-              </a>
-            )
-          })}
+                  border: '1.5px solid', borderColor: isActive ? (special === 'sale' ? '#ef4444' : '#111') : '#e0e0de',
+                }}>{special}</a>
+              )
+            })}
+          </div>
 
-          {/* spacer */}
-          <div style={{ flex: 1, minWidth: 8 }} />
+          {/* Sort + Clear */}
+          <div className="products-sort-group">
+            {hasActiveFilters && (
+              <a href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>Clear ×</a>
+            )}
+            <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }} />
+          </div>
 
-          {/* Clear */}
-          {hasActiveFilters && (
-            <a href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>Clear ×</a>
-          )}
-
-          {/* Sort */}
-          <SortSelect
-            options={sortOptions}
-            activeSort={activeSort}
-            hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }}
-          />
         </div>
 
         {/* Product grid */}

@@ -70,17 +70,18 @@ export default function ProductCard({ product, colorSiblings = [] }) {
   function handleTouchStart() {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
-    setHovered(true)
+    // Delay before showing second image — prevents triggering while scrolling
+    touchTimerRef.current = setTimeout(() => setHovered(true), 450)
   }
 
   function handleTouchMove() {
+    // User is scrolling — cancel hover trigger
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
-    setHovered(true)
   }
 
   function handleTouchEnd() {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
-    touchTimerRef.current = setTimeout(() => setHovered(false), 360)
+    touchTimerRef.current = setTimeout(() => setHovered(false), 600)
   }
 
   return (

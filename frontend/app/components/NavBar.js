@@ -42,6 +42,7 @@ export default function NavBar() {
 
   const [openMenu,   setOpenMenu]   = useState(null) // 'shop' | 'info' | 'admin'
   const [categories, setCategories] = useState([])
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const navLeaveTimer = useRef(null)
   const adminRef      = useRef(null)
@@ -146,7 +147,7 @@ export default function NavBar() {
           </a>
 
           {/* CENTER — nav */}
-          <div style={{ display: 'flex', gap: 36, alignItems: 'center' }}>
+          <div className="nav-center-links">
             <a href="/products?special=new"
               onMouseEnter={() => setOpenMenu(null)}
               style={{ color: '#1a1a18', textDecoration: 'none', fontSize: 13, fontWeight: 500, letterSpacing: '0.05em' }}>
@@ -184,6 +185,13 @@ export default function NavBar() {
                 )}
               </div>
             )}
+
+            {/* Hamburger — mobile only */}
+            <button type="button" className="nav-hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+              <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+                <path d="M0 1h18M0 7h18M0 13h18" stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
 
             {/* Cart */}
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open cart"
@@ -294,6 +302,79 @@ export default function NavBar() {
           </div>
         )}
       </nav>
+
+      {/* ── MOBILE DRAWER ── */}
+      {mobileOpen && (
+        <>
+          <div onClick={() => setMobileOpen(false)}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.45)', animation: 'fadeIn 0.2s ease' }} />
+          <div style={{
+            position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 201,
+            width: 'min(300px, 85vw)', background: '#fff', overflowY: 'auto',
+            animation: 'slideInLeft 0.25s ease',
+          }}>
+            {/* Drawer header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f0f0ee' }}>
+              <a href="/" onClick={() => setMobileOpen(false)} style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: '#1a1a18' }}>
+                edm.clothes
+              </a>
+              <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 26, color: '#888', padding: '0 2px', lineHeight: 1 }}>×</button>
+            </div>
+            {/* Drawer body */}
+            <div style={{ padding: '20px' }}>
+              {/* Shop */}
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Shop</p>
+              <div style={{ marginBottom: 24 }}>
+                {[...SHOP_STATIC, ...categories.map(cat => ({ label: cat, href: `/products?category=${encodeURIComponent(cat)}` }))].map(item => (
+                  <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+              {/* Info */}
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Info</p>
+              <div style={{ marginBottom: 24 }}>
+                {INFO_LINKS.map(item => (
+                  <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                    {item.label}
+                  </a>
+                ))}
+              </div>
+              {/* Account */}
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Account</p>
+              <div>
+                {user ? (
+                  <>
+                    {ACCOUNT_LINKS.map(item => (
+                      <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                        style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                        {item.label}
+                      </a>
+                    ))}
+                    <button type="button" onClick={async () => { await signOut(); setMobileOpen(false) }}
+                      style={{ display: 'block', width: '100%', padding: '12px 0', fontSize: 15, fontWeight: 500, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #f5f5f3' }}>
+                      Log out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <a href="/auth" onClick={() => setMobileOpen(false)}
+                      style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                      Sign in
+                    </a>
+                    <a href="/auth?tab=register" onClick={() => setMobileOpen(false)}
+                      style={{ display: 'block', padding: '12px 0', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                      Create account
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Backdrop */}
       {isMegaOpen && (

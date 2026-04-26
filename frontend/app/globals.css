@@ -178,21 +178,114 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   font-size: 38px;
 }
 
-/* Products page: search field responsive positioning */
-.products-search-form {
-  order: 10;       /* mobile: below pills, full width */
-  width: 100%;
-}
-.products-search-divider {
-  display: none;
+/* ── Mobile nav ─────────────────────────────────────── */
+.nav-hamburger { display: none; }
+.nav-center-links { display: flex; gap: 36px; align-items: center; }
+
+@media (max-width: 680px) {
+  .nav-hamburger {
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer;
+    padding: 8px; color: #1a1a18; margin-left: 2px;
+  }
+  .nav-center-links { display: none; }
 }
 
-@media (min-width: 768px) {
-  .products-search-form {
-    order: 20;     /* desktop: after sort (rightmost) */
-    width: 200px;
-    flex-shrink: 0;
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+/* ── Home page grids (2 cols mobile) ───────────────── */
+.home-arrivals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 12px;
+}
+@media (min-width: 640px) {
+  .home-arrivals-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 32px 20px;
   }
+}
+
+.home-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .home-categories-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* ── Products filter bar ────────────────────────────── */
+.products-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 36px;
+}
+.products-pills {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; flex-wrap: wrap;
+}
+.products-sort-group {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.products-search-form {
+  order: -1; width: 200px; flex-shrink: 0;
+}
+
+@media (max-width: 767px) {
+  .products-filter-bar { flex-wrap: wrap; gap: 10px; }
+  .products-search-form { order: 0; width: 100%; flex: none; }
+  .products-pills {
+    flex: none; width: 100%; order: 1;
+    flex-wrap: nowrap;
+    overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px; gap: 6px;
+  }
+  .products-pills::-webkit-scrollbar { display: none; }
+  .products-sort-group { order: 2; width: 100%; justify-content: flex-end; }
+}
+
+/* ── Account 2-col form grids ───────────────────────── */
+.account-2col {
+  display: grid; grid-template-columns: 1fr; gap: 10px;
+}
+@media (min-width: 480px) {
+  .account-2col { grid-template-columns: 1fr 1fr; }
+}
+
+/* ── Checkout 2-col grids (form fields) ─────────────── */
+.checkout-2col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 520px) {
+  .checkout-2col { grid-template-columns: 1fr; }
+}
+
+/* ── Main checkout/confirm/cart layout ──────────────── */
+.checkout-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 32px; align-items: start;
+}
+@media (max-width: 760px) {
+  .checkout-layout {
+    grid-template-columns: 1fr; gap: 20px;
+  }
+  .checkout-sidebar { order: -1; position: static !important; top: auto !important; }
+}
+
+/* ── Step bar responsive ────────────────────────────── */
+.step-label { font-size: 13px; margin: 0; }
+@media (max-width: 480px) {
+  .step-label { display: none; }
 }
 
 .products-grid {
