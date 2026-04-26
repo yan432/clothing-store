@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import { getApiUrl } from '../../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminOnly from '../../../components/AdminOnly'
 
 function fmtDate(value) {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AdminOnly from '../../components/AdminOnly'
 import AdminTopBar from '../../components/AdminTopBar'
-import { getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 function randomCode(length = 8) {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'

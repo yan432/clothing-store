@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import AdminOnly from '../../components/AdminOnly'
-import { getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import AdminTopBar from '../../components/AdminTopBar'
 
 async function fetchJsonWithTimeout(url, timeoutMs = 2500) {

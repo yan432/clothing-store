@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import AdminOnly from '../../../components/AdminOnly'
-import { getApiUrl } from '../../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { buildSizeTags, parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 

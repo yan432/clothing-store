@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import AdminOnly from '../../components/AdminOnly'
 import AdminTopBar from '../../components/AdminTopBar'
-import { getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 export default function SubscribersClient() {
   const [items, setItems] = useState([])

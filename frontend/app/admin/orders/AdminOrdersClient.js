@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import OrdersTable from './OrdersTable'
 import AdminOnly from '../../components/AdminOnly'
 import AdminTopBar from '../../components/AdminTopBar'

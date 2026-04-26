@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 export default function HomepageSlidesClient() {
   const [slides, setSlides] = useState([])
