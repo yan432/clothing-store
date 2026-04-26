@@ -390,7 +390,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   }
 
   /* Hide description on mobile (too cluttered) */
-  .product-card-desc { display: none; }
+  .product-card-desc { display: none !important; }
 }
 
 @media (max-width: 760px) {
