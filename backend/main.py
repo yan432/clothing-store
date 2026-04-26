@@ -1538,17 +1538,25 @@ def track_order_details(order_id: int, email: str):
     raise HTTPException(status_code=404, detail="Order not found")
 
 
+_UUID_RE = re.compile(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', re.I
+)
+
 @app.get("/orders/{id_or_session}")
 def get_order(id_or_session: str):
     try:
+        # stripe_session_id is TEXT — always safe
         result = supabase.table("orders").select("*").eq("stripe_session_id", id_or_session).limit(1).execute()
         if result.data:
             return result.data[0]
 
-        result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
-        if result.data:
-            return result.data[0]
+        # client_reference_id is UUID — only query if value is a valid UUID
+        if _UUID_RE.match(id_or_session):
+            result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
+            if result.data:
+                return result.data[0]
 
+        # integer primary key
         if id_or_session.isdigit():
             result = supabase.table("orders").select("*").eq("id", int(id_or_session)).limit(1).execute()
             if result.data:
