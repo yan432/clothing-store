@@ -121,7 +121,7 @@ export default function AccountOrderDetailsClient({ orderId }) {
       <section style={{border:'1px solid #e2e2e2',background:'#fff',padding:'24px 24px 28px'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:10,flexWrap:'wrap'}}>
           <h1 style={{fontSize:32,lineHeight:1.1,fontWeight:500,margin:0}}>
-            Order #{order.user_order_number || order.id}
+            Order #{10000 + (order.id || 0)}
           </h1>
           <span style={{fontSize:13,fontWeight:600,color:badge.color,background:badge.bg,padding:'6px 12px',borderRadius:999}}>
             {badge.label}

@@ -128,39 +128,36 @@ export default function CheckoutPage() {
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
 
-  // Pre-fill from sessionStorage (coming back from confirm) or from user profile
+  // Pre-fill form: profile data always wins for logged-in users.
+  // For guests, restore from sessionStorage (coming back from confirm page).
   useEffect(() => {
-    const saved = sessionStorage.getItem('checkout_details')
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        setForm(f => ({ ...f, ...parsed }))
-        return
-      } catch (_) {}
-    }
     if (user?.email) {
-      fetch(getApiUrl('/user-profile'), {
-        headers: { 'x-user-email': user.email },
-      })
+      // Restore comment from sessionStorage (not stored in profile)
+      let savedComment = ''
+      try { savedComment = JSON.parse(sessionStorage.getItem('checkout_details') || '{}').comment || '' } catch {}
+
+      fetch(getApiUrl('/user-profile'), { headers: { 'x-user-email': user.email } })
         .then(r => r.ok ? r.json() : null)
         .then(profile => {
-          if (profile) {
-            setForm(f => ({
-              firstName: profile.first_name || f.firstName,
-              lastName:  profile.last_name  || f.lastName,
-              email:     user.email,
-              phone:     profile.phone   || f.phone,
-              address:   profile.address || f.address,
-              city:      profile.city    || f.city,
-              zip:       profile.zip     || f.zip,
-              country:   profile.country || f.country,
-              comment:   f.comment,
-            }))
-          } else {
-            setForm(f => ({ ...f, email: user.email }))
-          }
+          setForm(f => ({
+            firstName: profile?.first_name || f.firstName,
+            lastName:  profile?.last_name  || f.lastName,
+            email:     user.email,
+            phone:     profile?.phone   || f.phone,
+            address:   profile?.address || f.address,
+            city:      profile?.city    || f.city,
+            zip:       profile?.zip     || f.zip,
+            country:   profile?.country || f.country,
+            comment:   savedComment || f.comment,
+          }))
         })
         .catch(() => setForm(f => ({ ...f, email: user.email })))
+    } else {
+      // Guest: restore all fields from sessionStorage
+      try {
+        const parsed = JSON.parse(sessionStorage.getItem('checkout_details') || '{}')
+        if (Object.keys(parsed).length) setForm(f => ({ ...f, ...parsed }))
+      } catch {}
     }
   }, [user])
 
@@ -501,12 +498,17 @@ export default function CheckoutPage() {
                 onChange={e => { set('zip', e.target.value); setErrors(err => ({...err, zip: null})) }}
               />
             </div>
-            <select value={form.country} onChange={e => set('country', e.target.value)}
-              style={{display:'block',padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',minHeight:48}}>
-              {COUNTRIES.map(([code, name]) => (
-                <option key={code} value={code}>{name}</option>
-              ))}
-            </select>
+            <div style={{position:'relative'}}>
+              <select value={form.country} onChange={e => set('country', e.target.value)}
+                style={{display:'block',padding:'13px 40px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',height:50,appearance:'none',WebkitAppearance:'none',cursor:'pointer'}}>
+                {COUNTRIES.map(([code, name]) => (
+                  <option key={code} value={code}>{name}</option>
+                ))}
+              </select>
+              <svg style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',color:'#888'}} width="12" height="8" viewBox="0 0 12 8" fill="none">
+                <path d="M1 1L6 7L11 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
           </div>
 
           {/* Order note */}

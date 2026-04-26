@@ -193,7 +193,7 @@ export default function OrdersTable({ orders }) {
                 style={{borderBottom:'1px solid #f2f2ef',verticalAlign:'top',cursor:'pointer'}}>
                 <td style={{padding:'12px 14px',fontSize:13,color:'#4f4f49'}}>{formatDate(order.created_at)}</td>
                 <td style={{padding:'12px 14px',fontSize:12,color:'#4f4f49'}}>
-                  <div>#{order.id}</div>
+                  <div>#{10000 + (order.id || 0)}</div>
                   <div style={{color:'#8b8b84',marginTop:4,fontFamily:'monospace'}}>{order.client_reference_id || '-'}</div>
                 </td>
                 <td style={{padding:'12px 14px'}}>

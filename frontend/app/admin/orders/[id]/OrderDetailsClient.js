@@ -235,7 +235,7 @@ export default function OrderDetailsClient({ id }) {
         {/* Header */}
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:14,flexWrap:'wrap',gap:12}}>
           <div>
-            <h1 style={{fontSize:28,fontWeight:700,margin:'0 0 4px'}}>Order #{order.id}</h1>
+            <h1 style={{fontSize:28,fontWeight:700,margin:'0 0 4px'}}>Order #{10000 + (order.id || 0)}</h1>
             <p style={{fontSize:13,color:'#888',margin:0}}>{fmtDate(order.created_at)} · {order.email || '-'}</p>
           </div>
           <StatusBadge status={order.status} />

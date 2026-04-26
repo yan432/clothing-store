@@ -149,14 +149,19 @@ function InfoSection({ user }) {
           <input readOnly={ro} placeholder="City" value={form.city || ''} onChange={e => set('city', e.target.value)} style={inp(false, ro)} />
           <input readOnly={ro} placeholder="ZIP / Postal code" value={form.zip || ''} onChange={e => set('zip', e.target.value)} style={inp(false, ro)} />
         </div>
-        <select
-          disabled={ro}
-          value={form.country || 'DE'}
-          onChange={e => set('country', e.target.value)}
-          style={{ ...inp(false, ro), appearance: 'none', WebkitAppearance: 'none' }}
-        >
-          {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
-        </select>
+        <div style={{ position: 'relative' }}>
+          <select
+            disabled={ro}
+            value={form.country || 'DE'}
+            onChange={e => set('country', e.target.value)}
+            style={{ ...inp(false, ro), appearance: 'none', WebkitAppearance: 'none', paddingRight: 36, cursor: ro ? 'default' : 'pointer' }}
+          >
+            {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
+          </select>
+          <svg style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#aaa' }} width="12" height="8" viewBox="0 0 12 8" fill="none">
+            <path d="M1 1L6 7L11 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
       </div>
       {msg && <MsgBox ok={msg.ok} text={msg.text} />}
       <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
@@ -416,7 +421,7 @@ function OrdersSection({ user }) {
             {/* Header row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <div>
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Order #{o.user_order_number || o.id}</p>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Order #{10000 + (o.id || 0)}</p>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: '#888' }}>{formatDate(o.created_at)}</p>
               </div>
               <span style={{ fontSize: 12, fontWeight: 600, color: badge.color, background: badge.bg, padding: '5px 10px', borderRadius: 999 }}>

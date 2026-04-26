@@ -488,7 +488,7 @@ def send_order_confirmation_emails(order: dict) -> None:
     promo_discount = to_float(metadata.get("promo_discount_amount"))
     shipping = max(0.0, to_float(order.get("amount_total")) - subtotal + promo_discount)
     total = to_float(order.get("amount_total"))
-    order_id = order.get("id")
+    order_id = 10000 + int(order.get("id") or 0)  # human-readable order number
     order_ref = order.get("client_reference_id")
     customer_email = str(order.get("email") or "").strip()
     customer_name = str(order.get("shipping_name") or "").strip() or "Customer"
@@ -1678,7 +1678,7 @@ def normalize_tracking_url(raw: str) -> str:
 def build_shipping_notification_email(order: dict) -> tuple[str, str]:
     """Returns (html, text) for the shipping notification email."""
     first_name = (str(order.get("shipping_name") or "").split() or ["there"])[0]
-    order_id_val = order.get("id", "")
+    order_id_val = 10000 + int(order.get("id") or 0)  # human-readable order number
     tracking_number = str(order.get("tracking_number") or "").strip()
     tracking_url = normalize_tracking_url(str(order.get("tracking_url") or ""))
     items = order.get("items_json") or []
@@ -1758,7 +1758,7 @@ def resend_order_confirmation(order_id: int):
     if not customer_email:
         raise HTTPException(status_code=400, detail="Order has no customer email")
     try:
-        send_order_confirmation_emails(order)
+        send_order_confirmation_emails(order)  # uses 10000+id internally
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {exc}") from exc
     return {"ok": True}
@@ -1774,7 +1774,8 @@ def notify_order_shipped(order_id: int):
     if not customer_email:
         raise HTTPException(status_code=400, detail="Order has no customer email")
     html, text = build_shipping_notification_email(order)
-    send_email(customer_email, f"Your order #{order_id} has been shipped! 🚀", html, text)
+    display_num = 10000 + order_id
+    send_email(customer_email, f"Your order #{display_num} has been shipped! 🚀", html, text)
     supabase.table("orders").update({"shipped_at": now_iso(), "updated_at": now_iso()}).eq("id", order_id).execute()
     return {"ok": True}
 
