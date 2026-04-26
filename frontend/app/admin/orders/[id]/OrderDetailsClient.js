@@ -53,6 +53,7 @@ export default function OrderDetailsClient({ id }) {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [retryCount, setRetryCount] = useState(0)
 
   // Status
   const [statusVal, setStatusVal] = useState('')
@@ -73,12 +74,14 @@ export default function OrderDetailsClient({ id }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  async function load() {
+  async function load(attempt = 1) {
     if (!id) return
     setLoading(true)
     setError('')
+    setRetryCount(attempt - 1)
+    const url = getApiUrl('/orders/' + id)
     try {
-      const res = await fetch(getApiUrl('/orders/' + id), { cache: 'no-store' })
+      const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) {
         const msg = await res.text().catch(() => '')
         setError(`Server returned ${res.status}${msg ? ': ' + msg : ''}`)
@@ -90,10 +93,15 @@ export default function OrderDetailsClient({ id }) {
       setStatusVal(data.status || '')
       setTrackingNumber(data.tracking_number || '')
       setTrackingUrl(data.tracking_url || '')
-    } catch (e) {
-      setError(e.message || 'Network error — check that the backend is running')
-    } finally {
       setLoading(false)
+    } catch {
+      // Render free tier sleeps ~15-30s on first request — retry every 5s up to 7 times
+      if (attempt < 7) {
+        setTimeout(() => load(attempt + 1), 5000)
+      } else {
+        setError(`Server not responding. Make sure the backend is running.\nURL: ${url}`)
+        setLoading(false)
+      }
     }
   }
 
@@ -183,7 +191,12 @@ export default function OrderDetailsClient({ id }) {
 
   if (loading) return (
     <AdminOnly>
-      <main style={{maxWidth:960,margin:'0 auto',padding:'48px 24px',color:'#888'}}>Loading order...</main>
+      <main style={{maxWidth:960,margin:'0 auto',padding:'48px 24px'}}>
+        <p style={{color:'#888'}}>{retryCount === 0 ? 'Loading order…' : `Connecting to server… (attempt ${retryCount + 1}/7)`}</p>
+        {retryCount > 0 && (
+          <p style={{fontSize:12,color:'#bbb',marginTop:4}}>Server is waking up, please wait…</p>
+        )}
+      </main>
     </AdminOnly>
   )
 
