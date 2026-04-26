@@ -75,8 +75,7 @@ export default function ProductCard({ product, colorSiblings = [] }) {
   }
 
   function handleTouchMove() {
-    // User is scrolling — cancel hover trigger
-    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+    // keep hover if already triggered; just let the timer run
   }
 
   function handleTouchEnd() {
