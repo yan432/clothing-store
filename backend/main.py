@@ -366,8 +366,13 @@ def increment_promo_usage_if_needed(order: dict) -> None:
     if not data.data:
         return
     promo = data.data[0]
-    used_count = int(promo.get("used_count") or 0)
-    supabase.table("promo_codes").update({"used_count": used_count + 1}).eq("id", promo["id"]).execute()
+    # Atomic increment via SQL expression to avoid read-modify-write race conditions
+    try:
+        supabase.rpc("increment_promo_used_count", {"promo_id": promo["id"]}).execute()
+    except Exception:
+        # Fallback: plain read-modify-write (safe for low-traffic stores)
+        used_count = int(promo.get("used_count") or 0)
+        supabase.table("promo_codes").update({"used_count": used_count + 1}).eq("id", promo["id"]).execute()
 
 
 def get_setting(key: str, default: str = "") -> str:

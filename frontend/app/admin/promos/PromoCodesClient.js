@@ -348,8 +348,7 @@ export default function PromoCodesClient() {
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Code</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Type</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Value</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Used</th>
-                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Max uses</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Used / limit</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Expires</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Status</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Actions</th>
@@ -371,10 +370,9 @@ export default function PromoCodesClient() {
                     </td>
                     <td style={{padding:'10px 14px',fontSize:13}}>
                       {row.usage_limit == null
-                        ? `${row.used_count || 0} / unlimited`
+                        ? `${row.used_count || 0} / ∞`
                         : `${row.used_count || 0} / ${row.usage_limit}`}
                     </td>
-                    <td style={{padding:'10px 14px',fontSize:13}}>{row.usage_limit ?? 'Unlimited'}</td>
                     <td style={{padding:'10px 14px',fontSize:13,color:'#666'}}>{formatDate(row.expires_at)}</td>
                     <td style={{padding:'10px 14px',fontSize:12}}>
                       <span style={{border:'1px solid #ddd',borderRadius:999,padding:'3px 8px',display:'inline-block'}}>
@@ -397,7 +395,7 @@ export default function PromoCodesClient() {
                 })}
                 {filteredRows.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#888'}}>No promo codes for selected filter</td>
+                    <td colSpan={7} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#888'}}>No promo codes for selected filter</td>
                   </tr>
                 )}
               </tbody>
