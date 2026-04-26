@@ -71,7 +71,7 @@ export default function ProductCard({ product, colorSiblings = [] }) {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
     // Delay before showing second image — prevents triggering while scrolling
-    touchTimerRef.current = setTimeout(() => setHovered(true), 450)
+    touchTimerRef.current = setTimeout(() => setHovered(true), 180)
   }
 
   function handleTouchMove() {

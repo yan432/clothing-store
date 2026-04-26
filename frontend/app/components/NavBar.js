@@ -136,17 +136,21 @@ export default function NavBar() {
         }}
       >
         {/* Main bar */}
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr auto 1fr',
-          alignItems: 'center', height: 58, padding: '0 28px',
-        }}>
+        <div className="nav-main-bar" style={{ alignItems: 'center', height: 58, padding: '0 20px' }}>
 
-          {/* LEFT — logo */}
-          <a href="/" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: 'inherit', justifySelf: 'start' }}>
+          {/* Hamburger — mobile left, hidden on desktop */}
+          <button type="button" className="nav-hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+            <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
+              <path d="M0 1h18M0 7h18M0 13h18" stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+          </button>
+
+          {/* Logo: desktop — left col; mobile — absolute center */}
+          <a href="/" className="nav-logo" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: 'inherit' }}>
             edm.clothes
           </a>
 
-          {/* CENTER — nav */}
+          {/* CENTER — desktop nav links only */}
           <div className="nav-center-links">
             <a href="/products?special=new"
               onMouseEnter={() => setOpenMenu(null)}
@@ -158,11 +162,11 @@ export default function NavBar() {
           </div>
 
           {/* RIGHT — icons */}
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifySelf: 'end' }}>
+          <div className="nav-right-icons">
 
-            {/* Admin */}
+            {/* Admin — desktop only (mobile: in hamburger drawer) */}
             {isAdmin && (
-              <div ref={adminRef} style={{ position: 'relative', marginRight: 8 }}
+              <div ref={adminRef} className="nav-admin-btn" style={{ position: 'relative', marginRight: 8 }}
                 onMouseEnter={() => { clearTimeout(navLeaveTimer.current); setOpenMenu('admin') }}
                 onMouseLeave={onNavLeave}
               >
@@ -186,13 +190,6 @@ export default function NavBar() {
               </div>
             )}
 
-            {/* Hamburger — mobile only */}
-            <button type="button" className="nav-hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
-              <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
-                <path d="M0 1h18M0 7h18M0 13h18" stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
-
             {/* Cart */}
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open cart"
               onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
@@ -209,7 +206,7 @@ export default function NavBar() {
               )}
             </button>
 
-            {/* User icon — simple link */}
+            {/* User icon */}
             <a href={user ? '/account' : '/auth'} aria-label={user ? 'Account' : 'Sign in'}
               onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
               style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
@@ -322,6 +319,20 @@ export default function NavBar() {
             </div>
             {/* Drawer body */}
             <div style={{ padding: '20px' }}>
+              {/* Admin — mobile only */}
+              {isAdmin && (
+                <>
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Admin</p>
+                  <div style={{ marginBottom: 24 }}>
+                    {ADMIN_LINKS.map(item => (
+                      <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                        style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#888', textDecoration: 'none' }}>
+                        {item.label}
+                      </a>
+                    ))}
+                  </div>
+                </>
+              )}
               {/* Shop */}
               <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Shop</p>
               <div style={{ marginBottom: 24 }}>

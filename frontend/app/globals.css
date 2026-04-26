@@ -178,17 +178,40 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   font-size: 38px;
 }
 
-/* ── Mobile nav ─────────────────────────────────────── */
-.nav-hamburger { display: none; }
+/* ── Nav bar layout ─────────────────────────────────── */
+/* Desktop: 3-column grid (logo | links | icons) */
+.nav-main-bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  padding: 0 28px;
+}
+.nav-logo     { justify-self: start; }
 .nav-center-links { display: flex; gap: 36px; align-items: center; }
+.nav-right-icons  { display: flex; gap: 4px; align-items: center; justify-self: end; }
+.nav-hamburger    { display: none; }
+.nav-admin-btn    { display: block; }
 
+/* Mobile: flex row — hamburger | [logo centered] | icons */
 @media (max-width: 680px) {
+  .nav-main-bar {
+    display: flex;
+    position: relative;
+    padding: 0 16px;
+  }
   .nav-hamburger {
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; cursor: pointer;
-    padding: 8px; color: #1a1a18; margin-left: 2px;
+    padding: 8px; color: #1a1a18; flex-shrink: 0;
+  }
+  .nav-logo {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    justify-self: unset;
   }
   .nav-center-links { display: none; }
+  .nav-right-icons  { margin-left: auto; justify-self: unset; }
+  .nav-admin-btn    { display: none; }
 }
 
 @keyframes slideInLeft {
