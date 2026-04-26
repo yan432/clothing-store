@@ -66,7 +66,16 @@ export default async function ProductsPage({ searchParams }) {
     .map(v => String(v).toLowerCase())
     .filter(v => v === 'new' || v === 'sale')
 
+  // Preferred display order for categories
+  const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
   const categories = Array.from(new Set(products.map(p => p.category).filter(c => c && c !== 'All')))
+    .sort((a, b) => {
+      const ai = CATEGORY_ORDER.indexOf(a), bi = CATEGORY_ORDER.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1
+      if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
 
   const sortOptions = [
     { id: 'default',    label: 'Default order' },
@@ -168,8 +177,26 @@ export default async function ProductsPage({ searchParams }) {
           <span style={{ fontSize: 13, color: '#aaa' }}>{sorted.length} items</span>
         </div>
 
-        {/* Category pills + specials + sort row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 32, flexWrap: 'wrap' }}>
+        {/* Single filter row: search (desktop-left) + pills + sort */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 36, flexWrap: 'wrap' }}>
+
+          {/* Search — desktop: order -1 (leftmost), mobile: order 10 (below pills) */}
+          <form method="get" className="products-search-form">
+            {selectedCategory && <input type="hidden" name="category" value={selectedCategory} />}
+            {selectedSpecials.map(s => <input key={s} type="hidden" name="special" value={s} />)}
+            {activeSort !== 'default' && <input type="hidden" name="sort" value={activeSort} />}
+            <div style={{ position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#bbb', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <input name="q" defaultValue={q} placeholder="Search…"
+                style={{ padding: '7px 14px 7px 34px', borderRadius: 999, border: '1.5px solid #e0e0de', fontSize: 13, outline: 'none', background: '#fff', width: '100%', boxSizing: 'border-box' }}
+              />
+            </div>
+          </form>
+
+          {/* Thin vertical divider (desktop only) */}
+          <div className="products-search-divider" />
 
           {/* All */}
           <a href={buildHref(q, '', selectedSpecials)}
@@ -202,10 +229,10 @@ export default async function ProductsPage({ searchParams }) {
             )
           })}
 
-          {/* Divider */}
-          <div style={{ width: 1, height: 22, background: '#e0e0de', margin: '0 4px', flexShrink: 0 }} />
+          {/* Divider before specials */}
+          <div style={{ width: 1, height: 22, background: '#e0e0de', margin: '0 2px', flexShrink: 0 }} />
 
-          {/* New */}
+          {/* New / Sale */}
           {['new', 'sale'].map(special => {
             const isActive = selectedSpecials.includes(special)
             const nextSpecials = isActive ? selectedSpecials.filter(s => s !== special) : [...selectedSpecials, special]
@@ -226,38 +253,20 @@ export default async function ProductsPage({ searchParams }) {
           })}
 
           {/* spacer */}
-          <div style={{ flex: 1 }} />
+          <div style={{ flex: 1, minWidth: 8 }} />
 
-          {/* Sort dropdown */}
+          {/* Clear */}
+          {hasActiveFilters && (
+            <a href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>Clear ×</a>
+          )}
+
+          {/* Sort */}
           <SortSelect
             options={sortOptions}
             activeSort={activeSort}
             hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }}
           />
         </div>
-
-        {/* Search + clear row */}
-        <form method="get" style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 36 }}>
-          {selectedCategory && <input type="hidden" name="category" value={selectedCategory} />}
-          {selectedSpecials.map(s => <input key={s} type="hidden" name="special" value={s} />)}
-          {activeSort !== 'default' && <input type="hidden" name="sort" value={activeSort} />}
-
-          <div style={{ position: 'relative', flex: 1, maxWidth: 420 }}>
-            <svg style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#bbb', pointerEvents: 'none' }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input name="q" defaultValue={q} placeholder="Search products…"
-              style={{ width: '100%', padding: '9px 16px 9px 40px', borderRadius: 999, border: '1.5px solid #e0e0de', fontSize: 13, outline: 'none', background: '#fff', boxSizing: 'border-box' }}
-            />
-          </div>
-          <button type="submit"
-            style={{ padding: '9px 20px', borderRadius: 999, border: 'none', background: '#111', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
-            Search
-          </button>
-          {hasActiveFilters && (
-            <a href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', padding: '9px 4px' }}>Clear ×</a>
-          )}
-        </form>
 
         {/* Product grid */}
         {sorted.length === 0 ? (

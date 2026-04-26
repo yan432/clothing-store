@@ -29,7 +29,9 @@ function ShippingBar({ total }) {
       <p style={{
         fontSize: 12, margin: '0 0 7px', textAlign: 'center',
         color: textReached ? '#166534' : '#555',
-        transition: 'color 0.3s ease',
+        // fade out the "€0" text while bar animates, fade in success after
+        opacity: (reached && !textReached) ? 0 : 1,
+        transition: 'color 0.3s ease, opacity 0.2s ease',
       }}>
         {textReached
           ? '🎉 You\'ve unlocked free shipping!'

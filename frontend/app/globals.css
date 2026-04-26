@@ -178,6 +178,31 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   font-size: 38px;
 }
 
+/* Products page: search field responsive positioning */
+.products-search-form {
+  order: 10;       /* mobile: below pills */
+  width: 100%;
+}
+.products-search-divider {
+  display: none;   /* mobile: hidden */
+}
+
+@media (min-width: 768px) {
+  .products-search-form {
+    order: -1;     /* desktop: leftmost in filter row */
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .products-search-divider {
+    display: block;
+    width: 1px;
+    height: 22px;
+    background: #e0e0de;
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+}
+
 .products-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
