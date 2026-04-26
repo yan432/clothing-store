@@ -1496,6 +1496,9 @@ def list_orders():
     return data.data
 
 
+_USER_VISIBLE_STATUSES = ["paid", "shipped", "delivered"]
+
+
 @app.get("/orders/track")
 def track_orders(email: str):
     normalized = str(email or "").strip().lower()
@@ -1505,8 +1508,7 @@ def track_orders(email: str):
         supabase.table("orders")
         .select("*")
         .ilike("email", normalized)
-        .neq("status", "payment_failed")
-        .neq("status", "cancelled")
+        .in_("status", _USER_VISIBLE_STATUSES)
         .order("created_at", desc=False)
         .limit(200)
         .execute()
@@ -1525,8 +1527,7 @@ def track_order_details(order_id: int, email: str):
         supabase.table("orders")
         .select("*")
         .ilike("email", normalized)
-        .neq("status", "payment_failed")
-        .neq("status", "cancelled")
+        .in_("status", _USER_VISIBLE_STATUSES)
         .order("created_at", desc=False)
         .limit(200)
         .execute()
@@ -1598,7 +1599,7 @@ def update_order_admin(order_id: int, payload: OrderUpdatePayload):
         if payload.tracking_number is not None:
             updates["tracking_number"] = payload.tracking_number or None
         if payload.tracking_url is not None:
-            updates["tracking_url"] = payload.tracking_url or None
+            updates["tracking_url"] = normalize_tracking_url(payload.tracking_url) or None
 
         # Remove tracking fields if columns don't exist yet (migration 013 pending)
         safe_updates = {k: v for k, v in updates.items()
@@ -1623,12 +1624,29 @@ def delete_order_admin(order_id: int):
     return {"ok": True}
 
 
+def normalize_tracking_url(raw: str) -> str:
+    """Strip browser-internal schemes (x-webdoc://, etc.) and ensure https://."""
+    url = (raw or "").strip()
+    if not url:
+        return url
+    # Strip any non-http scheme prefix: e.g. "x-webdoc://UUID/novapost.com" → "novapost.com"
+    if "://" in url and not url.startswith(("http://", "https://")):
+        # Everything after the last "/" of the bogus authority
+        url = re.sub(r'^[^:]+://[^/]+/', '', url)
+    # Remove any leading slashes left over
+    url = url.lstrip("/")
+    # Add https:// if still no scheme
+    if url and not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    return url
+
+
 def build_shipping_notification_email(order: dict) -> tuple[str, str]:
     """Returns (html, text) for the shipping notification email."""
     first_name = (str(order.get("shipping_name") or "").split() or ["there"])[0]
     order_id_val = order.get("id", "")
     tracking_number = str(order.get("tracking_number") or "").strip()
-    tracking_url = str(order.get("tracking_url") or "").strip()
+    tracking_url = normalize_tracking_url(str(order.get("tracking_url") or ""))
     items = order.get("items_json") or []
     items_html_str = order_items_html(items)
     items_text_str = order_items_text(items)
