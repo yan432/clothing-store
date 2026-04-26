@@ -1,12 +1,13 @@
 'use client'
 import { useCart } from '../context/CartContext'
+import { getApiUrl } from '../lib/api'
 import { useEffect, useRef, useState } from 'react'
 
-const FREE_SHIPPING_THRESHOLD = 120
+const DEFAULT_THRESHOLD = 120
 
-function ShippingBar({ total }) {
-  const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - total)
-  const progress = Math.min(100, (total / FREE_SHIPPING_THRESHOLD) * 100)
+function ShippingBar({ total, threshold }) {
+  const remaining = Math.max(0, threshold - total)
+  const progress = Math.min(100, (total / threshold) * 100)
   const reached = remaining === 0
 
   // Text lags behind the bar by the bar's transition duration (500ms)
@@ -54,6 +55,17 @@ export default function CartDrawer({ open, onClose }) {
   const { cart, removeFromCart, updateQty, total } = useCart()
   const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD)
+
+  useEffect(() => {
+    fetch(getApiUrl('/settings'))
+      .then(r => r.ok ? r.json() : {})
+      .then(s => {
+        const t = parseFloat(s.shipping_free_threshold || DEFAULT_THRESHOLD)
+        if (!isNaN(t) && t > 0) setThreshold(t)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (open) {
@@ -99,7 +111,7 @@ export default function CartDrawer({ open, onClose }) {
         </div>
 
         {/* Free shipping progress bar */}
-        <ShippingBar total={total} />
+        <ShippingBar total={total} threshold={threshold} />
 
         {/* Items */}
         <div style={{flex:1,overflowY:'auto',padding:'16px 24px'}}>

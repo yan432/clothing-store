@@ -189,14 +189,17 @@ export default async function ProductPage({ params }) {
               </details>
             </div>
 
-            <div style={{border:'1px solid #e7e7e2',borderRadius:8,overflow:'hidden'}}>
-              <div style={{padding:'14px 16px',fontSize:14,borderBottom:'1px solid #e7e7e2'}}>
-                Free delivery from €120. Shipping calculated after entering address.
-              </div>
-              <div style={{padding:'14px 16px',fontSize:14}}>
-                14-day returns from date of receipt.
-              </div>
-            </div>
+              <details style={{borderBottom:'1px solid #e5e5e0'}}>
+                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
+                  Shipping &amp; returns
+                  <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
+                </summary>
+                <div style={{padding:'0 0 18px',color:'#5f5f58',fontSize:14,lineHeight:1.65,display:'flex',flexDirection:'column',gap:8}}>
+                  <p style={{margin:0}}>Shipping cost is calculated at cart.</p>
+                  <p style={{margin:0}}>Free shipping on orders from €120.</p>
+                  <p style={{margin:0}}>14-day returns from date of receipt.</p>
+                </div>
+              </details>
           </div>
         </div>
       </main>

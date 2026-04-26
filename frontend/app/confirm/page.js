@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackCheckoutStarted } from '../lib/track'
 
-const SHIPPING = 30
+const DEFAULT_SHIPPING = 30
+const DEFAULT_THRESHOLD = 120
 
 const steps = [
   { n: 1, label: 'Cart', done: true, href: '/cart' },
@@ -76,6 +77,8 @@ export default function ConfirmPage() {
   const [promoError, setPromoError] = useState('')
   const [promoLoading, setPromoLoading] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [shippingCost, setShippingCost] = useState(DEFAULT_SHIPPING)
+  const [freeThreshold, setFreeThreshold] = useState(DEFAULT_THRESHOLD)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('checkout_details')
@@ -85,11 +88,24 @@ export default function ConfirmPage() {
     trackCheckoutStarted(parsed.email || null)
   }, [])
 
+  useEffect(() => {
+    fetch(getApiUrl('/settings'))
+      .then(r => r.ok ? r.json() : {})
+      .then(s => {
+        const threshold = parseFloat(s.shipping_free_threshold || DEFAULT_THRESHOLD)
+        const cost = parseFloat(s.shipping_cost || DEFAULT_SHIPPING)
+        setFreeThreshold(threshold)
+        setShippingCost(cost)
+      })
+      .catch(() => {})
+  }, [])
+
   if (!details || cart.length === 0) return null
 
   const discount = promoApplied ? Number(promoApplied.discount_amount || 0) : 0
-  const safeDiscount = Math.min(total + SHIPPING, Math.max(0, discount))
-  const shippingTotal = promoApplied?.discount_type === 'free_shipping' ? 0 : SHIPPING
+  const safeDiscount = Math.min(total + shippingCost, Math.max(0, discount))
+  const qualifiesFreeShipping = total >= freeThreshold
+  const shippingTotal = (promoApplied?.discount_type === 'free_shipping' || qualifiesFreeShipping) ? 0 : shippingCost
   const finalTotal = total - safeDiscount + shippingTotal
 
   async function applyPromo() {
@@ -100,7 +116,7 @@ export default function ConfirmPage() {
     }
     setPromoLoading(true)
     try {
-      const res = await fetch(`${getApiUrl('/promo-codes/validate')}?code=${encodeURIComponent(code)}&subtotal=${encodeURIComponent(String(total))}&shipping=${encodeURIComponent(String(SHIPPING))}`)
+      const res = await fetch(`${getApiUrl('/promo-codes/validate')}?code=${encodeURIComponent(code)}&subtotal=${encodeURIComponent(String(total))}&shipping=${encodeURIComponent(String(shippingCost))}`)
       const data = await res.json()
       if (!res.ok || !data.valid) {
         setPromoError(data?.message || 'Invalid promo code')
@@ -304,7 +320,10 @@ export default function ConfirmPage() {
               </div>
             )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Shipping</span><span>€{shippingTotal.toFixed(2)}</span>
+              <span>Shipping</span>
+              <span style={shippingTotal === 0 ? {color:'#16a34a',fontWeight:500} : {}}>
+                {shippingTotal === 0 ? 'Free' : `€${shippingTotal.toFixed(2)}`}
+              </span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4,paddingTop:10,borderTop:'1px solid #e5e5e3'}}>
               <span>Total</span><span>€{finalTotal.toFixed(2)}</span>

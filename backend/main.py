@@ -1175,7 +1175,21 @@ def delete_promo_code(promo_id: int):
     return {"message": "Promo code deleted"}
 
 
-SHIPPING_COST = 30.0
+SHIPPING_COST = 30.0  # fallback default
+
+
+def get_shipping_settings() -> tuple[float, float]:
+    """Return (free_threshold, shipping_cost) from the settings table."""
+    try:
+        data = supabase.table("settings").select("key,value").in_(
+            "key", ["shipping_free_threshold", "shipping_cost"]
+        ).execute()
+        result = {row["key"]: row["value"] for row in (data.data or [])}
+        threshold = float(result.get("shipping_free_threshold") or 120)
+        cost = float(result.get("shipping_cost") or 30)
+        return threshold, cost
+    except Exception:
+        return 120.0, 30.0
 
 
 def extract_origin_url(value: Any) -> Optional[str]:
@@ -1238,6 +1252,9 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "quantity": qty,
         })
 
+    free_threshold, shipping_cost_cfg = get_shipping_settings()
+    qualifies_free_shipping = subtotal >= free_threshold
+
     promo = None
     promo_discount = 0.0
     promo_type = None
@@ -1247,7 +1264,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         if not promo:
             raise HTTPException(status_code=400, detail="Promo code is invalid or expired")
         promo_type = str(promo.get("discount_type") or "").lower()
-        promo_discount = promo_discount_amount(subtotal, promo, SHIPPING_COST)
+        promo_discount = promo_discount_amount(subtotal, promo, shipping_cost_cfg)
         if promo_discount <= 0:
             raise HTTPException(status_code=400, detail="Promo code does not apply")
 
@@ -1274,7 +1291,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         except Exception:
             pass  # If check fails, allow the order to continue
 
-    should_charge_shipping = promo_type != "free_shipping"
+    should_charge_shipping = promo_type != "free_shipping" and not qualifies_free_shipping
 
     # Apply percent/fixed discount to PRODUCT line items only (not shipping).
     # We bake the discount into unit_amount instead of using Stripe coupons,
@@ -1295,11 +1312,11 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "price_data": {
                 "currency": "eur",
                 "product_data": {"name": "Shipping"},
-                "unit_amount": int(SHIPPING_COST * 100),
+                "unit_amount": int(shipping_cost_cfg * 100),
             },
             "quantity": 1,
         })
-    amount_total = subtotal - promo_discount + (SHIPPING_COST if should_charge_shipping else 0.0)
+    amount_total = subtotal - promo_discount + (shipping_cost_cfg if should_charge_shipping else 0.0)
 
     reserve_stock(normalized_items)
     client_reference_id = str(uuid.uuid4())

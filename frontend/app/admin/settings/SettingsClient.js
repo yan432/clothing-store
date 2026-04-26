@@ -42,6 +42,13 @@ const FIELDS = [
     ],
   },
   {
+    section: 'Shipping',
+    fields: [
+      { key: 'shipping_free_threshold', label: 'Free shipping from (€)', placeholder: '120', hint: 'Orders at or above this amount get free shipping. Default: 120.' },
+      { key: 'shipping_cost',           label: 'Standard shipping cost (€)', placeholder: '30', hint: 'Shipping fee charged when order is below the free threshold. Default: 30.' },
+    ],
+  },
+  {
     section: 'Announcement bar',
     fields: [
       { key: 'announcement_bar_enabled', label: 'Enabled', placeholder: 'true', hint: 'Set to "true" to show the scrolling bar, "false" to hide it.' },
