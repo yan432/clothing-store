@@ -2,6 +2,8 @@ import ProductCard from '../components/ProductCard'
 import SortSelect from './SortSelect'
 import { getApiUrl } from '../lib/api'
 
+const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
+
 export async function generateMetadata() {
   try {
     const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
@@ -66,8 +68,6 @@ export default async function ProductsPage({ searchParams }) {
     .map(v => String(v).toLowerCase())
     .filter(v => v === 'new' || v === 'sale')
 
-  // Preferred display order for categories
-  const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
   const categories = Array.from(new Set(products.map(p => p.category).filter(c => c && c !== 'All')))
     .sort((a, b) => {
       const ai = CATEGORY_ORDER.indexOf(a), bi = CATEGORY_ORDER.indexOf(b)
@@ -194,9 +194,6 @@ export default async function ProductsPage({ searchParams }) {
               />
             </div>
           </form>
-
-          {/* Thin vertical divider (desktop only) */}
-          <div className="products-search-divider" />
 
           {/* All */}
           <a href={buildHref(q, '', selectedSpecials)}

@@ -205,7 +205,7 @@ export default function ConfirmPage() {
                 <p style={{fontSize:14,color:'#555',margin:'0 0 2px'}}>{details.zip} {details.city}</p>
                 <p style={{fontSize:14,color:'#555',margin:0}}>{COUNTRY_NAMES[details.country] || details.country}</p>
               </div>
-              <button onClick={() => router.push('/checkout')}
+              <button onClick={() => { sessionStorage.setItem('_from_confirm', '1'); router.push('/checkout') }}
                 style={{fontSize:13,color:'#555',background:'none',border:'1px solid #e5e5e3',borderRadius:8,padding:'6px 14px',cursor:'pointer'}}>
                 Edit
               </button>
@@ -259,7 +259,7 @@ export default function ConfirmPage() {
 
           {/* Navigation */}
           <div style={{display:'flex',gap:12}}>
-            <button onClick={() => router.push('/checkout')}
+            <button onClick={() => { sessionStorage.setItem('_from_confirm', '1'); router.push('/checkout') }}
               style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
               ← Back
             </button>

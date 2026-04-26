@@ -153,21 +153,23 @@ export default function CheckoutPage() {
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
 
   // Pre-fill form:
-  // 1. If sessionStorage has data (returning from Confirm, or guest) → restore it (highest priority).
-  // 2. Otherwise, if logged in → fetch profile and fill fields.
+  // - If returning from Confirm (flag set) → restore sessionStorage exactly as typed
+  // - Otherwise (fresh visit) → always fetch profile for logged-in users
+  // - Guests with no flag → try sessionStorage
   useEffect(() => {
-    const saved = sessionStorage.getItem('checkout_details')
-    if (saved) {
+    const fromConfirm = sessionStorage.getItem('_from_confirm') === '1'
+
+    if (fromConfirm) {
+      // Returning from confirm page → restore what the user typed
+      sessionStorage.removeItem('_from_confirm')
       try {
-        const parsed = JSON.parse(saved)
-        if (Object.keys(parsed).length) {
-          setForm(f => ({ ...f, ...parsed }))
-          return
-        }
+        const parsed = JSON.parse(sessionStorage.getItem('checkout_details') || '{}')
+        if (Object.keys(parsed).length) { setForm(f => ({ ...f, ...parsed })); return }
       } catch {}
     }
-    // No saved data → first visit. Fill from profile if logged in.
+
     if (user?.email) {
+      // Fresh visit while logged in → always load from profile (ignore stale sessionStorage)
       fetch(getAdminApiUrl('/user-profile') + '?email=' + encodeURIComponent(user.email))
         .then(r => r.ok ? r.json() : null)
         .then(profile => {
@@ -184,6 +186,12 @@ export default function CheckoutPage() {
           }))
         })
         .catch(() => setForm(f => ({ ...f, email: user.email })))
+    } else {
+      // Guest, fresh visit → restore from sessionStorage if present
+      try {
+        const parsed = JSON.parse(sessionStorage.getItem('checkout_details') || '{}')
+        if (Object.keys(parsed).length) setForm(f => ({ ...f, ...parsed }))
+      } catch {}
     }
   }, [user])
 
