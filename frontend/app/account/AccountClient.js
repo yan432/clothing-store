@@ -23,11 +23,12 @@ const COUNTRIES = [
 ]
 
 // ── Shared ────────────────────────────────────────────────────────────────────
-const inp = (err) => ({
+const inp = (err, readOnly = false) => ({
   display: 'block', padding: '11px 14px', borderRadius: 10, fontSize: 14, outline: 'none',
-  width: '100%', minHeight: 44, boxSizing: 'border-box',
+  width: '100%', height: 44, boxSizing: 'border-box',
   border: err ? '1.5px solid #ef4444' : '1px solid #e5e5e3',
-  background: '#fff',
+  background: readOnly ? '#fafaf8' : '#fff',
+  color: '#111',
 })
 
 function MsgBox({ ok, text }) {
@@ -61,8 +62,12 @@ function SaveBtn({ onClick, loading, label = 'Save' }) {
 }
 
 // ── Personal info section ─────────────────────────────────────────────────────
+const EMPTY_FORM = { first_name: '', last_name: '', phone: '', address: '', city: '', zip: '', country: 'DE' }
+
 function InfoSection({ user }) {
-  const [form, setForm] = useState({ first_name: '', last_name: '', phone: '', address: '', city: '', zip: '', country: 'DE' })
+  const [form, setForm] = useState(EMPTY_FORM)
+  const [snapshot, setSnapshot] = useState(EMPTY_FORM) // restored on cancel
+  const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState(null)
@@ -76,9 +81,9 @@ function InfoSection({ user }) {
         const r = await fetch(`${getApiUrl('/user-profile')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
         const d = await r.json()
         if (d?.first_name || d?.address) {
-          setForm(f => ({ ...f, ...d }))
-          setLoading(false)
-          return
+          const merged = { ...EMPTY_FORM, ...d }
+          setForm(merged); setSnapshot(merged)
+          setLoading(false); return
         }
       } catch {}
       // 2. Pre-fill from most recent order if profile is empty
@@ -89,8 +94,7 @@ function InfoSection({ user }) {
           if (orders.length > 0) {
             const o = orders[0]
             const parts = (o.shipping_name || '').trim().split(' ')
-            setForm(f => ({
-              ...f,
+            const merged = { ...EMPTY_FORM,
               first_name: o.first_name || parts[0] || '',
               last_name:  o.last_name  || parts.slice(1).join(' ') || '',
               phone:      o.phone || '',
@@ -98,7 +102,8 @@ function InfoSection({ user }) {
               city:       o.shipping_city  || '',
               zip:        o.shipping_postal_code || '',
               country:    o.shipping_country || 'DE',
-            }))
+            }
+            setForm(merged); setSnapshot(merged)
           }
         }
       } catch {}
@@ -106,6 +111,9 @@ function InfoSection({ user }) {
     }
     load()
   }, [user?.email])
+
+  function startEdit() { setSnapshot({ ...form }); setEditing(true); setMsg(null) }
+  function cancelEdit() { setForm({ ...snapshot }); setEditing(false); setMsg(null) }
 
   async function save() {
     setSaving(true); setMsg(null)
@@ -116,11 +124,15 @@ function InfoSection({ user }) {
         body: JSON.stringify({ email: user.email, ...form }),
       })
       if (!res.ok) throw new Error()
+      setSnapshot({ ...form })
+      setEditing(false)
       setMsg({ ok: true, text: 'Details saved' })
       setTimeout(() => setMsg(null), 3000)
     } catch { setMsg({ ok: false, text: 'Failed to save' }) }
     setSaving(false)
   }
+
+  const ro = !editing // readOnly shorthand
 
   if (loading) return <SectionCard title="Personal info"><p style={{ color: '#aaa', fontSize: 14 }}>Loading...</p></SectionCard>
 
@@ -128,21 +140,44 @@ function InfoSection({ user }) {
     <SectionCard title="Personal info">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 500 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <input placeholder="First name" value={form.first_name || ''} onChange={e => set('first_name', e.target.value)} style={inp()} />
-          <input placeholder="Last name"  value={form.last_name  || ''} onChange={e => set('last_name',  e.target.value)} style={inp()} />
+          <input readOnly={ro} placeholder="First name" value={form.first_name || ''} onChange={e => set('first_name', e.target.value)} style={inp(false, ro)} />
+          <input readOnly={ro} placeholder="Last name"  value={form.last_name  || ''} onChange={e => set('last_name',  e.target.value)} style={inp(false, ro)} />
         </div>
-        <input placeholder="Phone" value={form.phone || ''} onChange={e => set('phone', e.target.value)} style={inp()} />
-        <input placeholder="Street address" value={form.address || ''} onChange={e => set('address', e.target.value)} style={inp()} />
+        <input readOnly={ro} placeholder="Phone" value={form.phone || ''} onChange={e => set('phone', e.target.value)} style={inp(false, ro)} />
+        <input readOnly={ro} placeholder="Street address" value={form.address || ''} onChange={e => set('address', e.target.value)} style={inp(false, ro)} />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <input placeholder="City" value={form.city || ''} onChange={e => set('city', e.target.value)} style={inp()} />
-          <input placeholder="ZIP / Postal code" value={form.zip || ''} onChange={e => set('zip', e.target.value)} style={inp()} />
+          <input readOnly={ro} placeholder="City" value={form.city || ''} onChange={e => set('city', e.target.value)} style={inp(false, ro)} />
+          <input readOnly={ro} placeholder="ZIP / Postal code" value={form.zip || ''} onChange={e => set('zip', e.target.value)} style={inp(false, ro)} />
         </div>
-        <select value={form.country || 'DE'} onChange={e => set('country', e.target.value)} style={{ ...inp(), color: '#111' }}>
+        <select
+          disabled={ro}
+          value={form.country || 'DE'}
+          onChange={e => set('country', e.target.value)}
+          style={{ ...inp(false, ro), appearance: 'none', WebkitAppearance: 'none' }}
+        >
           {COUNTRIES.map(([c, n]) => <option key={c} value={c}>{n}</option>)}
         </select>
       </div>
       {msg && <MsgBox ok={msg.ok} text={msg.text} />}
-      <SaveBtn onClick={save} loading={saving} />
+      <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        {editing ? (
+          <>
+            <button onClick={save} disabled={saving}
+              style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.65 : 1 }}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button onClick={cancelEdit} disabled={saving}
+              style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 400, border: '1px solid #e5e5e3', background: '#fff', color: '#666', cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button onClick={startEdit}
+            style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: '1px solid #e5e5e3', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            Edit
+          </button>
+        )}
+      </div>
     </SectionCard>
   )
 }
@@ -375,8 +410,10 @@ function OrdersSection({ user }) {
       {orders.map(o => {
         const items = Array.isArray(o.items_json) ? o.items_json : []
         const badge = orderStatusBadge(o.status)
+        const thumbs = items.filter(it => it.image_url).slice(0, 6)
         return (
-          <div key={o.id} style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '14px 16px' }}>
+          <div key={o.id} style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '16px 18px', background: '#fff' }}>
+            {/* Header row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Order #{o.user_order_number || o.id}</p>
@@ -386,13 +423,35 @@ function OrdersSection({ user }) {
                 {badge.label}
               </span>
             </div>
+
+            {/* Thumbnails */}
+            {thumbs.length > 0 && (
+              <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                {thumbs.map((item, i) => (
+                  <div key={i} style={{ position: 'relative' }}>
+                    <img
+                      src={item.image_url} alt={item.name || ''}
+                      style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid #ecece8', display: 'block' }}
+                    />
+                    {item.quantity > 1 && (
+                      <span style={{ position: 'absolute', bottom: 3, right: 3, background: '#111', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }}>
+                        ×{item.quantity}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Item names + total */}
             <div style={{ marginTop: 10, fontSize: 13, color: '#555' }}>
-              <p style={{ margin: '0 0 2px' }}>{items.map(formatItem).join(', ') || '—'}</p>
-              <p style={{ margin: 0, fontWeight: 500 }}>{formatMoney(o.amount_total, o.currency || 'EUR')}</p>
+              <p style={{ margin: '0 0 2px', color: '#888', fontSize: 12 }}>{items.map(formatItem).join(' · ') || '—'}</p>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#111' }}>{formatMoney(o.amount_total, o.currency || 'EUR')}</p>
             </div>
+
             {/* Tracking info if available */}
             {(o.tracking_number || o.tracking_url) && (
-              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12 }}>
+              <div style={{ marginTop: 10, padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12 }}>
                 {o.tracking_number && <p style={{ margin: '0 0 2px', color: '#166534' }}>Tracking: <strong>{o.tracking_number}</strong></p>}
                 {o.tracking_url && (
                   <a href={o.tracking_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 600 }}>
@@ -401,6 +460,7 @@ function OrdersSection({ user }) {
                 )}
               </div>
             )}
+
             <Link href={`/account/orders/${o.id}`}
               style={{ display: 'inline-block', marginTop: 10, fontSize: 13, fontWeight: 600, color: '#111', textDecoration: 'underline' }}>
               View details
