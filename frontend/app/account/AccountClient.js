@@ -45,7 +45,7 @@ function MsgBox({ ok, text }) {
 
 function SectionCard({ title, children }) {
   return (
-    <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: '22px 24px', background: '#fff' }}>
+    <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: '22px 24px', background: '#fff' }}>
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#aaa', margin: '0 0 18px' }}>{title}</p>
       {children}
     </div>
@@ -138,7 +138,7 @@ function InfoSection({ user }) {
 
   return (
     <SectionCard title="Personal info">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 500 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div className="account-2col">
           <input readOnly={ro} placeholder="First name" value={form.first_name || ''} onChange={e => set('first_name', e.target.value)} style={inp(false, ro)} />
           <input readOnly={ro} placeholder="Last name"  value={form.last_name  || ''} onChange={e => set('last_name',  e.target.value)} style={inp(false, ro)} />
@@ -450,7 +450,10 @@ function OrdersSection({ user }) {
 
             {/* Item names + total */}
             <div style={{ marginTop: 10, fontSize: 13, color: '#555' }}>
-              <p style={{ margin: '0 0 2px', color: '#888', fontSize: 12 }}>{items.map(formatItem).join(' · ') || '—'}</p>
+              <p style={{ margin: '0 0 4px', color: '#888', fontSize: 12, lineHeight: 1.5,
+                display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                {items.map(formatItem).join(' · ') || '—'}
+              </p>
               <p style={{ margin: 0, fontWeight: 600, fontSize: 14, color: '#111' }}>{formatMoney(o.amount_total, o.currency || 'EUR')}</p>
             </div>
 
@@ -499,30 +502,32 @@ export default function AccountClient({ activeTab }) {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 24, alignItems: 'start' }}>
+      <div className="account-layout">
         {/* Sidebar */}
-        <nav style={{ border: '1px solid #ecece8', borderRadius: 12, overflow: 'hidden', position: 'sticky', top: 100 }}>
+        <nav className="account-sidebar" style={{ border: '1px solid #ecece8', borderRadius: 12, overflow: 'hidden', position: 'sticky', top: 100 }}>
           {user && (
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid #ecece8', background: '#fafaf8' }}>
+            <div className="account-sidebar-email" style={{ padding: '14px 16px', borderBottom: '1px solid #ecece8', background: '#fafaf8' }}>
               <p style={{ margin: 0, fontSize: 12, color: '#aaa', wordBreak: 'break-all' }}>{user.email}</p>
             </div>
           )}
-          {NAV_ITEMS.map((item, i) => {
-            const active = isOrders ? item.id === 'orders' : item.id === 'account'
-            return (
-              <a key={item.id} href={item.href}
-                style={{
-                  display: 'block', padding: '13px 16px', fontSize: 14,
-                  fontWeight: active ? 600 : 400,
-                  color: active ? '#111' : '#666',
-                  textDecoration: 'none',
-                  background: active ? '#f5f5f3' : '#fff',
-                  borderBottom: i < NAV_ITEMS.length - 1 ? '1px solid #ecece8' : 'none',
-                }}>
-                {item.label}
-              </a>
-            )
-          })}
+          <div className="account-sidebar-nav" style={{ display: 'flex', flexDirection: 'column' }}>
+            {NAV_ITEMS.map((item, i) => {
+              const active = isOrders ? item.id === 'orders' : item.id === 'account'
+              return (
+                <a key={item.id} href={item.href}
+                  style={{
+                    display: 'block', padding: '13px 16px', fontSize: 14,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? '#111' : '#666',
+                    textDecoration: 'none',
+                    background: active ? '#f5f5f3' : '#fff',
+                    borderBottom: i < NAV_ITEMS.length - 1 ? '1px solid #ecece8' : 'none',
+                  }}>
+                  {item.label}
+                </a>
+              )
+            })}
+          </div>
         </nav>
 
         {/* Content */}

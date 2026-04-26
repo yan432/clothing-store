@@ -276,6 +276,27 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   .products-sort-group { order: 2; width: 100%; justify-content: flex-end; }
 }
 
+/* ── Account layout ─────────────────────────────────── */
+.account-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 640px) {
+  .account-layout { grid-template-columns: 1fr; gap: 16px; }
+  .account-sidebar { position: static !important; top: auto !important; }
+  .account-sidebar-nav { display: flex !important; flex-direction: row !important; }
+  .account-sidebar-nav a {
+    flex: 1; text-align: center;
+    border-bottom: none !important;
+    border-right: 1px solid #ecece8;
+  }
+  .account-sidebar-nav a:last-child { border-right: none; }
+  .account-sidebar-email { display: none; }
+  .section-card { padding: 16px !important; }
+}
+
 /* ── Account 2-col form grids ───────────────────────── */
 .account-2col {
   display: grid; grid-template-columns: 1fr; gap: 10px;
