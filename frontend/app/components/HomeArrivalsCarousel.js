@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import ProductCard from './ProductCard'
 
 export default function HomeArrivalsCarousel({ products }) {
   const trackRef = useRef(null)
@@ -28,12 +29,8 @@ export default function HomeArrivalsCarousel({ products }) {
     return () => el.removeEventListener('scroll', updateArrows)
   }, [])
 
-  const fmt = (price) =>
-    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(price || 0))
-
   return (
     <div style={{ position: 'relative' }}>
-      {/* Arrow prev */}
       <button
         onClick={() => scrollBy(-1)}
         aria-label="Previous"
@@ -47,7 +44,6 @@ export default function HomeArrivalsCarousel({ products }) {
           transition: 'opacity 200ms',
         }}>‹</button>
 
-      {/* Track */}
       <div
         ref={trackRef}
         style={{
@@ -61,32 +57,16 @@ export default function HomeArrivalsCarousel({ products }) {
           touchAction: 'pan-x',
         }}
       >
-        {products.map(p => {
-          const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
-          return (
-            <a
-              key={p.id}
-              href={`/products/${p.slug || p.id}`}
-              style={{
-                flex: '0 0 calc(33.333% - 14px)',
-                scrollSnapAlign: 'start',
-                textDecoration: 'none',
-                color: 'inherit',
-                display: 'block',
-              }}
-            >
-              <div style={{ aspectRatio: '4/5', background: '#f5f5f3', borderRadius: 16, overflow: 'hidden', marginBottom: 14 }}>
-                {img && <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
-              </div>
-              <p style={{ fontSize: 11, color: '#9a9a92', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 6px' }}>{p.category || 'Essentials'}</p>
-              <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 5px', lineHeight: 1.3 }}>{p.name}</h3>
-              <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>{fmt(p.price)}</p>
-            </a>
-          )
-        })}
+        {products.map(p => (
+          <div
+            key={p.id}
+            style={{ flex: '0 0 calc(33.333% - 14px)', scrollSnapAlign: 'start', minWidth: 0 }}
+          >
+            <ProductCard product={p} />
+          </div>
+        ))}
       </div>
 
-      {/* Arrow next */}
       <button
         onClick={() => scrollBy(1)}
         aria-label="Next"

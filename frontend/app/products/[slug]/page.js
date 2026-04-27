@@ -1,6 +1,7 @@
 import AddToCartButton from '../../components/AddToCartButton'
 import ProductGallery from '../../components/ProductGallery'
 import ProductViewTracker from '../../components/ProductViewTracker'
+import ProductCard from '../../components/ProductCard'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 
@@ -249,25 +250,9 @@ export default async function ProductPage({ params }) {
             <a href="/products" style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>View all →</a>
           </div>
           <div className="recommendations-grid">
-            {recommendations.map(p => {
-              const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
-              const price = new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR'}).format(Number(p.price||0))
-              const comparePrice = p.compare_price ? new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR'}).format(Number(p.compare_price)) : null
-              const isDiscount = comparePrice && p.compare_price > p.price
-              return (
-                <a key={p.id} href={`/products/${p.slug||p.id}`} style={{textDecoration:'none',color:'inherit',display:'block'}}>
-                  <div style={{aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
-                    {img && <img src={img} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>}
-                  </div>
-                  <p style={{fontSize:11,color:'#9a9a92',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 6px'}}>{p.category||'Essentials'}</p>
-                  <h3 style={{fontSize:15,fontWeight:600,margin:'0 0 5px',lineHeight:1.3}}>{p.name}</h3>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <p style={{fontSize:15,fontWeight:600,margin:0,color:isDiscount?'#ef4444':'inherit'}}>{price}</p>
-                    {comparePrice && <p style={{fontSize:13,margin:0,color:'#aaa',textDecoration:'line-through'}}>{comparePrice}</p>}
-                  </div>
-                </a>
-              )
-            })}
+            {recommendations.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
           </div>
         </section>
       )}
