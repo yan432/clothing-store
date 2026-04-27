@@ -1996,6 +1996,75 @@ def delete_homepage_slide(slide_id: int):
     return {"ok": True}
 
 
+class ContactMessagePayload(BaseModel):
+    name: str
+    email: str
+    subject: Optional[str] = None
+    message: str
+
+@app.post("/contact")
+def send_contact_message(payload: ContactMessagePayload):
+    name    = str(payload.name or "").strip()
+    email   = normalize_email(payload.email)
+    subject = str(payload.subject or "").strip() or "Contact form message"
+    message = str(payload.message or "").strip()
+
+    if not name or not email or not message:
+        raise HTTPException(status_code=400, detail="Name, email and message are required")
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email is required")
+
+    admin_email = get_setting("admin_email", ZOHO_SMTP_USER or "sales@edmclothes.net")
+    site_url    = get_setting("site_url", "https://edmclothes.net")
+
+    # Email to admin
+    admin_html = f"""<!DOCTYPE html>
+<html><body style="font-family:sans-serif;padding:32px;color:#111;">
+  <h2 style="margin:0 0 16px">New contact message</h2>
+  <p><strong>From:</strong> {name} &lt;{email}&gt;</p>
+  <p><strong>Subject:</strong> {subject}</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p style="white-space:pre-wrap;line-height:1.6">{message}</p>
+  <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
+  <p style="color:#888;font-size:12px">Reply to: <a href="mailto:{email}">{email}</a></p>
+</body></html>"""
+    send_email(admin_email, f"[Contact] {subject} — {name}", admin_html, f"From: {name} <{email}>\n\n{message}")
+
+    # Confirmation to user
+    confirm_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#0a0a0a;padding:28px 40px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:17px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px 28px;">
+          <h1 style="margin:0 0 12px;font-size:20px;font-weight:600;color:#0a0a0a;">We got your message</h1>
+          <p style="margin:0 0 24px;font-size:15px;color:#6b6b66;line-height:1.6;">
+            Hi {name}, thanks for reaching out. We'll get back to you as soon as possible — usually within 1–2 business days.
+          </p>
+          <div style="background:#f5f5f3;border-radius:10px;padding:16px 20px;margin:0 0 24px;">
+            <p style="margin:0 0 4px;font-size:12px;color:#9b9b96;text-transform:uppercase;letter-spacing:0.08em;">Your message</p>
+            <p style="margin:0;font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap">{message}</p>
+          </div>
+          <a href="{site_url}/products" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:14px 32px;border-radius:999px;">Browse store</a>
+        </td></tr>
+        <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;"/></td></tr>
+        <tr><td style="padding:20px 40px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#b0b0a8;">© 2025 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+    send_email(email, "We received your message — EDM Clothes", confirm_html, f"Hi {name},\n\nThanks for reaching out! We'll reply within 1-2 business days.\n\nYour message:\n{message}")
+
+    return {"ok": True}
+
+
 @app.get("/email-subscribers")
 def list_email_subscribers(limit: int = 500, all: bool = False):
     safe_limit = max(1, min(int(limit or 500), 5000))

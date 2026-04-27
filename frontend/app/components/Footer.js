@@ -56,7 +56,7 @@ export default function Footer() {
     ...categories.map(cat => [cat, `/products?category=${encodeURIComponent(cat)}`]),
   ]
   const careLinks = [
-    ['Contact us','mailto:info@edmclothes.com'],
+    ['Contact us','/contact'],
     ['Shipping info','/shipping'],
     ['Returns & exchanges','/returns'],
     ['Size guide','/size-guide'],
