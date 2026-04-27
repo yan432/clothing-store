@@ -1814,9 +1814,92 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
     email = normalize_email(payload.email)
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
+
+    # Check if already subscribed (don't send duplicate welcome emails)
+    existing = supabase.table("email_subscribers").select("id").eq("email", email).limit(1).execute()
+    is_new = not existing.data
+
     capture_subscriber_email(email, payload.source or "unknown", payload.metadata or {})
-    promo_code = get_setting("popup_promo_code", "WELCOME10")
-    return {"ok": True, "promo_code": promo_code}
+
+    if is_new:
+        # Generate unique WELCOME_XXXXX code
+        welcome_code = None
+        for _ in range(10):
+            suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=5))
+            candidate = f"WELCOME_{suffix}"
+            exists = supabase.table("promo_codes").select("id").eq("code", candidate).limit(1).execute()
+            if not exists.data:
+                welcome_code = candidate
+                break
+
+        if welcome_code:
+            discount_pct = float(get_setting("welcome_discount_percent", "10"))
+            supabase.table("promo_codes").insert({
+                "code": welcome_code,
+                "discount_type": "percent",
+                "discount_value": discount_pct,
+                "usage_limit": 1,
+                "used_count": 0,
+                "is_active": True,
+                "one_per_email": True,
+            }).execute()
+
+            site_url = get_setting("site_url", "https://edmclothes.net")
+            discount_label = f"{int(discount_pct)}%" if discount_pct == int(discount_pct) else f"{discount_pct}%"
+            html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:16px;overflow:hidden;">
+        <tr>
+          <td style="background:#0a0a0a;padding:32px 40px;text-align:center;">
+            <p style="margin:0;color:#ffffff;font-size:18px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 40px 32px;">
+            <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">Welcome to EDM Clothes</h1>
+            <p style="margin:0 0 28px;font-size:15px;color:#6b6b66;line-height:1.6;">
+              Thanks for subscribing! Here's your exclusive discount code for <strong>{discount_label} off</strong> your first order:
+            </p>
+            <div style="background:#f5f5f3;border-radius:12px;padding:20px;text-align:center;margin:0 0 28px;">
+              <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">Your code</p>
+              <p style="margin:0;font-size:26px;font-weight:800;letter-spacing:0.12em;color:#0a0a0a;">{welcome_code}</p>
+            </div>
+            <table cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center">
+                  <a href="{site_url}/products"
+                     style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 40px;border-radius:999px;">
+                    Shop now
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:28px 0 0;font-size:13px;color:#9b9b96;line-height:1.6;">
+              Enter the code at checkout. Single use, valid on any order.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;margin:0;"/></td></tr>
+        <tr>
+          <td style="padding:24px 40px;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#b0b0a8;">
+              © 2025 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+            text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products"
+            send_email(email, "Welcome — here's your discount code", html, text)
+
+    return {"ok": True}
 
 
 @app.get("/settings")

@@ -12,7 +12,6 @@ export default function EmailCapturePopup() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
-  const [promoCode, setPromoCode] = useState('')
 
   const canShow = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -66,11 +65,8 @@ export default function EmailCapturePopup() {
         }),
       })
       if (!res.ok) throw new Error()
-      const data = await res.json().catch(() => ({}))
-      setPromoCode(data.promo_code || 'WELCOME10')
       setDone(true)
     } catch (_) {
-      setPromoCode('WELCOME10')
       setDone(true)
     } finally {
       setLoading(false)
@@ -95,16 +91,10 @@ export default function EmailCapturePopup() {
 
       {done ? (
         <div style={{ textAlign: 'center', padding: '8px 0' }}>
-          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Your code:</p>
-          <div style={{
-            fontSize: 22, fontWeight: 800, letterSpacing: '0.1em',
-            background: '#f5f5f3', borderRadius: 10, padding: '10px 16px',
-            margin: '0 0 8px', color: '#111',
-          }}>
-            {promoCode}
-          </div>
-          <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
-            10% off your order — use at checkout
+          <p style={{ fontSize: 28, margin: '0 0 8px' }}>✉️</p>
+          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Check your email</p>
+          <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
+            We sent your personal discount code to your inbox.
           </p>
         </div>
       ) : (
