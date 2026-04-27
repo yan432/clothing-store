@@ -18,7 +18,7 @@ export default function RecommendationsCarousel({ products }) {
     const el = trackRef.current
     if (!el) return
     const itemWidth = el.firstElementChild?.offsetWidth || 0
-    el.scrollBy({ left: dir * (itemWidth + 20), behavior: 'smooth' })
+    el.scrollBy({ left: dir * (itemWidth + 12), behavior: 'smooth' })
   }
 
   useEffect(() => {
@@ -31,22 +31,25 @@ export default function RecommendationsCarousel({ products }) {
 
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => scrollBy(-1)} aria-label="Previous" style={{
-        position: 'absolute', left: -16, top: '35%', transform: 'translateY(-50%)',
-        zIndex: 2, width: 36, height: 36, borderRadius: '50%',
-        background: '#fff', border: '1px solid #e5e5e0',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 16, opacity: canPrev ? 1 : 0, pointerEvents: canPrev ? 'auto' : 'none',
-        transition: 'opacity 200ms',
+
+      {/* Arrows — shown only on tablet+ via CSS */}
+      <button onClick={() => scrollBy(-1)} aria-label="Previous" className="rec-arrow rec-arrow-left" style={{
+        opacity: canPrev ? 1 : 0, pointerEvents: canPrev ? 'auto' : 'none',
       }}>‹</button>
 
-      <div ref={trackRef} style={{
-        display: 'flex', gap: 12,
-        overflowX: 'auto', scrollSnapType: 'x mandatory',
-        scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
-        paddingBottom: 4, touchAction: 'pan-x',
-      }}>
+      <div
+        ref={trackRef}
+        style={{
+          display: 'flex',
+          gap: 12,
+          overflowX: 'auto',
+          scrollSnapType: 'x mandatory',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x',
+        }}
+      >
         {products.map(p => (
           <div key={p.id} style={{ flex: '0 0 calc(50% - 6px)', scrollSnapAlign: 'start', minWidth: 0 }}>
             <ProductCard product={p} />
@@ -54,14 +57,8 @@ export default function RecommendationsCarousel({ products }) {
         ))}
       </div>
 
-      <button onClick={() => scrollBy(1)} aria-label="Next" style={{
-        position: 'absolute', right: -16, top: '35%', transform: 'translateY(-50%)',
-        zIndex: 2, width: 36, height: 36, borderRadius: '50%',
-        background: '#fff', border: '1px solid #e5e5e0',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 16, opacity: canNext ? 1 : 0, pointerEvents: canNext ? 'auto' : 'none',
-        transition: 'opacity 200ms',
+      <button onClick={() => scrollBy(1)} aria-label="Next" className="rec-arrow rec-arrow-right" style={{
+        opacity: canNext ? 1 : 0, pointerEvents: canNext ? 'auto' : 'none',
       }}>›</button>
     </div>
   )
