@@ -74,7 +74,7 @@ export default function AuthPage() {
     setLoading(true)
     const { error } = await requestPasswordReset(targetEmail)
     if (error) setError(error.message)
-    else setMessage('Password reset link sent to your email.')
+    else setMessage('Password reset link sent to your email. If you don\'t see it, check your spam folder.')
     setLoading(false)
   }
 
