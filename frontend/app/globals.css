@@ -224,13 +224,26 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   to   { transform: translateX(0); }
 }
 
-/* ── Home page grids (2 cols mobile) ───────────────── */
+/* ── Home page grids ────────────────────────────────── */
+
+/* Carousel: hidden by default, shown only at tablet widths */
+.home-arrivals-carousel { display: none; }
+
+/* Grid: shown on mobile and desktop, hidden at tablet */
 .home-arrivals-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px 12px;
 }
-@media (min-width: 640px) {
+
+/* Tablet: hide grid, show carousel */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .home-arrivals-grid { display: none; }
+  .home-arrivals-carousel { display: block; }
+}
+
+/* Desktop: show grid with auto columns */
+@media (min-width: 1024px) {
   .home-arrivals-grid {
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 32px 20px;

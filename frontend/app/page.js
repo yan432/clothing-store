@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
 import HeroCarousel from './components/HeroCarousel'
+import HomeArrivalsCarousel from './components/HomeArrivalsCarousel'
 
 async function getProducts() {
   try {
@@ -83,6 +84,8 @@ export default async function Home({ searchParams }) {
               View all →
             </a>
           </div>
+
+          {/* Mobile + desktop: regular grid */}
           <div className="home-arrivals-grid">
             {newArrivals.map(p => {
               const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
@@ -98,6 +101,11 @@ export default async function Home({ searchParams }) {
                 </a>
               )
             })}
+          </div>
+
+          {/* Tablet: 3-item carousel */}
+          <div className="home-arrivals-carousel">
+            <HomeArrivalsCarousel products={newArrivals} />
           </div>
         </section>
       )}
