@@ -3,6 +3,7 @@ import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
 import HeroCarousel from './components/HeroCarousel'
 import HomeArrivalsCarousel from './components/HomeArrivalsCarousel'
+import HomeCategoriesCarousel from './components/HomeCategoriesCarousel'
 
 async function getProducts() {
   try {
@@ -120,6 +121,8 @@ export default async function Home({ searchParams }) {
       {/* ── 4. CATEGORIES ─────────────────────────────── */}
       <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>Shop by category</h2>
+
+        {/* Mobile + desktop: grid */}
         <div className="home-categories-grid">
           {promoTiles.map(tile => (
             <a key={tile.title} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
@@ -129,6 +132,11 @@ export default async function Home({ searchParams }) {
               </div>
             </a>
           ))}
+        </div>
+
+        {/* Tablet: carousel */}
+        <div className="home-categories-carousel">
+          <HomeCategoriesCarousel tiles={promoTiles} />
         </div>
       </section>
 
