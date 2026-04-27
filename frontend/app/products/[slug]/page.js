@@ -2,6 +2,7 @@ import AddToCartButton from '../../components/AddToCartButton'
 import ProductGallery from '../../components/ProductGallery'
 import ProductViewTracker from '../../components/ProductViewTracker'
 import ProductCard from '../../components/ProductCard'
+import RecommendationsCarousel from '../../components/RecommendationsCarousel'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 
@@ -249,10 +250,16 @@ export default async function ProductPage({ params }) {
             <h2 style={{fontSize:18,fontWeight:700,margin:0,letterSpacing:'-0.01em'}}>You may also like</h2>
             <a href="/products" style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>View all →</a>
           </div>
+          {/* Mobile + desktop: grid */}
           <div className="recommendations-grid">
             {recommendations.map(p => (
               <ProductCard key={p.id} product={p} />
             ))}
+          </div>
+
+          {/* Tablet: 2-item carousel */}
+          <div className="recommendations-carousel">
+            <RecommendationsCarousel products={recommendations} />
           </div>
         </section>
       )}
