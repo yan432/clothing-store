@@ -10,6 +10,42 @@ async function getProduct(slug) {
   return res.json()
 }
 
+async function getAllProducts() {
+  try {
+    const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+    if (!res.ok) return []
+    const data = await res.json()
+    return Array.isArray(data) ? data : []
+  } catch { return [] }
+}
+
+function buildRecommendations(current, all) {
+  const pool = all.filter(p => p.id !== current.id && !p.is_hidden)
+  const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+
+  // Up to 2 from same category
+  const samecat = shuffle(pool.filter(p => p.category && p.category === current.category)).slice(0, 2)
+
+  // Fill remainder from other categories
+  const usedIds = new Set(samecat.map(p => p.id))
+  const otherCats = [...new Set(pool.filter(p => !usedIds.has(p.id) && p.category !== current.category).map(p => p.category))].filter(Boolean)
+  const randomCat = otherCats.length ? otherCats[Math.floor(Math.random() * otherCats.length)] : null
+  const otherPool = shuffle(randomCat
+    ? pool.filter(p => !usedIds.has(p.id) && p.category === randomCat)
+    : pool.filter(p => !usedIds.has(p.id))
+  )
+  const others = otherPool.slice(0, 4 - samecat.length)
+
+  // If still not enough, pad with any remaining
+  const total = [...samecat, ...others]
+  if (total.length < 4) {
+    const usedAll = new Set(total.map(p => p.id))
+    const extra = shuffle(pool.filter(p => !usedAll.has(p.id))).slice(0, 4 - total.length)
+    total.push(...extra)
+  }
+  return total.slice(0, 4)
+}
+
 export async function generateMetadata({ params }) {
   const { slug } = await params
   const product = await getProduct(slug)
@@ -36,8 +72,9 @@ export async function generateMetadata({ params }) {
 
 export default async function ProductPage({ params }) {
   const { slug } = await params
-  const product = await getProduct(slug)
+  const [product, allProducts] = await Promise.all([getProduct(slug), getAllProducts()])
   if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Product not found</div>
+  const recommendations = buildRecommendations(product, allProducts)
   const availableStock = product.available_stock ?? product.stock ?? 0
   const isInStock = availableStock > 0
   const isLowStock = availableStock > 0 && availableStock <= 5
@@ -203,6 +240,37 @@ export default async function ProductPage({ params }) {
           </div>
         </div>
       </main>
+
+      {/* ── RECOMMENDATIONS ─────────────────────────────── */}
+      {recommendations.length > 0 && (
+        <section style={{maxWidth:1220,margin:'0 auto',padding:'48px 24px 72px'}}>
+          <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:28}}>
+            <h2 style={{fontSize:18,fontWeight:700,margin:0,letterSpacing:'-0.01em'}}>You may also like</h2>
+            <a href="/products" style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>View all →</a>
+          </div>
+          <div className="recommendations-grid">
+            {recommendations.map(p => {
+              const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
+              const price = new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR'}).format(Number(p.price||0))
+              const comparePrice = p.compare_price ? new Intl.NumberFormat('de-DE', {style:'currency',currency:'EUR'}).format(Number(p.compare_price)) : null
+              const isDiscount = comparePrice && p.compare_price > p.price
+              return (
+                <a key={p.id} href={`/products/${p.slug||p.id}`} style={{textDecoration:'none',color:'inherit',display:'block'}}>
+                  <div style={{aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
+                    {img && <img src={img} alt={p.name} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}/>}
+                  </div>
+                  <p style={{fontSize:11,color:'#9a9a92',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 6px'}}>{p.category||'Essentials'}</p>
+                  <h3 style={{fontSize:15,fontWeight:600,margin:'0 0 5px',lineHeight:1.3}}>{p.name}</h3>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <p style={{fontSize:15,fontWeight:600,margin:0,color:isDiscount?'#ef4444':'inherit'}}>{price}</p>
+                    {comparePrice && <p style={{fontSize:13,margin:0,color:'#aaa',textDecoration:'line-through'}}>{comparePrice}</p>}
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+      )}
     </>
   )
 }

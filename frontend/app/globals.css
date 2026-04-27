@@ -250,6 +250,19 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   }
 }
 
+/* ── Recommendations grid ───────────────────────────── */
+.recommendations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 12px;
+}
+@media (min-width: 640px) {
+  .recommendations-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 28px 20px;
+  }
+}
+
 .home-categories-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
