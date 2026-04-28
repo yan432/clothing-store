@@ -962,11 +962,8 @@ def archive_product(product_id: int):
 @app.get("/products/{product_id}/size-stock")
 def get_product_size_stock(product_id: int):
     """Returns {size: stock} map for a product. Missing sizes = not tracked."""
-    try:
-        data = supabase.table("product_size_stock").select("size,stock").eq("product_id", product_id).execute()
-        return {row["size"]: row["stock"] for row in (data.data or [])}
-    except Exception:
-        return {}
+    data = supabase.table("product_size_stock").select("size,stock").eq("product_id", product_id).execute()
+    return {row["size"]: row["stock"] for row in (data.data or [])}
 
 @app.put("/products/{product_id}/size-stock")
 def update_product_size_stock(product_id: int, stock_map: dict):
