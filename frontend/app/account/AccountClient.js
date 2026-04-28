@@ -393,14 +393,24 @@ function orderStatusBadge(status) {
   return { label: status || 'Unknown', bg: '#f3f3f0', color: '#4f4f49' }
 }
 
+// Convert old div-based FAQ to details/summary if backend hasn't migrated yet
+function normaliseFaqHtml(html) {
+  if (!html || !html.includes('<div class="faq-item">')) return html
+  return html.replace(
+    /<div class="faq-item"><h3>([\s\S]*?)<\/h3><p>([\s\S]*?)<\/p><\/div>/g,
+    (_, q, a) => `<details class="faq-item"><summary>${q}</summary><p>${a}</p></details>`
+  )
+}
+
 function FaqSection({ html }) {
+  const safeHtml = normaliseFaqHtml(html)
   return (
     <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 24 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>FAQ</h2>
-      {html === null
+      {safeHtml === null
         ? <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
-        : html
-          ? <div className="faq-content" dangerouslySetInnerHTML={{ __html: html }} />
+        : safeHtml
+          ? <div className="faq-content" dangerouslySetInnerHTML={{ __html: safeHtml }} />
           : <p style={{ color: '#aaa', fontSize: 14 }}>No FAQ content yet.</p>
       }
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #ecece8' }}>

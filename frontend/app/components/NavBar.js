@@ -15,7 +15,7 @@ const INFO_LINKS = [
   { label: 'Shipping info',       href: '/shipping' },
   { label: 'Returns & exchanges', href: '/returns' },
   { label: 'Size guide',          href: '/size-guide' },
-  { label: 'FAQ',                 href: '/faq' },
+  { label: 'FAQ',                 href: '/account?tab=faq' },
 ]
 
 const ACCOUNT_LINKS = [

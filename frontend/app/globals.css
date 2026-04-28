@@ -689,7 +689,11 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
     flex-wrap: wrap;
   }
 }
-/* ── FAQ Accordion (details/summary) ─────────────────────────────────────── */
+/* ── FAQ Accordion (details/summary) + div fallback ──────────────────────── */
+.faq-content div.faq-item { border-bottom: 1px solid #ecece8; padding: 20px 0; }
+.faq-content div.faq-item:first-child { padding-top: 0; }
+.faq-content div.faq-item h3 { font-size: 15px; font-weight: 600; color: #111; margin: 0 0 10px; line-height: 1.4; }
+.faq-content div.faq-item p { font-size: 14px; color: #5f5f58; line-height: 1.75; margin: 0; }
 .faq-content details.faq-item {
   border-bottom: 1px solid #ecece8;
 }

@@ -7,14 +7,20 @@ export const metadata = {
   description: 'Frequently asked questions about orders, shipping, returns and more.',
 }
 
+function normaliseFaqHtml(html) {
+  if (!html || !html.includes('<div class="faq-item">')) return html
+  return html.replace(
+    /<div class="faq-item"><h3>([\s\S]*?)<\/h3><p>([\s\S]*?)<\/p><\/div>/g,
+    (_, q, a) => `<details class="faq-item"><summary>${q}</summary><p>${a}</p></details>`
+  )
+}
+
 async function getFaqHtml() {
   try {
     const res = await fetch(getApiUrl('/faq'), { next: { revalidate: 60 } })
     if (!res.ok) return ''
     const d = await res.json()
-    // New format: { html: "..." }
-    if (d && typeof d.html === 'string') return d.html
-    // Old format was an array — return empty (backend will auto-migrate on next call)
+    if (d && typeof d.html === 'string') return normaliseFaqHtml(d.html)
     return ''
   } catch { return '' }
 }
