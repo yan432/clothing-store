@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 import os
 import random
 import re
@@ -2062,6 +2063,84 @@ def send_contact_message(payload: ContactMessagePayload):
 </body></html>"""
     send_email(email, "We received your message — EDM Clothes", confirm_html, f"Hi {name},\n\nThanks for reaching out! We'll reply within 1-2 business days.\n\nYour message:\n{message}")
 
+    return {"ok": True}
+
+
+# ── FAQ & Static Pages ──────────────────────────────────────────────────────
+
+DEFAULT_FAQ = json.dumps([
+    {"id": "1", "question": "How long does shipping take?", "answer": "Standard shipping takes 5–10 business days within Europe. Express options may be available at checkout.", "active": True},
+    {"id": "2", "question": "Do you ship internationally?", "answer": "Yes, we ship to most countries in Europe and beyond. Shipping costs are calculated at checkout based on your location.", "active": True},
+    {"id": "3", "question": "What is your return policy?", "answer": "We accept returns within 14 days of delivery. Items must be unworn, unwashed, and in original condition with tags attached.", "active": True},
+    {"id": "4", "question": "How do I track my order?", "answer": "Once your order ships, you'll receive a confirmation email with a tracking number. You can also check your order status in your account.", "active": True},
+    {"id": "5", "question": "Can I change or cancel my order?", "answer": "Orders can be changed or cancelled within 1 hour of placement. After that, they enter processing and cannot be modified. Contact us immediately if you need help.", "active": True},
+    {"id": "6", "question": "What payment methods do you accept?", "answer": "We accept all major credit and debit cards (Visa, Mastercard, Amex) as well as Apple Pay and Google Pay.", "active": True},
+])
+
+DEFAULT_SHIPPING = json.dumps({
+    "sections": [
+        {"title": "Processing time", "body": "All orders are processed within 1–3 business days. Orders placed on weekends or public holidays are processed the next business day."},
+        {"title": "Shipping rates", "body": "Standard shipping is €30. Free shipping is available on orders over €120."},
+        {"title": "Delivery times", "body": "Standard shipping takes 5–10 business days within Europe. International shipping may take longer depending on the destination country."},
+        {"title": "Tracking", "body": "Once your order ships, you'll receive an email with a tracking number. Use it to follow your parcel on the carrier's website."},
+        {"title": "Customs & duties", "body": "For orders outside the EU, customs duties and import taxes may apply. These are the responsibility of the customer and are not included in our prices."},
+    ]
+})
+
+DEFAULT_RETURNS = json.dumps({
+    "sections": [
+        {"title": "Return window", "body": "We accept returns within 14 days of the delivery date. After this period, we are unable to accept returns."},
+        {"title": "Eligibility", "body": "Items must be unworn, unwashed, and undamaged with original tags attached. Final Sale and custom items are not eligible for return."},
+        {"title": "How to return", "body": "Email us at sales@edmclothes.net with your order number and reason for return. We'll send you instructions within 1–2 business days."},
+        {"title": "Refunds", "body": "Once your return is received and approved, your refund will be processed to the original payment method within 5–10 business days."},
+        {"title": "Exchanges", "body": "Free exchanges are available for a different size or colour of the same item, subject to availability."},
+        {"title": "Return shipping", "body": "Return shipping costs are the customer's responsibility unless the return is due to our error (wrong or defective item)."},
+    ]
+})
+
+def get_json_setting(key: str, default: str) -> list | dict:
+    raw = get_setting(key, default)
+    try:
+        return json.loads(raw)
+    except Exception:
+        return json.loads(default)
+
+def set_json_setting(key: str, value) -> None:
+    supabase.table("settings").upsert(
+        {"key": key, "value": json.dumps(value, ensure_ascii=False), "updated_at": now_iso()},
+        on_conflict="key"
+    ).execute()
+
+@app.get("/faq")
+def get_faq():
+    items = get_json_setting("faq_content", DEFAULT_FAQ)
+    if isinstance(items, list):
+        return [i for i in items if i.get("active", True)]
+    return []
+
+@app.get("/faq/admin")
+def get_faq_admin():
+    return get_json_setting("faq_content", DEFAULT_FAQ)
+
+@app.put("/faq/admin")
+def update_faq(items: list):
+    set_json_setting("faq_content", items)
+    return {"ok": True}
+
+@app.get("/pages/{slug}")
+def get_page(slug: str):
+    allowed = {"shipping", "returns"}
+    if slug not in allowed:
+        raise HTTPException(status_code=404, detail="Page not found")
+    default = DEFAULT_SHIPPING if slug == "shipping" else DEFAULT_RETURNS
+    return get_json_setting(f"page_{slug}", default)
+
+@app.put("/pages/{slug}")
+def update_page(slug: str, data: dict):
+    allowed = {"shipping", "returns"}
+    if slug not in allowed:
+        raise HTTPException(status_code=404, detail="Page not found")
+    set_json_setting(f"page_{slug}", data)
     return {"ok": True}
 
 

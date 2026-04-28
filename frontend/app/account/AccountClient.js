@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../lib/api'
+import FaqAccordion from '../components/FaqAccordion'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],
@@ -393,6 +394,27 @@ function orderStatusBadge(status) {
   return { label: status || 'Unknown', bg: '#f3f3f0', color: '#4f4f49' }
 }
 
+function FaqSection() {
+  const [items, setItems] = useState([])
+  useEffect(() => {
+    fetch(getApiUrl('/faq')).then(r => r.json()).then(d => setItems(Array.isArray(d) ? d : [])).catch(() => {})
+  }, [])
+  return (
+    <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 24 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>FAQ</h2>
+      <FaqAccordion items={items} />
+      <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #ecece8' }}>
+        <p style={{ fontSize: 14, color: '#666', margin: '0 0 12px' }}>
+          Didn't find what you were looking for?
+        </p>
+        <a href="/contact" style={{ display: 'inline-block', background: '#0a0a0a', color: '#fff', textDecoration: 'none', padding: '10px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>
+          Contact us
+        </a>
+      </div>
+    </div>
+  )
+}
+
 function OrdersSection({ user }) {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
@@ -481,11 +503,13 @@ function OrdersSection({ user }) {
 const NAV_ITEMS = [
   { id: 'account', label: 'My account', href: '/account' },
   { id: 'orders',  label: 'Orders',     href: '/account?tab=orders' },
+  { id: 'faq',     label: 'FAQ',        href: '/account?tab=faq' },
 ]
 
 export default function AccountClient({ activeTab }) {
   const { user, signOut, updatePassword, updateEmail, reauthenticate, requestPasswordReset } = useAuth()
   const isOrders = activeTab === 'orders'
+  const isFaq    = activeTab === 'faq'
 
   return (
     <main style={{ maxWidth: 920, margin: '0 auto', padding: '36px 20px 70px' }}>
@@ -509,7 +533,7 @@ export default function AccountClient({ activeTab }) {
           )}
           <div className="account-sidebar-nav" style={{ display: 'flex', flexDirection: 'column' }}>
             {NAV_ITEMS.map((item, i) => {
-              const active = isOrders ? item.id === 'orders' : item.id === 'account'
+              const active = isFaq ? item.id === 'faq' : isOrders ? item.id === 'orders' : item.id === 'account'
               return (
                 <a key={item.id} href={item.href}
                   style={{
@@ -531,6 +555,8 @@ export default function AccountClient({ activeTab }) {
         <div>
           {!user ? (
             <p style={{ fontSize: 14, color: '#888' }}>Sign in to view your account.</p>
+          ) : isFaq ? (
+            <FaqSection />
           ) : isOrders ? (
             <OrdersSection user={user} />
           ) : (
