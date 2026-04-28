@@ -36,7 +36,7 @@ export default function FaqAccordion({ items = [] }) {
             <div style={{
               overflow: 'hidden',
               maxHeight: isOpen ? 600 : 0,
-              transition: 'max-height 280ms ease',
+              transition: isOpen ? 'max-height 280ms ease' : 'none',
             }}>
               <p style={{ fontSize: 14, color: '#5f5f58', lineHeight: 1.75, margin: '0 0 18px', paddingRight: 32 }}>
                 {item.answer}
