@@ -48,13 +48,13 @@ function FaqEditor() {
         </div>
       </div>
       <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 10px', lineHeight: 1.6 }}>
-        Use <code style={{ background: '#f3f3f0', padding: '1px 5px', borderRadius: 4 }}>&lt;div class="faq-item"&gt;&lt;h3&gt;Question&lt;/h3&gt;&lt;p&gt;Answer&lt;/p&gt;&lt;/div&gt;</code> for each item.
+        Use <code style={{ background: '#f3f3f0', padding: '1px 5px', borderRadius: 4 }}>&lt;details class="faq-item"&gt;&lt;summary&gt;Question&lt;/summary&gt;&lt;p&gt;Answer&lt;/p&gt;&lt;/details&gt;</code> for each item.
       </p>
       <textarea
         value={html}
         onChange={e => setHtml(e.target.value)}
         rows={22}
-        placeholder={'<div class="faq-item">\n  <h3>Question here?</h3>\n  <p>Answer here.</p>\n</div>'}
+        placeholder={'<details class="faq-item">\n  <summary>Question here?</summary>\n  <p>Answer here.</p>\n</details>'}
         style={{ ...ta, fontFamily: 'monospace', fontSize: 13 }}
         spellCheck={false}
       />

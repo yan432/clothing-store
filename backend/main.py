@@ -979,7 +979,10 @@ def update_product_size_stock(product_id: int, stock_map: dict):
 def get_inventory():
     """All visible products with their per-size stock for CMS."""
     products = supabase.table("products").select("id,name,slug,tags").eq("is_hidden", False).neq("category", "archived").order("name").execute()
-    size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+    try:
+        size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+    except Exception:
+        size_stocks_raw = type("R", (), {"data": []})()  # empty fallback if table missing
 
     stock_by_product: dict = {}
     for row in (size_stocks_raw.data or []):
@@ -1002,12 +1005,14 @@ def get_inventory():
 @app.put("/admin/inventory")
 def update_inventory(updates: list):
     """Batch upsert: [{product_id, size, stock}]"""
-    for row in updates:
-        supabase.table("product_size_stock").upsert(
-            {"product_id": int(row["product_id"]), "size": str(row["size"]), "stock": max(0, int(row.get("stock") or 0))},
-            on_conflict="product_id,size"
-        ).execute()
-    return {"ok": True}
+    if not updates:
+        return {"ok": True, "count": 0}
+    rows = [
+        {"product_id": int(r["product_id"]), "size": str(r["size"]), "stock": max(0, int(r.get("stock") or 0))}
+        for r in updates
+    ]
+    supabase.table("product_size_stock").upsert(rows, on_conflict="product_id,size").execute()
+    return {"ok": True, "count": len(rows)}
 
 
 @app.post("/upload")
@@ -2122,12 +2127,12 @@ def send_contact_message(payload: ContactMessagePayload):
 
 # ── FAQ & Static Pages ──────────────────────────────────────────────────────
 
-DEFAULT_FAQ_HTML = """<div class="faq-item"><h3>How long does shipping take?</h3><p>Standard shipping takes 5–10 business days within Europe. Express options may be available at checkout.</p></div>
-<div class="faq-item"><h3>Do you ship internationally?</h3><p>Yes, we ship to most countries in Europe and beyond. Shipping costs are calculated at checkout based on your location.</p></div>
-<div class="faq-item"><h3>What is your return policy?</h3><p>We accept returns within 14 days of delivery. Items must be unworn, unwashed, and in original condition with tags attached.</p></div>
-<div class="faq-item"><h3>How do I track my order?</h3><p>Once your order ships, you'll receive a confirmation email with a tracking number. You can also check your order status in your account.</p></div>
-<div class="faq-item"><h3>Can I change or cancel my order?</h3><p>Orders can be changed or cancelled within 1 hour of placement. After that, they enter processing and cannot be modified. Contact us immediately if you need help.</p></div>
-<div class="faq-item"><h3>What payment methods do you accept?</h3><p>We accept all major credit and debit cards (Visa, Mastercard, Amex) as well as Apple Pay and Google Pay.</p></div>"""
+DEFAULT_FAQ_HTML = """<details class="faq-item"><summary>How long does shipping take?</summary><p>Standard shipping takes 5–10 business days within Europe. Express options may be available at checkout.</p></details>
+<details class="faq-item"><summary>Do you ship internationally?</summary><p>Yes, we ship to most countries in Europe and beyond. Shipping costs are calculated at checkout based on your location.</p></details>
+<details class="faq-item"><summary>What is your return policy?</summary><p>We accept returns within 14 days of delivery. Items must be unworn, unwashed, and in original condition with tags attached.</p></details>
+<details class="faq-item"><summary>How do I track my order?</summary><p>Once your order ships, you'll receive a confirmation email with a tracking number. You can also check your order status in your account.</p></details>
+<details class="faq-item"><summary>Can I change or cancel my order?</summary><p>Orders can be changed or cancelled within 1 hour of placement. After that, they enter processing and cannot be modified. Contact us immediately if you need help.</p></details>
+<details class="faq-item"><summary>What payment methods do you accept?</summary><p>We accept all major credit and debit cards (Visa, Mastercard, Amex) as well as Apple Pay and Google Pay.</p></details>"""
 
 DEFAULT_SHIPPING = json.dumps({
     "sections": [

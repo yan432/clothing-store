@@ -22,21 +22,23 @@ export default function InventoryClient() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
 
   useEffect(() => {
     fetch(getApiUrl('/admin/inventory'))
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
-        setProducts(Array.isArray(data) ? data : [])
-        // Init draft from loaded size_stock
+        const list = Array.isArray(data) ? data : []
+        setProducts(list)
         const d = {}
-        for (const p of (Array.isArray(data) ? data : [])) {
-          d[p.id] = { ...p.size_stock }
-        }
+        for (const p of list) d[p.id] = { ...p.size_stock }
         setDraft(d)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(err => {
+        setSaveErr(`Failed to load inventory (${err}). Make sure the product_size_stock table exists in Supabase.`)
+        setLoading(false)
+      })
   }, [])
 
   const setStock = (productId, size, val) => {
@@ -47,7 +49,7 @@ export default function InventoryClient() {
   }
 
   const save = async () => {
-    setSaving(true); setSaved(false)
+    setSaving(true); setSaved(false); setSaveErr('')
     const updates = []
     for (const [productId, sizes] of Object.entries(draft)) {
       for (const [size, stock] of Object.entries(sizes)) {
@@ -56,15 +58,23 @@ export default function InventoryClient() {
         }
       }
     }
-    await fetch(getApiUrl('/admin/inventory'), {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    })
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500)
+    try {
+      const res = await fetch(getApiUrl('/admin/inventory'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}))
+        setSaveErr(`Save failed (${res.status}): ${detail?.detail || 'Check that product_size_stock table exists in Supabase.'}`)
+      } else {
+        setSaved(true); setTimeout(() => setSaved(false), 2500)
+      }
+    } catch (e) {
+      setSaveErr(`Network error: ${e.message}`)
+    }
+    setSaving(false)
   }
-
-  if (loading) return <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
 
   // All distinct sizes across all products (preserving order from SIZE_PRESET_OPTIONS)
   const allSizeSets = products.map(p => new Set(parseSizeOptionsFromTags(p.tags)))
@@ -85,8 +95,15 @@ export default function InventoryClient() {
     return '#bbf7d0'
   }
 
+  if (loading) return <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
+
   return (
     <div>
+      {saveErr && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#dc2626' }}>
+          {saveErr}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <p style={{ margin: 0, fontSize: 13, color: '#888' }}>

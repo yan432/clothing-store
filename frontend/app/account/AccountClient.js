@@ -393,14 +393,7 @@ function orderStatusBadge(status) {
   return { label: status || 'Unknown', bg: '#f3f3f0', color: '#4f4f49' }
 }
 
-function FaqSection() {
-  const [html, setHtml] = useState(null) // null = loading, '' = empty, string = content
-  useEffect(() => {
-    fetch(getApiUrl('/faq'))
-      .then(r => r.json())
-      .then(d => setHtml(d && typeof d.html === 'string' ? d.html : ''))
-      .catch(() => setHtml(''))
-  }, [])
+function FaqSection({ html }) {
   return (
     <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 24 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>FAQ</h2>
@@ -518,6 +511,15 @@ export default function AccountClient({ activeTab }) {
   const isOrders = activeTab === 'orders'
   const isFaq    = activeTab === 'faq'
 
+  // Prefetch FAQ immediately on mount so it's ready when user clicks the tab
+  const [faqHtml, setFaqHtml] = useState(null)
+  useEffect(() => {
+    fetch(getApiUrl('/faq'))
+      .then(r => r.json())
+      .then(d => setFaqHtml(d && typeof d.html === 'string' ? d.html : ''))
+      .catch(() => setFaqHtml(''))
+  }, [])
+
   return (
     <main style={{ maxWidth: 920, margin: '0 auto', padding: '36px 20px 70px' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
@@ -563,7 +565,7 @@ export default function AccountClient({ activeTab }) {
           {!user ? (
             <p style={{ fontSize: 14, color: '#888' }}>Sign in to view your account.</p>
           ) : isFaq ? (
-            <FaqSection />
+            <FaqSection html={faqHtml} />
           ) : isOrders ? (
             <OrdersSection user={user} />
           ) : (
