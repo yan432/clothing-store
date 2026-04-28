@@ -394,16 +394,21 @@ function orderStatusBadge(status) {
 }
 
 function FaqSection() {
-  const [html, setHtml] = useState('')
+  const [html, setHtml] = useState(null) // null = loading, '' = empty, string = content
   useEffect(() => {
-    fetch(getApiUrl('/faq')).then(r => r.json()).then(d => setHtml(d.html || '')).catch(() => {})
+    fetch(getApiUrl('/faq'))
+      .then(r => r.json())
+      .then(d => setHtml(d && typeof d.html === 'string' ? d.html : ''))
+      .catch(() => setHtml(''))
   }, [])
   return (
     <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 24 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>FAQ</h2>
-      {html
-        ? <div className="faq-content" dangerouslySetInnerHTML={{ __html: html }} />
-        : <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
+      {html === null
+        ? <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
+        : html
+          ? <div className="faq-content" dangerouslySetInnerHTML={{ __html: html }} />
+          : <p style={{ color: '#aaa', fontSize: 14 }}>No FAQ content yet.</p>
       }
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #ecece8' }}>
         <p style={{ fontSize: 14, color: '#666', margin: '0 0 12px' }}>

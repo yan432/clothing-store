@@ -23,6 +23,7 @@ load_dotenv()
 app = FastAPI(title="Clothing Store API")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -2165,19 +2166,45 @@ def set_json_setting(key: str, value) -> None:
         on_conflict="key"
     ).execute()
 
+def _get_faq_html() -> str:
+    """Return FAQ HTML, auto-initialising the DB key with default content if missing."""
+    # Check raw DB value (not using get_setting so we can distinguish missing vs empty)
+    try:
+        row = supabase.table("settings").select("value").eq("key", "faq_html").limit(1).execute()
+        if row.data:
+            val = row.data[0].get("value") or ""
+            if val.strip():
+                return val
+    except Exception:
+        pass
+    # Key missing or empty — write default so CMS shows correct content
+    try:
+        supabase.table("settings").upsert(
+            {"key": "faq_html", "value": DEFAULT_FAQ_HTML, "updated_at": now_iso()},
+            on_conflict="key"
+        ).execute()
+    except Exception:
+        pass
+    return DEFAULT_FAQ_HTML
+
 @app.get("/faq")
 def get_faq():
-    html = get_setting("faq_html", DEFAULT_FAQ_HTML)
-    return {"html": html}
+    return {"html": _get_faq_html()}
 
 @app.get("/faq/admin")
 def get_faq_admin():
-    html = get_setting("faq_html", DEFAULT_FAQ_HTML)
-    return {"html": html}
+    return {"html": _get_faq_html()}
 
 @app.put("/faq/admin")
-def update_faq(data: dict):
-    html = data.get("html", "")
+async def update_faq(request: Request):
+    body = await request.json()
+    # Accept both {"html": "..."} and plain string
+    if isinstance(body, dict):
+        html = body.get("html", "")
+    elif isinstance(body, str):
+        html = body
+    else:
+        html = ""
     supabase.table("settings").upsert(
         {"key": "faq_html", "value": html, "updated_at": now_iso()},
         on_conflict="key"

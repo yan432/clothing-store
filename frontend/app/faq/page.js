@@ -12,7 +12,10 @@ async function getFaqHtml() {
     const res = await fetch(getApiUrl('/faq'), { next: { revalidate: 60 } })
     if (!res.ok) return ''
     const d = await res.json()
-    return d.html || ''
+    // New format: { html: "..." }
+    if (d && typeof d.html === 'string') return d.html
+    // Old format was an array — return empty (backend will auto-migrate on next call)
+    return ''
   } catch { return '' }
 }
 
