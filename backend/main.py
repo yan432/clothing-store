@@ -1003,8 +1003,10 @@ def get_inventory():
     return result
 
 @app.put("/admin/inventory")
-def update_inventory(updates: list):
-    """Batch upsert: [{product_id, size, stock}]"""
+async def update_inventory(request: Request):
+    """Batch upsert: [{product_id, size, stock}]
+    Also syncs product-level available_stock = sum of all its sizes."""
+    updates = await request.json()
     if not updates:
         return {"ok": True, "count": 0}
     rows = [
@@ -1012,6 +1014,14 @@ def update_inventory(updates: list):
         for r in updates
     ]
     supabase.table("product_size_stock").upsert(rows, on_conflict="product_id,size").execute()
+
+    # Sync product-level available_stock = sum of all sizes for each affected product
+    affected_products = list({r["product_id"] for r in rows})
+    for pid in affected_products:
+        size_data = supabase.table("product_size_stock").select("stock").eq("product_id", pid).execute()
+        total = sum(row["stock"] for row in (size_data.data or []))
+        supabase.table("products").update({"available_stock": total, "stock": total}).eq("id", pid).execute()
+
     return {"ok": True, "count": len(rows)}
 
 
@@ -2168,14 +2178,28 @@ def set_json_setting(key: str, value) -> None:
         on_conflict="key"
     ).execute()
 
+def _migrate_faq_to_details(html: str) -> str:
+    """Migrate old <div class="faq-item"><h3>Q</h3><p>A</p></div> to <details> accordion."""
+    return re.sub(
+        r'<div class="faq-item"><h3>(.*?)</h3><p>(.*?)</p></div>',
+        r'<details class="faq-item"><summary>\1</summary><p>\2</p></details>',
+        html, flags=re.DOTALL
+    )
+
 def _get_faq_html() -> str:
-    """Return FAQ HTML, auto-initialising the DB key with default content if missing."""
-    # Check raw DB value (not using get_setting so we can distinguish missing vs empty)
+    """Return FAQ HTML, auto-initialising and auto-migrating from old format if needed."""
     try:
         row = supabase.table("settings").select("value").eq("key", "faq_html").limit(1).execute()
         if row.data:
             val = row.data[0].get("value") or ""
             if val.strip():
+                # Auto-migrate old div-based format to details/summary
+                if '<div class="faq-item">' in val:
+                    val = _migrate_faq_to_details(val)
+                    supabase.table("settings").upsert(
+                        {"key": "faq_html", "value": val, "updated_at": now_iso()},
+                        on_conflict="key"
+                    ).execute()
                 return val
     except Exception:
         pass
