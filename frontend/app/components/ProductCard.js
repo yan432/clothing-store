@@ -85,7 +85,7 @@ export default function ProductCard({ product, colorSiblings = [] }) {
 
   return (
     <article
-      style={{display:'flex',flexDirection:'column',gap:12,touchAction:'pan-y'}}
+      style={{display:'flex',flexDirection:'column',gap:12}}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
