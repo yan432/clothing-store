@@ -956,6 +956,62 @@ def archive_product(product_id: int):
     return _decorate_product_with_images(data.data[0])
 
 
+# ── Per-size stock ────────────────────────────────────────────────────────────
+
+@app.get("/products/{product_id}/size-stock")
+def get_product_size_stock(product_id: int):
+    """Returns {size: stock} map for a product. Missing sizes = not tracked."""
+    try:
+        data = supabase.table("product_size_stock").select("size,stock").eq("product_id", product_id).execute()
+        return {row["size"]: row["stock"] for row in (data.data or [])}
+    except Exception:
+        return {}
+
+@app.put("/products/{product_id}/size-stock")
+def update_product_size_stock(product_id: int, stock_map: dict):
+    """Upsert size stock for a product. stock_map = {size: stock_int}."""
+    for size, stock in stock_map.items():
+        supabase.table("product_size_stock").upsert(
+            {"product_id": product_id, "size": str(size), "stock": max(0, int(stock or 0))},
+            on_conflict="product_id,size"
+        ).execute()
+    return {"ok": True}
+
+@app.get("/admin/inventory")
+def get_inventory():
+    """All visible products with their per-size stock for CMS."""
+    products = supabase.table("products").select("id,name,slug,tags").eq("is_hidden", False).neq("category", "archived").order("name").execute()
+    size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+
+    stock_by_product: dict = {}
+    for row in (size_stocks_raw.data or []):
+        pid = row["product_id"]
+        if pid not in stock_by_product:
+            stock_by_product[pid] = {}
+        stock_by_product[pid][row["size"]] = row["stock"]
+
+    result = []
+    for p in (products.data or []):
+        result.append({
+            "id": p["id"],
+            "name": p["name"],
+            "slug": p.get("slug") or str(p["id"]),
+            "tags": p.get("tags") or [],
+            "size_stock": stock_by_product.get(p["id"], {}),
+        })
+    return result
+
+@app.put("/admin/inventory")
+def update_inventory(updates: list):
+    """Batch upsert: [{product_id, size, stock}]"""
+    for row in updates:
+        supabase.table("product_size_stock").upsert(
+            {"product_id": int(row["product_id"]), "size": str(row["size"]), "stock": max(0, int(row.get("stock") or 0))},
+            on_conflict="product_id,size"
+        ).execute()
+    return {"ok": True}
+
+
 @app.post("/upload")
 async def upload_image(file: UploadFile = File(...)):
     ext = file.filename.split(".")[-1]

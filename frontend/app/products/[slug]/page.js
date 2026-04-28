@@ -21,6 +21,14 @@ async function getAllProducts() {
   } catch { return [] }
 }
 
+async function getSizeStock(productId) {
+  try {
+    const res = await fetch(getApiUrl(`/products/${productId}/size-stock`), { cache: 'no-store' })
+    if (!res.ok) return {}
+    return res.json()
+  } catch { return {} }
+}
+
 function buildRecommendations(current, all) {
   const pool = all.filter(p => p.id !== current.id && !p.is_hidden)
   const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
@@ -75,6 +83,7 @@ export async function generateMetadata({ params }) {
 export default async function ProductPage({ params }) {
   const { slug } = await params
   const [product, allProducts] = await Promise.all([getProduct(slug), getAllProducts()])
+  const sizeStock = product ? await getSizeStock(product.id) : {}
   if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Product not found</div>
   const recommendations = buildRecommendations(product, allProducts)
   const availableStock = product.available_stock ?? product.stock ?? 0
@@ -194,7 +203,7 @@ export default async function ProductPage({ params }) {
               </div>
             )}
 
-            <AddToCartButton product={product} showSizeSelector />
+            <AddToCartButton product={product} showSizeSelector sizeStock={sizeStock} />
 
             <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{product.description}</p>
 
