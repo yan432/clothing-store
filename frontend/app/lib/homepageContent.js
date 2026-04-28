@@ -9,7 +9,7 @@ export const homepageContent = {
   promoTiles: [
     { title: 'Tops', image: 'https://assets.bigcartel.com/product_images/375955351/0.jpg', href: '/products?category=Tops' },
     { title: 'Bottoms', image: 'https://assets.bigcartel.com/product_images/366159652/%D1%8F.jpg', href: '/products?category=Bottoms' },
-    { title: 'Outerwear', image: 'https://assets.bigcartel.com/product_images/8f4e20e9-d626-48c0-b5e9-775774d167eb/riot-bomber.jpg', href: '/products?category=Outerwear' },
+    { title: 'Sale', image: 'https://assets.bigcartel.com/product_images/8f4e20e9-d626-48c0-b5e9-775774d167eb/riot-bomber.jpg', href: '/products?special=sale' },
     { title: 'All products', image: 'https://assets.bigcartel.com/product_images/375946147/1.jpg', href: '/products' },
   ],
   spotlight: {

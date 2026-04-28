@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../lib/api'
-import FaqAccordion from '../components/FaqAccordion'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],
@@ -395,14 +394,17 @@ function orderStatusBadge(status) {
 }
 
 function FaqSection() {
-  const [items, setItems] = useState([])
+  const [html, setHtml] = useState('')
   useEffect(() => {
-    fetch(getApiUrl('/faq')).then(r => r.json()).then(d => setItems(Array.isArray(d) ? d : [])).catch(() => {})
+    fetch(getApiUrl('/faq')).then(r => r.json()).then(d => setHtml(d.html || '')).catch(() => {})
   }, [])
   return (
     <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 24 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>FAQ</h2>
-      <FaqAccordion items={items} />
+      {html
+        ? <div className="faq-content" dangerouslySetInnerHTML={{ __html: html }} />
+        : <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
+      }
       <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid #ecece8' }}>
         <p style={{ fontSize: 14, color: '#666', margin: '0 0 12px' }}>
           Didn't find what you were looking for?

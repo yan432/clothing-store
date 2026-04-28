@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { getApiUrl } from '../../lib/api'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-const uid = () => Math.random().toString(36).slice(2)
 const btn = (label, onClick, opts = {}) => (
   <button onClick={onClick} style={{
     border: '1px solid #e5e5e0', borderRadius: 8, padding: '7px 14px',
@@ -18,26 +17,20 @@ const btn = (label, onClick, opts = {}) => (
 
 const ta = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #e5e5e0', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical' }
 
-// ── FAQ Editor ────────────────────────────────────────────────────────────────
+// ── FAQ Editor (HTML) ─────────────────────────────────────────────────────────
 function FaqEditor() {
-  const [items, setItems] = useState([])
+  const [html, setHtml] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
-    fetch(getApiUrl('/faq/admin')).then(r => r.json()).then(d => { setItems(Array.isArray(d) ? d : []); setLoading(false) })
+    fetch(getApiUrl('/faq/admin')).then(r => r.json()).then(d => { setHtml(d.html || ''); setLoading(false) })
   }, [])
-
-  const update = (id, field, val) => setItems(items.map(i => i.id === id ? { ...i, [field]: val } : i))
-  const moveUp = (idx) => { if (idx === 0) return; const a = [...items]; [a[idx-1], a[idx]] = [a[idx], a[idx-1]]; setItems(a) }
-  const moveDown = (idx) => { if (idx === items.length - 1) return; const a = [...items]; [a[idx], a[idx+1]] = [a[idx+1], a[idx]]; setItems(a) }
-  const remove = (id) => setItems(items.filter(i => i.id !== id))
-  const add = () => setItems([...items, { id: uid(), question: '', answer: '', active: true }])
 
   const save = async () => {
     setSaving(true); setSaved(false)
-    await fetch(getApiUrl('/faq/admin'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(items) })
+    await fetch(getApiUrl('/faq/admin'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ html }) })
     setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500)
   }
 
@@ -45,48 +38,26 @@ function FaqEditor() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>{items.length} questions · <a href="/faq" target="_blank" rel="noopener noreferrer" style={{ color: '#888' }}>View page ↗</a></p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
+          HTML content · <a href="/faq" target="_blank" rel="noopener noreferrer" style={{ color: '#888' }}>View page ↗</a>
+        </p>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {saved && <span style={{ fontSize: 13, color: '#15803d' }}>✓ Saved</span>}
-          {btn('+ Add question', add)}
-          {btn(saving ? 'Saving…' : 'Save all', save, { primary: true, disabled: saving })}
+          {btn(saving ? 'Saving…' : 'Save', save, { primary: true, disabled: saving })}
         </div>
       </div>
-
-      {items.map((item, idx) => (
-        <div key={item.id} style={{ border: '1px solid #e5e5e0', borderRadius: 12, padding: 16, marginBottom: 12, background: item.active ? '#fff' : '#fafaf8', opacity: item.active ? 1 : 0.65 }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 10, alignItems: 'center' }}>
-            <span style={{ fontSize: 12, color: '#aaa', minWidth: 20 }}>#{idx + 1}</span>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {btn('↑', () => moveUp(idx))}
-              {btn('↓', () => moveDown(idx))}
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#555', cursor: 'pointer', marginLeft: 4 }}>
-              <input type="checkbox" checked={item.active} onChange={e => update(item.id, 'active', e.target.checked)} />
-              Visible
-            </label>
-            <div style={{ marginLeft: 'auto' }}>{btn('Delete', () => remove(item.id), { danger: true })}</div>
-          </div>
-          <input
-            value={item.question} onChange={e => update(item.id, 'question', e.target.value)}
-            placeholder="Question"
-            style={{ ...ta, resize: 'none', marginBottom: 8, fontWeight: 600 }}
-          />
-          <textarea
-            value={item.answer} onChange={e => update(item.id, 'answer', e.target.value)}
-            placeholder="Answer"
-            rows={3}
-            style={ta}
-          />
-        </div>
-      ))}
-
-      {items.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#bbb', fontSize: 14 }}>
-          No questions yet. Click "Add question" to get started.
-        </div>
-      )}
+      <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 10px', lineHeight: 1.6 }}>
+        Use <code style={{ background: '#f3f3f0', padding: '1px 5px', borderRadius: 4 }}>&lt;div class="faq-item"&gt;&lt;h3&gt;Question&lt;/h3&gt;&lt;p&gt;Answer&lt;/p&gt;&lt;/div&gt;</code> for each item.
+      </p>
+      <textarea
+        value={html}
+        onChange={e => setHtml(e.target.value)}
+        rows={22}
+        placeholder={'<div class="faq-item">\n  <h3>Question here?</h3>\n  <p>Answer here.</p>\n</div>'}
+        style={{ ...ta, fontFamily: 'monospace', fontSize: 13 }}
+        spellCheck={false}
+      />
     </div>
   )
 }

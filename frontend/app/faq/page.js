@@ -1,4 +1,3 @@
-import FaqAccordion from '../components/FaqAccordion'
 import { getApiUrl } from '../lib/api'
 
 export const revalidate = 60
@@ -8,23 +7,27 @@ export const metadata = {
   description: 'Frequently asked questions about orders, shipping, returns and more.',
 }
 
-async function getFaq() {
+async function getFaqHtml() {
   try {
     const res = await fetch(getApiUrl('/faq'), { next: { revalidate: 60 } })
-    if (!res.ok) return []
-    return res.json()
-  } catch { return [] }
+    if (!res.ok) return ''
+    const d = await res.json()
+    return d.html || ''
+  } catch { return '' }
 }
 
 export default async function FaqPage() {
-  const items = await getFaq()
+  const html = await getFaqHtml()
 
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '56px 24px 80px' }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.02em' }}>FAQ</h1>
       <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>Frequently asked questions — find quick answers below.</p>
 
-      <FaqAccordion items={items} />
+      {html
+        ? <div className="faq-content" dangerouslySetInnerHTML={{ __html: html }} />
+        : <p style={{ color: '#aaa', fontSize: 14 }}>No FAQ items yet.</p>
+      }
 
       {/* Contact CTA */}
       <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '28px 24px', marginTop: 48 }}>

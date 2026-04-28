@@ -2068,14 +2068,12 @@ def send_contact_message(payload: ContactMessagePayload):
 
 # ── FAQ & Static Pages ──────────────────────────────────────────────────────
 
-DEFAULT_FAQ = json.dumps([
-    {"id": "1", "question": "How long does shipping take?", "answer": "Standard shipping takes 5–10 business days within Europe. Express options may be available at checkout.", "active": True},
-    {"id": "2", "question": "Do you ship internationally?", "answer": "Yes, we ship to most countries in Europe and beyond. Shipping costs are calculated at checkout based on your location.", "active": True},
-    {"id": "3", "question": "What is your return policy?", "answer": "We accept returns within 14 days of delivery. Items must be unworn, unwashed, and in original condition with tags attached.", "active": True},
-    {"id": "4", "question": "How do I track my order?", "answer": "Once your order ships, you'll receive a confirmation email with a tracking number. You can also check your order status in your account.", "active": True},
-    {"id": "5", "question": "Can I change or cancel my order?", "answer": "Orders can be changed or cancelled within 1 hour of placement. After that, they enter processing and cannot be modified. Contact us immediately if you need help.", "active": True},
-    {"id": "6", "question": "What payment methods do you accept?", "answer": "We accept all major credit and debit cards (Visa, Mastercard, Amex) as well as Apple Pay and Google Pay.", "active": True},
-])
+DEFAULT_FAQ_HTML = """<div class="faq-item"><h3>How long does shipping take?</h3><p>Standard shipping takes 5–10 business days within Europe. Express options may be available at checkout.</p></div>
+<div class="faq-item"><h3>Do you ship internationally?</h3><p>Yes, we ship to most countries in Europe and beyond. Shipping costs are calculated at checkout based on your location.</p></div>
+<div class="faq-item"><h3>What is your return policy?</h3><p>We accept returns within 14 days of delivery. Items must be unworn, unwashed, and in original condition with tags attached.</p></div>
+<div class="faq-item"><h3>How do I track my order?</h3><p>Once your order ships, you'll receive a confirmation email with a tracking number. You can also check your order status in your account.</p></div>
+<div class="faq-item"><h3>Can I change or cancel my order?</h3><p>Orders can be changed or cancelled within 1 hour of placement. After that, they enter processing and cannot be modified. Contact us immediately if you need help.</p></div>
+<div class="faq-item"><h3>What payment methods do you accept?</h3><p>We accept all major credit and debit cards (Visa, Mastercard, Amex) as well as Apple Pay and Google Pay.</p></div>"""
 
 DEFAULT_SHIPPING = json.dumps({
     "sections": [
@@ -2113,18 +2111,21 @@ def set_json_setting(key: str, value) -> None:
 
 @app.get("/faq")
 def get_faq():
-    items = get_json_setting("faq_content", DEFAULT_FAQ)
-    if isinstance(items, list):
-        return [i for i in items if i.get("active", True)]
-    return []
+    html = get_setting("faq_html", DEFAULT_FAQ_HTML)
+    return {"html": html}
 
 @app.get("/faq/admin")
 def get_faq_admin():
-    return get_json_setting("faq_content", DEFAULT_FAQ)
+    html = get_setting("faq_html", DEFAULT_FAQ_HTML)
+    return {"html": html}
 
 @app.put("/faq/admin")
-def update_faq(items: list):
-    set_json_setting("faq_content", items)
+def update_faq(data: dict):
+    html = data.get("html", "")
+    supabase.table("settings").upsert(
+        {"key": "faq_html", "value": html, "updated_at": now_iso()},
+        on_conflict="key"
+    ).execute()
     return {"ok": True}
 
 @app.get("/pages/{slug}")
