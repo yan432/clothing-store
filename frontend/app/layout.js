@@ -75,7 +75,7 @@ export default function RootLayout({ children }) {
             <CookieConsent />
             <Analytics />
             <SpeedInsights />
-            <GoogleAnalytics gaId="G-WVXM8RGKBL" />
+            <GoogleAnalytics gaId="G-CMVZYXVZ8Y" />
           </CartProvider>
         </AuthProvider>
       </body>
