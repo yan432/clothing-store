@@ -14,7 +14,7 @@ import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -590,23 +590,46 @@ def send_order_confirmation_emails(order: dict) -> None:
     if admin_target:
         admin_subj_tpl = cfg.get("email_admin_subject") or "New order #{order_id} — {total}"
         admin_subject = fmt(admin_subj_tpl)
+        # Carrier info from metadata
+        shipping_carrier = str(metadata.get("shipping_carrier") or "").strip()
+        shipping_label = str(metadata.get("shipping_label") or "").strip()
+        shipping_weight = metadata.get("shipping_weight_kg")
+        carrier_display = {
+            "nova_poshta": "Nova Poshta",
+            "ukrposhta": "Ukr Poshta",
+        }.get(shipping_carrier, shipping_carrier or "—")
+        carrier_row_html = (
+            f"<p><strong>Carrier:</strong> {carrier_display}"
+            + (f" ({shipping_label})" if shipping_label else "")
+            + (f" &nbsp;·&nbsp; Weight: {shipping_weight} kg" if shipping_weight else "")
+            + "</p>"
+        )
+        carrier_row_text = (
+            f"Carrier: {carrier_display}"
+            + (f" ({shipping_label})" if shipping_label else "")
+            + (f" | Weight: {shipping_weight} kg" if shipping_weight else "")
+        )
         admin_html = f"""
           <div style="font-family:Arial,sans-serif;color:#111">
             <h2>New paid order received</h2>
             <p><strong>Order #{order_id}</strong> · Ref: {order_ref or '-'}</p>
             <p><strong>Customer:</strong> {customer_email or '-'}</p>
-            <p><strong>Shipping:</strong> {shipping_address or 'Not provided'}</p>
+            <p><strong>Shipping address:</strong> {shipping_address or 'Not provided'}</p>
+            {carrier_row_html}
             <table style="width:100%;border-collapse:collapse">
               <thead><tr><th align="left">Item</th><th align="center">Qty</th><th align="right">Total</th></tr></thead>
               <tbody>{items_html}</tbody>
             </table>
             <hr/>
-            <p><strong>Total: {money_eur(total)}</strong></p>
+            <p>Subtotal: {money_eur(subtotal)} &nbsp;·&nbsp; Shipping: {money_eur(shipping)} &nbsp;·&nbsp; <strong>Total: {money_eur(total)}</strong></p>
           </div>
         """
         admin_text = (
             f"New order #{order_id}\nCustomer: {customer_email}\n"
-            f"Shipping: {shipping_address or '-'}\n\n{items_text}\n\nTotal: {money_eur(total)}"
+            f"Shipping address: {shipping_address or '-'}\n"
+            f"{carrier_row_text}\n\n"
+            f"{items_text}\n\n"
+            f"Subtotal: {money_eur(subtotal)} | Shipping: {money_eur(shipping)} | Total: {money_eur(total)}"
         )
         send_email(admin_target, admin_subject, admin_html, admin_text)
 
@@ -1040,6 +1063,31 @@ def update_product(product_id: int, product: ProductUpdate):
 def delete_product(product_id: int):
     supabase.table("products").delete().eq("id", product_id).execute()
     return {"message": "Удалён"}
+
+
+@app.post("/products/{product_id}/duplicate", dependencies=[Depends(require_admin)])
+def duplicate_product(product_id: int):
+    """Create an identical copy of a product (hidden draft, new slug, no images)."""
+    original = get_product_row(product_id)
+    # Fields to copy
+    skip = {"id", "created_at", "updated_at", "slug", "image_url", "image_urls",
+             "stock", "available_stock", "reserved_stock"}
+    payload = {k: v for k, v in original.items() if k not in skip and v is not None}
+    base_name = str(original.get("name") or "Product")
+    payload["name"] = f"{base_name} (copy)"
+    payload["slug"] = _unique_slug(_make_slug(payload["name"]))
+    payload["is_hidden"] = True  # always start as draft
+    payload["stock"] = 0
+    payload["available_stock"] = 0
+    payload["reserved_stock"] = 0
+    payload["image_url"] = None
+    payload["image_urls"] = []
+    payload["created_at"] = now_iso()
+    payload["updated_at"] = now_iso()
+    data = supabase.table("products").insert(payload).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Duplicate failed")
+    return data.data[0]
 
 
 @app.post("/products/{product_id}/archive", dependencies=[Depends(require_admin)])
@@ -1539,6 +1587,11 @@ DEFAULT_SHIPPING_CONFIG: dict = {
 }
 
 
+def ceil_to_half_eur(x: float) -> float:
+    """Round a price UP to the nearest €0.50 (e.g. 3.10 → 3.50, 3.50 → 3.50, 3.51 → 4.00)."""
+    return _math.ceil(x * 2) / 2.0
+
+
 def get_shipping_config() -> dict:
     """Load shipping config from settings table, fall back to defaults."""
     try:
@@ -1554,16 +1607,18 @@ def get_shipping_config() -> dict:
 
 def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config: dict) -> dict:
     """
-    Calculate Nova Poshta shipping cost.
-    Returns dict: {price_eur, zone, label, price_uah?}
+    Calculate cheapest shipping option (Nova Poshta or Ukr Poshta).
+    If a country is covered by both carriers, both prices are calculated
+    and the cheaper one is returned.
+    Returns dict: {price_eur, zone, label, carrier, weight_kg, ...}
     """
     cc = str(country_code or "").upper().strip()
     weight = max(0.01, float(total_vol_weight_kg or 0))
-    # Round UP to nearest 0.1 kg (per Nova Poshta rules)
+    # Round UP to nearest 0.1 kg
     weight = _math.ceil(weight * 10) / 10.0
     uah_eur = float(config.get("uah_eur_rate", 0.023))
 
-    # Ukraine domestic
+    # Ukraine domestic — Nova Poshta only
     if cc == "UA":
         ukraine = config.get("ukraine", DEFAULT_SHIPPING_CONFIG["ukraine"])
         brackets = ukraine.get("brackets", DEFAULT_SHIPPING_CONFIG["ukraine"]["brackets"])
@@ -1573,14 +1628,17 @@ def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config:
                 price_uah = float(b["price_uah"])
                 break
         return {
-            "price_eur": round(price_uah * uah_eur, 2),
+            "price_eur": ceil_to_half_eur(price_uah * uah_eur),
             "price_uah": round(price_uah, 2),
             "zone": "UA",
+            "carrier": "nova_poshta",
             "label": "Nova Poshta Ukraine",
             "weight_kg": round(weight, 3),
         }
 
-    # Europe: look up zone by country code
+    candidates: list[dict] = []
+
+    # ── Nova Poshta international (Europe zones) ──────────────────────────────
     country_zones = config.get("europe_country_zones", DEFAULT_SHIPPING_CONFIG["europe_country_zones"])
     zone_num = country_zones.get(cc)
     if zone_num is not None:
@@ -1599,16 +1657,16 @@ def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config:
             base_uah = float(brackets[-1]["price_uah"]) if brackets else 1000.0
             extra_kg = _math.ceil(weight - 1.0)
             price_uah = base_uah + extra_kg * per_extra
-        return {
-            "price_eur": round(price_uah * uah_eur, 2),
+        candidates.append({
+            "price_eur": ceil_to_half_eur(price_uah * uah_eur),
             "price_uah": round(price_uah, 2),
             "zone": zone_num,
-            "label": zone_name,
+            "carrier": "nova_poshta",
+            "label": "Nova Poshta International",
             "weight_kg": round(weight, 3),
-        }
+        })
 
-    # Ukr Poshta — for countries not covered by Nova Poshta
-    # Pricing: base USD for ≤0.25 kg + per_kg_usd × ceil(extra kg over 0.25 kg)
+    # ── Ukr Poshta international ──────────────────────────────────────────────
     ukrposhta = config.get("ukrposhta", DEFAULT_SHIPPING_CONFIG.get("ukrposhta", {}))
     up_countries = ukrposhta.get("countries", {})
     usd_eur = float(ukrposhta.get("usd_eur_rate", 0.92))
@@ -1621,19 +1679,24 @@ def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config:
         else:
             extra_kg = _math.ceil(weight - 0.25)
             price_usd = base_usd + extra_kg * per_kg_usd
-        return {
-            "price_eur": round(price_usd * usd_eur, 2),
+        candidates.append({
+            "price_eur": ceil_to_half_eur(price_usd * usd_eur),
             "price_usd": round(price_usd, 2),
             "zone": "ukrposhta",
             "carrier": "ukrposhta",
             "label": "Ukr Poshta International",
             "weight_kg": round(weight, 3),
-        }
+        })
 
-    # Unknown country — not available
+    # Pick the cheapest option
+    if candidates:
+        return min(candidates, key=lambda x: x["price_eur"])
+
+    # Country not covered by any carrier
     return {
         "price_eur": None,
         "zone": "unavailable",
+        "carrier": None,
         "label": "Delivery not available to this country",
         "weight_kg": round(weight, 3),
     }
@@ -1847,6 +1910,11 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             metadata_json["promo_discount_amount"] = promo_discount
         if payload.comment:
             metadata_json["order_note"] = payload.comment[:500]
+        # Shipping carrier info (server-computed)
+        metadata_json["shipping_carrier"] = _ship_result.get("carrier") or ""
+        metadata_json["shipping_label"] = _ship_result.get("label") or ""
+        metadata_json["shipping_cost_eur"] = round(shipping_cost_cfg, 2)
+        metadata_json["shipping_weight_kg"] = _ship_result.get("weight_kg")
 
         order_insert = supabase.table("orders").insert({
             "client_reference_id": client_reference_id,
@@ -2530,7 +2598,7 @@ class ContactMessagePayload(BaseModel):
     message: str
 
 @app.post("/contact")
-def send_contact_message(payload: ContactMessagePayload):
+def send_contact_message(payload: ContactMessagePayload, background_tasks: BackgroundTasks):
     name    = str(payload.name or "").strip()
     email   = normalize_email(payload.email)
     subject = str(payload.subject or "").strip() or "Contact form message"
@@ -2561,7 +2629,10 @@ def send_contact_message(payload: ContactMessagePayload):
   <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
   <p style="color:#888;font-size:12px">Reply to: <a href="mailto:{e_email}">{e_email}</a></p>
 </body></html>"""
-    send_email(admin_email, f"[Contact] {subject} — {name}", admin_html, f"From: {name} <{email}>\n\n{message}")
+    background_tasks.add_task(
+        send_email, admin_email, f"[Contact] {subject} — {name}",
+        admin_html, f"From: {name} <{email}>\n\n{message}"
+    )
 
     # Confirmation to user
     confirm_html = f"""<!DOCTYPE html>
@@ -2593,7 +2664,10 @@ def send_contact_message(payload: ContactMessagePayload):
     </td></tr>
   </table>
 </body></html>"""
-    send_email(email, "We received your message — EDM Clothes", confirm_html, f"Hi {name},\n\nThanks for reaching out! We'll reply within 1-2 business days.\n\nYour message:\n{message}")
+    background_tasks.add_task(
+        send_email, email, "We received your message — EDM Clothes",
+        confirm_html, f"Hi {name},\n\nThanks for reaching out! We'll reply within 1-2 business days.\n\nYour message:\n{message}"
+    )
 
     return {"ok": True}
 

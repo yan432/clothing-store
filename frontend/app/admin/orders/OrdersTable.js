@@ -219,6 +219,13 @@ export default function OrdersTable({ orders }) {
                 <td style={{padding:'12px 14px',fontSize:12,color:'#4f4f49'}}>
                   <div>{order.shipping_name || '-'}</div>
                   <div style={{marginTop:4,color:'#8b8b84'}}>{formatShipping(order)}</div>
+                  {order.metadata_json?.shipping_carrier && (
+                    <div style={{marginTop:3,color:'#a16207',fontWeight:500}}>
+                      {order.metadata_json.shipping_carrier === 'nova_poshta' ? 'Nova Poshta' :
+                       order.metadata_json.shipping_carrier === 'ukrposhta' ? 'Ukr Poshta' :
+                       order.metadata_json.shipping_carrier}
+                    </div>
+                  )}
                 </td>
                 <td style={{padding:'12px 14px',fontSize:12,color:'#4f4f49'}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>

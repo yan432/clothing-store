@@ -256,6 +256,27 @@ export default function OrderDetailsClient({ id }) {
               </SectionCard>
             </div>
 
+            {/* Shipping / carrier */}
+            {(metadata.shipping_carrier || metadata.shipping_cost_eur != null) && (
+              <SectionCard title="Shipping">
+                <div style={{display:'flex',flexWrap:'wrap',gap:'4px 24px',fontSize:13,color:'#555'}}>
+                  {metadata.shipping_carrier && (
+                    <span><strong>Carrier:</strong> {
+                      metadata.shipping_carrier === 'nova_poshta' ? 'Nova Poshta' :
+                      metadata.shipping_carrier === 'ukrposhta' ? 'Ukr Poshta' :
+                      metadata.shipping_carrier
+                    }{metadata.shipping_label ? ` (${metadata.shipping_label})` : ''}</span>
+                  )}
+                  {metadata.shipping_weight_kg != null && (
+                    <span><strong>Weight:</strong> {metadata.shipping_weight_kg} kg</span>
+                  )}
+                  {metadata.shipping_cost_eur != null && (
+                    <span><strong>Cost:</strong> €{Number(metadata.shipping_cost_eur).toFixed(2)}</span>
+                  )}
+                </div>
+              </SectionCard>
+            )}
+
             {/* Items */}
             <SectionCard title="Items">
               <div style={{display:'flex',flexDirection:'column',gap:8}}>

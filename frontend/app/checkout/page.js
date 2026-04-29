@@ -587,8 +587,11 @@ export default function CheckoutPage() {
               style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
               ← Back
             </button>
-            <button onClick={handleContinue} disabled={cart.length === 0}
-              style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer'}}>
+            <button
+              onClick={handleContinue}
+              disabled={cart.length === 0 || shippingResult?.zone === 'unavailable' || shippingLoading}
+              title={shippingResult?.zone === 'unavailable' ? 'Delivery not available to this country' : undefined}
+              style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 'not-allowed' : 'pointer',opacity: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 0.4 : 1}}>
               Continue to confirm
             </button>
           </div>
@@ -630,7 +633,7 @@ export default function CheckoutPage() {
             )}
             {shippingResult?.label && shippingResult?.zone !== 'unavailable' && (
               <p style={{fontSize:11,color:'#aaa',margin:'4px 0 0',textAlign:'right'}}>
-                via {shippingResult.label} · {shippingResult.weight_kg} kg
+                {shippingResult.label} · {shippingResult.weight_kg} kg
               </p>
             )}
           </div>

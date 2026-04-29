@@ -10,6 +10,8 @@ export default function NewProductClient() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [createdId, setCreatedId] = useState(null)
+  const [createdIds, setCreatedIds] = useState([])
+  const [colorCopies, setColorCopies] = useState(1)
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -82,18 +84,30 @@ export default function NewProductClient() {
         throw new Error('Set mandatory order priority')
       }
 
-      const res = await fetch(getApiUrl('/products'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || 'Failed to create product')
+      const n = Math.max(1, Math.min(20, Number(colorCopies) || 1))
+      const ids = []
+      for (let i = 0; i < n; i++) {
+        const copyPayload = { ...payload }
+        if (n > 1) {
+          copyPayload.name = `${payload.name} — Color ${i + 1}`
+          copyPayload.slug = undefined // let backend generate unique slug
+        }
+        const res = await fetch(getApiUrl('/products'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(copyPayload),
+        })
+        if (!res.ok) {
+          const text = await res.text()
+          throw new Error(text || 'Failed to create product')
+        }
+        const data = await res.json()
+        ids.push(data.id)
       }
-      const data = await res.json()
-      setCreatedId(data.id)
-      setMessage('Product created')
+      setCreatedId(ids[0])
+      setCreatedIds(ids)
+      setMessage(n === 1 ? 'Product created' : `${n} color variants created`)
+      setColorCopies(1)
       setForm({
         name: '',
         description: '',
@@ -127,9 +141,13 @@ export default function NewProductClient() {
         <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Create product</h1>
         <AdminTopBar active="products-new" />
 
-        {createdId && (
-          <div style={{marginBottom:12}}>
-            <a href={`/admin/products/${createdId}`} style={{fontSize:13,color:'#2563eb',textDecoration:'none'}}>Open created product #{createdId}</a>
+        {createdIds.length > 0 && (
+          <div style={{marginBottom:12,display:'flex',flexWrap:'wrap',gap:8}}>
+            {createdIds.map((pid, i) => (
+              <a key={pid} href={`/admin/products/${pid}`} style={{fontSize:13,color:'#2563eb',textDecoration:'none',border:'1px solid #bfdbfe',borderRadius:8,padding:'4px 10px',background:'#eff6ff'}}>
+                {createdIds.length > 1 ? `Color ${i + 1} #${pid}` : `Open product #${pid}`}
+              </a>
+            ))}
           </div>
         )}
 
@@ -272,11 +290,25 @@ export default function NewProductClient() {
             )}
           </div>
 
+          <div style={{display:'flex',alignItems:'center',gap:10,marginTop:6,padding:'12px 14px',background:'#f5f5f3',borderRadius:10}}>
+            <label style={{fontSize:13,color:'#444',fontWeight:500,whiteSpace:'nowrap'}}>Create in</label>
+            <input
+              type="number" min="1" max="20" step="1"
+              value={colorCopies}
+              onChange={(e) => setColorCopies(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+              style={{width:64,border:'1px solid #ddd',borderRadius:8,padding:'7px 10px',fontSize:14,textAlign:'center'}}
+            />
+            <label style={{fontSize:13,color:'#444',fontWeight:500,whiteSpace:'nowrap'}}>color variant{colorCopies > 1 ? 's' : ''}</label>
+            <span style={{fontSize:12,color:'#aaa',marginLeft:4}}>
+              {colorCopies > 1 ? `→ creates ${colorCopies} copies: «Name — Color 1», «Name — Color 2»…` : '→ creates 1 product'}
+            </span>
+          </div>
+
           <button
             type="submit"
             disabled={saving}
-            style={{marginTop:6,background:'#111',color:'#fff',border:'none',borderRadius:999,padding:'12px 16px',fontSize:14,fontWeight:600,cursor:'pointer',opacity:saving ? 0.7 : 1}}>
-            {saving ? 'Creating...' : 'Create product'}
+            style={{marginTop:2,background:'#111',color:'#fff',border:'none',borderRadius:999,padding:'12px 16px',fontSize:14,fontWeight:600,cursor:'pointer',opacity:saving ? 0.7 : 1}}>
+            {saving ? 'Creating...' : colorCopies > 1 ? `Create ${colorCopies} color variants` : 'Create product'}
           </button>
         </form>
       </main>

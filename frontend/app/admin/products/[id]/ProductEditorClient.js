@@ -11,6 +11,8 @@ export default function ProductEditorClient({ id }) {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
+  const [duplicatedId, setDuplicatedId] = useState(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [product, setProduct] = useState(null)
@@ -282,6 +284,27 @@ export default function ProductEditorClient({ id }) {
     }
   }
 
+  async function handleDuplicateProduct() {
+    if (!window.confirm('Duplicate this product? A hidden draft copy will be created.')) return
+    setDuplicating(true)
+    setError('')
+    setMessage('')
+    try {
+      const res = await fetch(getApiUrl('/products/' + id + '/duplicate'), { method: 'POST' })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Failed to duplicate product')
+      }
+      const data = await res.json()
+      setDuplicatedId(data.id)
+      setMessage(`Duplicate created`)
+    } catch (e) {
+      setError(e.message || 'Failed to duplicate product')
+    } finally {
+      setDuplicating(false)
+    }
+  }
+
   async function handleDeleteProduct() {
     if (!window.confirm('Delete this product permanently?')) return
     setDeleting(true)
@@ -331,7 +354,16 @@ export default function ProductEditorClient({ id }) {
         ) : (
           <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:12,background:'#fff',border:'1px solid #ecece8',borderRadius:12,padding:16}}>
             {error && <div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#b91c1c',borderRadius:10,padding:'10px 12px',fontSize:14}}>{error}</div>}
-            {message && <div style={{background:'#ecfdf3',border:'1px solid #bbf7d0',color:'#166534',borderRadius:10,padding:'10px 12px',fontSize:14}}>{message}</div>}
+            {message && (
+              <div style={{background:'#ecfdf3',border:'1px solid #bbf7d0',color:'#166534',borderRadius:10,padding:'10px 12px',fontSize:14,display:'flex',alignItems:'center',gap:10}}>
+                <span>{message}</span>
+                {duplicatedId && (
+                  <a href={`/admin/products/${duplicatedId}`} style={{color:'#1d4ed8',fontWeight:600,fontSize:13,textDecoration:'none'}}>
+                    Open #{duplicatedId} →
+                  </a>
+                )}
+              </div>
+            )}
 
             <label style={{fontSize:13,color:'#444'}}>Name
               <input value={form.name} onChange={(e) => setField('name', e.target.value)} required style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
@@ -591,6 +623,13 @@ export default function ProductEditorClient({ id }) {
               disabled={saving}
               style={{marginTop:6,background:'#111',color:'#fff',border:'none',borderRadius:999,padding:'12px 16px',fontSize:14,fontWeight:600,cursor:'pointer',opacity:saving ? 0.7 : 1}}>
               {saving ? 'Saving...' : 'Save changes'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDuplicateProduct}
+              disabled={duplicating || saving}
+              style={{background:'#fff',color:'#1d4ed8',border:'1px solid #bfdbfe',borderRadius:999,padding:'10px 16px',fontSize:13,fontWeight:600,cursor:'pointer',opacity:(duplicating || saving) ? 0.7 : 1}}>
+              {duplicating ? 'Duplicating...' : 'Duplicate product'}
             </button>
             <button
               type="button"
