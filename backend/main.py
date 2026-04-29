@@ -433,7 +433,7 @@ def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name
 
     # Try SSL on port 465 first (cloud hosts often block 587/STARTTLS)
     try:
-        with smtplib.SMTP_SSL(ZOHO_SMTP_HOST, 465, timeout=15) as server:
+        with smtplib.SMTP_SSL(ZOHO_SMTP_HOST, 465, timeout=8) as server:
             server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
             server.sendmail(ZOHO_SMTP_USER, to_email, msg.as_string())
         print(f"Zoho SMTP SSL(465): sent to={to_email!r}")
@@ -443,7 +443,7 @@ def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name
 
     # Fallback: STARTTLS on configured port (default 587)
     try:
-        with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=15) as server:
+        with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=8) as server:
             server.ehlo()
             server.starttls()
             server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
