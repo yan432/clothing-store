@@ -42,3 +42,28 @@ export function trackCheckoutStarted(email = null) {
 export function trackLogin(email) {
   send('login', { email })
 }
+
+/**
+ * Fire GA4 purchase event after successful payment.
+ * Call once on the /success page.
+ * @param {{ orderId: string|number, total: number, currency?: string, items?: Array }} opts
+ */
+export function trackPurchase({ orderId, total, currency = 'EUR', items = [] }) {
+  // Internal backend event
+  send('purchase', { order_id: orderId, total })
+
+  // GA4 e-commerce purchase event
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', 'purchase', {
+      transaction_id: String(orderId),
+      value:          Number(total),
+      currency,
+      items: items.map((item, i) => ({
+        item_id:   String(item.product_id || item.id || i),
+        item_name: item.name || item.product_name || 'Product',
+        quantity:  Number(item.quantity) || 1,
+        price:     Number(item.price) || 0,
+      })),
+    })
+  }
+}

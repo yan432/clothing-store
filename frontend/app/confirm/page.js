@@ -190,8 +190,22 @@ export default function ConfirmPage() {
         }),
       })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
-      else alert('Error: ' + JSON.stringify(data))
+      if (data.url) {
+        // Save order snapshot for GA4 purchase event on /success
+        try {
+          localStorage.setItem('pending_order', JSON.stringify({
+            order_id: data.order_id || data.id,
+            total: finalTotal,
+            items: cart.map(item => ({
+              product_id: item.id,
+              name: item.name,
+              price: parseFloat(item.price),
+              quantity: item.qty,
+            })),
+          }))
+        } catch (_) {}
+        window.location.href = data.url
+      } else alert('Error: ' + JSON.stringify(data))
     } catch (e) {
       alert('Something went wrong: ' + e.message)
     }
