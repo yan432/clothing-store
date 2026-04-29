@@ -1,6 +1,5 @@
 'use client'
-import { useRef, useEffect } from 'react'
-import DOMPurify from 'dompurify'
+import { useRef, useEffect, useState } from 'react'
 
 function normaliseFaqHtml(html) {
   if (!html || !html.includes('<div class="faq-item">')) return html
@@ -10,8 +9,34 @@ function normaliseFaqHtml(html) {
   )
 }
 
+// DOMPurify requires a browser DOM — sanitize only on the client
+function sanitize(html) {
+  if (typeof window === 'undefined') return html
+  try {
+    // Dynamic require so the module is never evaluated during SSR
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const DOMPurify = require('dompurify')
+    const purify = DOMPurify.default ?? DOMPurify
+    if (typeof purify.sanitize !== 'function') return html
+    return purify.sanitize(html, {
+      ALLOWED_TAGS: ['details', 'summary', 'p', 'br', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'h3', 'div'],
+      ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+    })
+  } catch {
+    return html
+  }
+}
+
 export default function FaqAccordion({ html }) {
   const ref = useRef(null)
+  const [safe, setSafe] = useState('')
+
+  const processed = normaliseFaqHtml(html)
+
+  // Sanitize on the client after mount so SSR can render the raw HTML safely
+  useEffect(() => {
+    setSafe(sanitize(processed || ''))
+  }, [processed])
 
   useEffect(() => {
     const container = ref.current
@@ -19,27 +44,18 @@ export default function FaqAccordion({ html }) {
 
     function handleToggle(e) {
       if (!e.target.open) return
-      // Close every other <details> in the same container
       container.querySelectorAll('details.faq-item').forEach(d => {
         if (d !== e.target) d.open = false
       })
     }
 
-    // 'toggle' doesn't bubble — use capture so it fires on the container
     container.addEventListener('toggle', handleToggle, true)
     return () => container.removeEventListener('toggle', handleToggle, true)
-  }, [html])
+  }, [safe])
 
-  const processed = normaliseFaqHtml(html)
   if (!processed) return <p style={{ color: '#aaa', fontSize: 14 }}>No FAQ items yet.</p>
 
-  // Sanitize before rendering to prevent XSS from stored HTML
-  const safe = DOMPurify.sanitize(processed, {
-    ALLOWED_TAGS: ['details', 'summary', 'p', 'br', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'h3', 'div'],
-    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
-  })
-
   return (
-    <div ref={ref} className="faq-content" dangerouslySetInnerHTML={{ __html: safe }} />
+    <div ref={ref} className="faq-content" dangerouslySetInnerHTML={{ __html: safe || processed }} />
   )
 }
