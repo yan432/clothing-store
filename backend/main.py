@@ -418,22 +418,40 @@ def get_settings_bulk(keys: list[str]) -> dict:
 def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name: str = "") -> bool:
     if not ZOHO_SMTP_USER or not ZOHO_SMTP_PASSWORD:
         return False
+    display_name = from_name or "EDM Clothes"
     try:
-        msg = MIMEMultipart("alternative")
         display_name = from_name or get_setting("email_from_name", "EDM Clothes")
-        msg["From"] = f"{display_name} <{ZOHO_SMTP_USER}>"
-        msg["To"] = to_email
-        msg["Subject"] = subject
-        msg.attach(MIMEText(text, "plain", "utf-8"))
-        msg.attach(MIMEText(html, "html", "utf-8"))
-        with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=10) as server:
+    except Exception:
+        pass
+
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{display_name} <{ZOHO_SMTP_USER}>"
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    # Try SSL on port 465 first (cloud hosts often block 587/STARTTLS)
+    try:
+        with smtplib.SMTP_SSL(ZOHO_SMTP_HOST, 465, timeout=15) as server:
+            server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
+            server.sendmail(ZOHO_SMTP_USER, to_email, msg.as_string())
+        print(f"Zoho SMTP SSL(465): sent to={to_email!r}")
+        return True
+    except Exception as exc_ssl:
+        print(f"Zoho SMTP SSL(465) failed: {exc_ssl} — trying STARTTLS({ZOHO_SMTP_PORT})")
+
+    # Fallback: STARTTLS on configured port (default 587)
+    try:
+        with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=15) as server:
             server.ehlo()
             server.starttls()
             server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
             server.sendmail(ZOHO_SMTP_USER, to_email, msg.as_string())
+        print(f"Zoho SMTP STARTTLS({ZOHO_SMTP_PORT}): sent to={to_email!r}")
         return True
-    except Exception as exc:
-        print(f"Zoho SMTP error: {exc}")
+    except Exception as exc_tls:
+        print(f"Zoho SMTP STARTTLS({ZOHO_SMTP_PORT}) failed: {exc_tls}")
         return False
 
 
@@ -484,22 +502,34 @@ def send_email_sync_debug(to_email: str, subject: str, html: str, text: str) -> 
         return result
     # Try Zoho
     if ZOHO_SMTP_USER and ZOHO_SMTP_PASSWORD:
+        msg = MIMEMultipart("alternative")
+        msg["From"] = f"EDM Clothes <{ZOHO_SMTP_USER}>"
+        msg["To"] = target
+        msg["Subject"] = subject
+        msg.attach(MIMEText(text, "plain", "utf-8"))
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        raw = msg.as_string()
+        # Try SSL 465
         try:
-            msg = MIMEMultipart("alternative")
-            msg["From"] = f"EDM Clothes <{ZOHO_SMTP_USER}>"
-            msg["To"] = target
-            msg["Subject"] = subject
-            msg.attach(MIMEText(text, "plain", "utf-8"))
-            msg.attach(MIMEText(html, "html", "utf-8"))
-            with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=10) as server:
-                server.ehlo()
-                server.starttls()
-                server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
-                server.sendmail(ZOHO_SMTP_USER, target, msg.as_string())
+            with smtplib.SMTP_SSL(ZOHO_SMTP_HOST, 465, timeout=15) as srv:
+                srv.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
+                srv.sendmail(ZOHO_SMTP_USER, target, raw)
             result["zoho_ok"] = True
+            result["zoho_method"] = "SSL:465"
             return result
-        except Exception as exc:
-            result["zoho_error"] = str(exc)
+        except Exception as exc_ssl:
+            result["zoho_ssl_error"] = str(exc_ssl)
+        # Try STARTTLS 587
+        try:
+            with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=15) as srv:
+                srv.ehlo(); srv.starttls()
+                srv.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
+                srv.sendmail(ZOHO_SMTP_USER, target, raw)
+            result["zoho_ok"] = True
+            result["zoho_method"] = f"STARTTLS:{ZOHO_SMTP_PORT}"
+            return result
+        except Exception as exc_tls:
+            result["zoho_error"] = str(exc_tls)
     else:
         result["zoho_error"] = "ZOHO_SMTP_USER or ZOHO_SMTP_PASSWORD not set"
     # Try Resend
