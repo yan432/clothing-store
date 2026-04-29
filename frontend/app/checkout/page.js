@@ -129,6 +129,8 @@ export default function CheckoutPage() {
   const router = useRouter()
   const [mode, setMode] = useState('guest')
   const [loading, setLoading] = useState(false)
+  const [shippingResult, setShippingResult] = useState(null)
+  const [shippingLoading, setShippingLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [authEmail, setAuthEmail] = useState('')
@@ -194,6 +196,24 @@ export default function CheckoutPage() {
       } catch {}
     }
   }, [user])
+
+  // Recalculate shipping whenever country or cart changes
+  useEffect(() => {
+    if (!cart.length) return
+    setShippingLoading(true)
+    fetch(getApiUrl('/shipping/calculate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        country: form.country,
+        items: cart.map(item => ({ id: item.id, quantity: item.qty, volumetric_weight: item.volumetric_weight })),
+      }),
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setShippingResult(d))
+      .catch(() => setShippingResult(null))
+      .finally(() => setShippingLoading(false))
+  }, [form.country, cart])
 
   const registerPasswordChecks = [
     { id: 'length', label: 'At least 8 characters', valid: authPassword.length >= 8 },
@@ -310,7 +330,12 @@ export default function CheckoutPage() {
 
   function handleContinue() {
     if (!validate()) return
+    if (shippingResult?.zone === 'unavailable') {
+      setErrors(e => ({...e, country: 'We don\'t ship to this country yet'}))
+      return
+    }
     sessionStorage.setItem('checkout_details', JSON.stringify(form))
+    if (shippingResult) sessionStorage.setItem('checkout_shipping', JSON.stringify(shippingResult))
     router.push('/confirm')
   }
 
@@ -590,8 +615,24 @@ export default function CheckoutPage() {
               <span>Subtotal</span><span>€{total.toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Shipping</span><span style={{color:'#aaa'}}>Calculated next step</span>
+              <span>Shipping</span>
+              <span style={{color: shippingResult?.zone === 'unavailable' ? '#ef4444' : '#555'}}>
+                {shippingLoading ? '…' :
+                  shippingResult?.zone === 'unavailable' ? 'Not available' :
+                  shippingResult?.price_eur != null ? `€${shippingResult.price_eur.toFixed(2)}` :
+                  '—'}
+              </span>
             </div>
+            {shippingResult?.zone === 'unavailable' && (
+              <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0',textAlign:'right'}}>
+                We don't ship to this country yet
+              </p>
+            )}
+            {shippingResult?.label && shippingResult?.zone !== 'unavailable' && (
+              <p style={{fontSize:11,color:'#aaa',margin:'4px 0 0',textAlign:'right'}}>
+                via {shippingResult.label} · {shippingResult.weight_kg} kg
+              </p>
+            )}
           </div>
           <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:16,lineHeight:1.5}}>
             Payment details are entered securely on external checkout.

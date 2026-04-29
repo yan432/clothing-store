@@ -86,19 +86,40 @@ export default function ConfirmPage() {
     const parsed = JSON.parse(saved)
     setDetails(parsed)
     trackCheckoutStarted(parsed.email || null)
+
+    // Restore pre-calculated shipping from checkout page
+    const savedShipping = sessionStorage.getItem('checkout_shipping')
+    if (savedShipping) {
+      try {
+        const ship = JSON.parse(savedShipping)
+        if (ship?.price_eur != null) setShippingCost(ship.price_eur)
+      } catch {}
+    }
   }, [])
 
   useEffect(() => {
+    // Recalculate shipping if cart or country changes
+    if (!cart.length || !details?.country) return
+    fetch(getApiUrl('/shipping/calculate'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        country: details.country,
+        items: cart.map(item => ({ id: item.id, quantity: item.qty, volumetric_weight: item.volumetric_weight })),
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.price_eur != null) setShippingCost(d.price_eur) })
+      .catch(() => {})
+
     fetch(getApiUrl('/settings'))
       .then(r => r.ok ? r.json() : {})
       .then(s => {
         const threshold = parseFloat(s.shipping_free_threshold || DEFAULT_THRESHOLD)
-        const cost = parseFloat(s.shipping_cost || DEFAULT_SHIPPING)
         setFreeThreshold(threshold)
-        setShippingCost(cost)
       })
       .catch(() => {})
-  }, [])
+  }, [details?.country, cart])
 
   if (!details || cart.length === 0) return null
 

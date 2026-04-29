@@ -23,6 +23,7 @@ export default function AdminTopBar({ active = 'orders' }) {
       <a href="/admin/homepage" style={linkStyle('homepage')}>Homepage</a>
       <a href="/admin/pages" style={linkStyle('pages')}>Static Pages</a>
       <a href="/admin/settings" style={linkStyle('settings')}>Email Settings</a>
+      <a href="/admin/shipping" style={linkStyle('shipping')}>Shipping Rates</a>
       <a href="https://mail.zoho.eu" target="_blank" rel="noopener noreferrer" style={linkStyle('zoho')}>Zoho Mail ↗</a>
     </div>
   )

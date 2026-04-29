@@ -38,6 +38,7 @@ export default function ProductEditorClient({ id }) {
     color_name: '',
     color_hex: '',
     color_group_id: '',
+    volumetric_weight: '',
   })
 
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function ProductEditorClient({ id }) {
           color_name: p.color_name || '',
           color_hex: p.color_hex || '',
           color_group_id: p.color_group_id || '',
+          volumetric_weight: p.volumetric_weight != null ? String(p.volumetric_weight) : '',
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -145,6 +147,7 @@ export default function ProductEditorClient({ id }) {
         color_name: form.color_name.trim() || null,
         color_hex: form.color_hex.trim() || null,
         color_group_id: form.color_group_id.trim() || null,
+        volumetric_weight: form.volumetric_weight !== '' ? Number(form.volumetric_weight) : null,
         tags: [
           ...baseTags,
           form.is_new ? 'new' : null,
@@ -468,9 +471,13 @@ export default function ProductEditorClient({ id }) {
               )}
             </div>
 
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:10}}>
               <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price' : 'Price'}
                 <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setField('price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+              </label>
+              <label style={{fontSize:13,color:'#444'}}>Volumetric weight (kg)
+                <input type="number" step="0.01" min="0" value={form.volumetric_weight} onChange={(e) => setField('volumetric_weight', e.target.value)} placeholder="e.g. 0.3" style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+                <span style={{fontSize:11,color:'#aaa',display:'block',marginTop:3}}>L×W×H / 5000 cm</span>
               </label>
               <div style={{fontSize:13,color:'#444'}}>Available stock
                 <div style={{marginTop:6,border:'1px solid #eee',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#f9f9f7',color:'#555'}}>

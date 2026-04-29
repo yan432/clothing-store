@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import html as _html
 import json
+import math as _math
 import os
 import random
 import re
@@ -94,6 +95,7 @@ class Product(BaseModel):
     color_name: Optional[str] = None
     color_hex: Optional[str] = None
     color_group_id: Optional[str] = None
+    volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
 
 
 class ProductUpdate(BaseModel):
@@ -114,6 +116,7 @@ class ProductUpdate(BaseModel):
     color_name: Optional[str] = None
     color_hex: Optional[str] = None
     color_group_id: Optional[str] = None
+    volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
 
 
 class ProductImageDelete(BaseModel):
@@ -1366,6 +1369,315 @@ def delete_promo_code(promo_id: int):
 SHIPPING_COST = 30.0  # fallback default
 
 
+# ── Shipping calculation (Nova Poshta international) ─────────────────────────
+
+DEFAULT_SHIPPING_CONFIG: dict = {
+    # Exchange rate: 1 UAH → EUR. Update periodically in CMS.
+    "uah_eur_rate": 0.023,
+    # Ukraine domestic (Nova Poshta)
+    "ukraine": {
+        "brackets": [
+            {"max_kg": 1.0,  "price_uah": 80,  "label": "До 1 кг"},
+            {"max_kg": 2.0,  "price_uah": 90,  "label": "До 2 кг (мала)"},
+            {"max_kg": 10.0, "price_uah": 135, "label": "До 10 кг (середня)"},
+            {"max_kg": 30.0, "price_uah": 200, "label": "До 30 кг (велика)"},
+        ]
+    },
+    # Nova Poshta international zones (Europe)
+    "europe_zones": {
+        "1": {
+            "name": "Zone 1 — Poland",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 385},
+                {"max_kg": 0.25, "price_uah": 410},
+                {"max_kg": 0.5,  "price_uah": 440},
+                {"max_kg": 1.0,  "price_uah": 470},
+            ],
+            "per_extra_kg_uah": 35,
+        },
+        "2": {
+            "name": "Zone 2 — Czech Republic, Lithuania, Germany, Slovakia, Hungary",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 610},
+                {"max_kg": 0.25, "price_uah": 630},
+                {"max_kg": 0.5,  "price_uah": 660},
+                {"max_kg": 1.0,  "price_uah": 710},
+            ],
+            "per_extra_kg_uah": 85,
+        },
+        "3": {
+            "name": "Zone 3 — Italy, Latvia, Austria, Netherlands, Estonia",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 970},
+                {"max_kg": 0.25, "price_uah": 990},
+                {"max_kg": 0.5,  "price_uah": 1010},
+                {"max_kg": 1.0,  "price_uah": 1040},
+            ],
+            "per_extra_kg_uah": 75,
+        },
+        "4": {
+            "name": "Zone 4 — Spain, France, UK, Belgium, Denmark, Luxembourg, Monaco, San Marino, Vatican",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 1160},
+                {"max_kg": 0.25, "price_uah": 1180},
+                {"max_kg": 0.5,  "price_uah": 1210},
+                {"max_kg": 1.0,  "price_uah": 1260},
+            ],
+            "per_extra_kg_uah": 105,
+        },
+        "5": {
+            "name": "Zone 5 — Andorra, Bulgaria, Gibraltar, Greece, Ireland, Portugal, Slovenia, Finland, Croatia, Sweden",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 1320},
+                {"max_kg": 0.25, "price_uah": 1375},
+                {"max_kg": 0.5,  "price_uah": 1430},
+                {"max_kg": 1.0,  "price_uah": 1485},
+            ],
+            "per_extra_kg_uah": 105,
+        },
+        "6": {
+            "name": "Zone 6 — Norway, Liechtenstein, Turkey, Switzerland",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 2150},
+                {"max_kg": 0.25, "price_uah": 2170},
+                {"max_kg": 0.5,  "price_uah": 2200},
+                {"max_kg": 1.0,  "price_uah": 2310},
+            ],
+            "per_extra_kg_uah": 80,
+        },
+        "7": {
+            "name": "Zone 7 — Albania, Bosnia & Herzegovina, Malta, Montenegro, North Macedonia, Cyprus, Iceland, Serbia",
+            "brackets": [
+                {"max_kg": 0.1,  "price_uah": 2150},
+                {"max_kg": 0.25, "price_uah": 2170},
+                {"max_kg": 0.5,  "price_uah": 2200},
+                {"max_kg": 1.0,  "price_uah": 2310},
+            ],
+            "per_extra_kg_uah": 220,
+        },
+    },
+    # Country code → zone number (Nova Poshta Europe delivery zones)
+    "europe_country_zones": {
+        "PL": 1,
+        "CZ": 2, "LT": 2, "DE": 2, "SK": 2, "HU": 2,
+        "AT": 3, "IT": 3, "LV": 3, "NL": 3, "EE": 3,
+        "BE": 4, "VA": 4, "GB": 4, "DK": 4, "MC": 4, "SM": 4, "ES": 4, "FR": 4, "LU": 4,
+        "AD": 5, "BG": 5, "GI": 5, "GR": 5, "IE": 5, "PT": 5, "SI": 5, "FI": 5, "HR": 5, "SE": 5,
+        "NO": 6, "LI": 6, "TR": 6, "CH": 6,
+        "AL": 7, "BA": 7, "MT": 7, "ME": 7, "MK": 7, "CY": 7, "IS": 7, "RS": 7,
+    },
+    # ── Ukr Poshta international parcels (countries NOT covered by Nova Poshta) ──
+    # Pricing: base USD for ≤250 g + per_kg_usd for each started 1 kg over 250 g.
+    # Source: Ukr Poshta tariffs 13.04.2026.
+    "ukrposhta": {
+        "usd_eur_rate": 0.92,   # 1 USD → EUR. Adjust periodically in CMS.
+        "countries": {
+            # Eastern Europe / CIS (not in Nova Poshta zones)
+            "RO": {"base_usd": 20.50, "per_kg_usd": 4.50},   # Romania
+            "MD": {"base_usd": 13.00, "per_kg_usd": 3.50},   # Moldova
+            "GE": {"base_usd": 17.00, "per_kg_usd": 6.50},   # Georgia
+            "AM": {"base_usd": 14.50, "per_kg_usd": 6.00},   # Armenia
+            "AZ": {"base_usd": 11.50, "per_kg_usd": 6.00},   # Azerbaijan
+            "KZ": {"base_usd": 19.50, "per_kg_usd": 11.00},  # Kazakhstan
+            "UZ": {"base_usd": 22.00, "per_kg_usd": 7.50},   # Uzbekistan
+            "TM": {"base_usd": 8.50,  "per_kg_usd": 6.00},   # Turkmenistan
+            "TJ": {"base_usd": 9.00,  "per_kg_usd": 10.50},  # Tajikistan
+            "KG": {"base_usd": 8.50,  "per_kg_usd": 6.50},   # Kyrgyzstan
+            # Americas
+            "US": {"base_usd": 9.00,  "per_kg_usd": 9.00},   # USA
+            "CA": {"base_usd": 9.00,  "per_kg_usd": 9.00},   # Canada
+            "MX": {"base_usd": 10.00, "per_kg_usd": 9.50},   # Mexico
+            "AR": {"base_usd": 14.00, "per_kg_usd": 14.00},  # Argentina
+            "BR": {"base_usd": 17.00, "per_kg_usd": 11.00},  # Brazil
+            "CL": {"base_usd": 16.00, "per_kg_usd": 13.50},  # Chile
+            "CO": {"base_usd": 13.00, "per_kg_usd": 13.50},  # Colombia
+            "PE": {"base_usd": 11.50, "per_kg_usd": 11.50},  # Peru
+            "UY": {"base_usd": 15.00, "per_kg_usd": 14.00},  # Uruguay
+            "VE": {"base_usd": 7.50,  "per_kg_usd": 15.00},  # Venezuela
+            # Asia-Pacific
+            "JP": {"base_usd": 20.00, "per_kg_usd": 7.50},   # Japan
+            "CN": {"base_usd": 11.50, "per_kg_usd": 6.50},   # China
+            "KR": {"base_usd": 12.50, "per_kg_usd": 6.00},   # South Korea
+            "HK": {"base_usd": 16.50, "per_kg_usd": 7.00},   # Hong Kong
+            "TW": {"base_usd": 10.50, "per_kg_usd": 9.50},   # Taiwan
+            "SG": {"base_usd": 11.50, "per_kg_usd": 6.00},   # Singapore
+            "MY": {"base_usd": 11.50, "per_kg_usd": 7.00},   # Malaysia
+            "TH": {"base_usd": 10.50, "per_kg_usd": 5.50},   # Thailand
+            "ID": {"base_usd": 12.50, "per_kg_usd": 9.50},   # Indonesia
+            "PH": {"base_usd": 7.50,  "per_kg_usd": 6.50},   # Philippines
+            "VN": {"base_usd": 8.00,  "per_kg_usd": 7.50},   # Vietnam
+            "IN": {"base_usd": 14.50, "per_kg_usd": 6.50},   # India
+            "PK": {"base_usd": 10.00, "per_kg_usd": 8.50},   # Pakistan
+            "BD": {"base_usd": 8.50,  "per_kg_usd": 10.50},  # Bangladesh
+            "AU": {"base_usd": 13.00, "per_kg_usd": 13.00},  # Australia
+            "NZ": {"base_usd": 16.00, "per_kg_usd": 17.00},  # New Zealand
+            "MN": {"base_usd": 12.50, "per_kg_usd": 16.50},  # Mongolia
+            # Middle East / North Africa
+            "AE": {"base_usd": 8.50,  "per_kg_usd": 4.50},   # UAE
+            "SA": {"base_usd": 8.00,  "per_kg_usd": 6.50},   # Saudi Arabia
+            "QA": {"base_usd": 9.00,  "per_kg_usd": 6.50},   # Qatar
+            "KW": {"base_usd": 9.00,  "per_kg_usd": 5.50},   # Kuwait
+            "OM": {"base_usd": 10.50, "per_kg_usd": 6.50},   # Oman
+            "BH": {"base_usd": 9.50,  "per_kg_usd": 6.50},   # Bahrain
+            "JO": {"base_usd": 9.50,  "per_kg_usd": 5.50},   # Jordan
+            "IL": {"base_usd": 10.50, "per_kg_usd": 6.00},   # Israel
+            "LB": {"base_usd": 10.00, "per_kg_usd": 7.50},   # Lebanon
+            "EG": {"base_usd": 12.00, "per_kg_usd": 7.00},   # Egypt
+            "IQ": {"base_usd": 8.50,  "per_kg_usd": 6.50},   # Iraq
+            "MA": {"base_usd": 11.00, "per_kg_usd": 8.50},   # Morocco
+            "TN": {"base_usd": 15.00, "per_kg_usd": 11.00},  # Tunisia
+            # Sub-Saharan Africa
+            "ZA": {"base_usd": 15.00, "per_kg_usd": 20.50},  # South Africa
+            "KE": {"base_usd": 10.50, "per_kg_usd": 6.50},   # Kenya
+            "NG": {"base_usd": 14.00, "per_kg_usd": 8.00},   # Nigeria
+            "GH": {"base_usd": 18.00, "per_kg_usd": 7.50},   # Ghana
+            "ET": {"base_usd": 8.00,  "per_kg_usd": 11.00},  # Ethiopia
+            "SN": {"base_usd": 10.50, "per_kg_usd": 11.00},  # Senegal
+            "TZ": {"base_usd": 9.00,  "per_kg_usd": 10.50},  # Tanzania
+        }
+    },
+}
+
+
+def get_shipping_config() -> dict:
+    """Load shipping config from settings table, fall back to defaults."""
+    try:
+        row = supabase.table("settings").select("value").eq("key", "shipping_config").limit(1).execute()
+        if row.data:
+            stored = row.data[0].get("value")
+            if isinstance(stored, dict) and stored:
+                return stored
+    except Exception:
+        pass
+    return DEFAULT_SHIPPING_CONFIG
+
+
+def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config: dict) -> dict:
+    """
+    Calculate Nova Poshta shipping cost.
+    Returns dict: {price_eur, zone, label, price_uah?}
+    """
+    cc = str(country_code or "").upper().strip()
+    weight = max(0.01, float(total_vol_weight_kg or 0))
+    # Round UP to nearest 0.1 kg (per Nova Poshta rules)
+    weight = _math.ceil(weight * 10) / 10.0
+    uah_eur = float(config.get("uah_eur_rate", 0.023))
+
+    # Ukraine domestic
+    if cc == "UA":
+        ukraine = config.get("ukraine", DEFAULT_SHIPPING_CONFIG["ukraine"])
+        brackets = ukraine.get("brackets", DEFAULT_SHIPPING_CONFIG["ukraine"]["brackets"])
+        price_uah = float(brackets[-1]["price_uah"]) if brackets else 200.0
+        for b in brackets:
+            if weight <= float(b["max_kg"]):
+                price_uah = float(b["price_uah"])
+                break
+        return {
+            "price_eur": round(price_uah * uah_eur, 2),
+            "price_uah": round(price_uah, 2),
+            "zone": "UA",
+            "label": "Nova Poshta Ukraine",
+            "weight_kg": round(weight, 3),
+        }
+
+    # Europe: look up zone by country code
+    country_zones = config.get("europe_country_zones", DEFAULT_SHIPPING_CONFIG["europe_country_zones"])
+    zone_num = country_zones.get(cc)
+    if zone_num is not None:
+        zones = config.get("europe_zones", DEFAULT_SHIPPING_CONFIG["europe_zones"])
+        zone = zones.get(str(zone_num), {})
+        brackets = zone.get("brackets", [])
+        per_extra = float(zone.get("per_extra_kg_uah", 0))
+        zone_name = zone.get("name", f"Zone {zone_num}")
+        if weight <= 1.0:
+            price_uah = float(brackets[-1]["price_uah"]) if brackets else 1000.0
+            for b in brackets:
+                if weight <= float(b["max_kg"]):
+                    price_uah = float(b["price_uah"])
+                    break
+        else:
+            base_uah = float(brackets[-1]["price_uah"]) if brackets else 1000.0
+            extra_kg = _math.ceil(weight - 1.0)
+            price_uah = base_uah + extra_kg * per_extra
+        return {
+            "price_eur": round(price_uah * uah_eur, 2),
+            "price_uah": round(price_uah, 2),
+            "zone": zone_num,
+            "label": zone_name,
+            "weight_kg": round(weight, 3),
+        }
+
+    # Ukr Poshta — for countries not covered by Nova Poshta
+    # Pricing: base USD for ≤0.25 kg + per_kg_usd × ceil(extra kg over 0.25 kg)
+    ukrposhta = config.get("ukrposhta", DEFAULT_SHIPPING_CONFIG.get("ukrposhta", {}))
+    up_countries = ukrposhta.get("countries", {})
+    usd_eur = float(ukrposhta.get("usd_eur_rate", 0.92))
+    if cc in up_countries:
+        rates = up_countries[cc]
+        base_usd = float(rates.get("base_usd", 15.0))
+        per_kg_usd = float(rates.get("per_kg_usd", 10.0))
+        if weight <= 0.25:
+            price_usd = base_usd
+        else:
+            extra_kg = _math.ceil(weight - 0.25)
+            price_usd = base_usd + extra_kg * per_kg_usd
+        return {
+            "price_eur": round(price_usd * usd_eur, 2),
+            "price_usd": round(price_usd, 2),
+            "zone": "ukrposhta",
+            "carrier": "ukrposhta",
+            "label": "Ukr Poshta International",
+            "weight_kg": round(weight, 3),
+        }
+
+    # Unknown country — not available
+    return {
+        "price_eur": None,
+        "zone": "unavailable",
+        "label": "Delivery not available to this country",
+        "weight_kg": round(weight, 3),
+    }
+
+
+class ShippingCalculateRequest(BaseModel):
+    country: str
+    items: list[dict]  # [{id, quantity, volumetric_weight?}]
+
+
+@app.post("/shipping/calculate")
+def shipping_calculate(payload: ShippingCalculateRequest):
+    """Calculate shipping cost for a given country + cart items."""
+    config = get_shipping_config()
+    total_vol_weight = 0.0
+    for item in payload.items:
+        qty = max(1, int(item.get("quantity", 1)))
+        vol_w = item.get("volumetric_weight")
+        if vol_w is None:
+            try:
+                prod = get_visible_product_row(int(item["id"]))
+                vol_w = float(prod.get("volumetric_weight") or 0.3)
+            except Exception:
+                vol_w = 0.3  # fallback: 300 g per item
+        total_vol_weight += float(vol_w) * qty
+    total_vol_weight = max(0.1, total_vol_weight)
+    result = compute_shipping_cost(payload.country, total_vol_weight, config)
+    return {**result, "total_vol_weight_kg": round(total_vol_weight, 3)}
+
+
+@app.get("/shipping/config")
+def get_shipping_config_endpoint(request: Request):
+    return get_shipping_config()
+
+
+@app.put("/shipping/config", dependencies=[Depends(require_admin)])
+def update_shipping_config(payload: dict):
+    supabase.table("settings").upsert(
+        {"key": "shipping_config", "value": payload},
+        on_conflict="key",
+    ).execute()
+    return {"ok": True}
+
+
 def get_shipping_settings() -> tuple[float, float]:
     """Return (free_threshold, shipping_cost) from the settings table."""
     try:
@@ -1410,6 +1722,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
     normalized_items = []
     subtotal = 0.0
     line_items = []
+    total_vol_weight = 0.0  # kg, for shipping calculation
 
     for item in payload.items:
         qty = max(1, int(item.quantity))
@@ -1419,6 +1732,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             price = float(db_product.get("price") or item.price)
         except HTTPException:
             raise HTTPException(status_code=400, detail=f"Product {item.id} not found or unavailable")
+        # Accumulate volumetric weight from DB (default 0.3 kg per item)
+        total_vol_weight += float(db_product.get("volumetric_weight") or 0.3) * qty
         normalized_item = {
             "id": int(item.id),
             "name": db_product.get("name") or item.name,
@@ -1445,7 +1760,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "quantity": qty,
         })
 
-    free_threshold, shipping_cost_cfg = get_shipping_settings()
+    # Calculate shipping via Nova Poshta / Ukr Poshta zone table (server-authoritative)
+    _shipping_cfg = get_shipping_config()
+    _country = str(payload.country or "DE")
+    _ship_result = compute_shipping_cost(_country, total_vol_weight, _shipping_cfg)
+    if _ship_result.get("price_eur") is None:
+        raise HTTPException(status_code=400, detail=f"Delivery to {_country} is currently not available")
+    shipping_cost_cfg = float(_ship_result["price_eur"])
+
+    free_threshold, _ = get_shipping_settings()
     qualifies_free_shipping = subtotal >= free_threshold
 
     promo = None

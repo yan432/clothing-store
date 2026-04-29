@@ -28,6 +28,7 @@ export default function NewProductClient() {
     custom_sizes: '',
     order_mode: 'standard',
     order_priority: '0',
+    volumetric_weight: '',
   })
 
   function setField(field, value) {
@@ -62,6 +63,7 @@ export default function NewProductClient() {
         stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: 0,
         is_hidden: Boolean(form.is_hidden),
+        volumetric_weight: form.volumetric_weight !== '' ? Number(form.volumetric_weight) : null,
         tags: [
           form.is_new ? 'new' : null,
           form.is_sale ? 'sale' : null,
@@ -163,9 +165,13 @@ export default function NewProductClient() {
             <input value={form.image_url} onChange={(e) => setField('image_url', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
           </label>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
             <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price' : 'Price'}
               <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setField('price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+            </label>
+            <label style={{fontSize:13,color:'#444'}}>Volumetric weight (kg)
+              <input type="number" step="0.01" min="0" value={form.volumetric_weight} onChange={(e) => setField('volumetric_weight', e.target.value)} placeholder="e.g. 0.3" style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+              <span style={{fontSize:11,color:'#aaa',display:'block',marginTop:3}}>L×W×H(cm) / 5000</span>
             </label>
           </div>
           <p style={{fontSize:12,color:'#aaa',margin:'0'}}>Stock is managed per-size in the <a href="/admin/inventory" style={{color:'#888'}}>Inventory</a> page after creating the product.</p>
