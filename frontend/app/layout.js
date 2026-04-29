@@ -10,6 +10,7 @@ import EmailCapturePopup from './components/EmailCapturePopup'
 import { getApiUrl } from './lib/api'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { GoogleAnalytics } from '@next/third-parties/google'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -57,6 +58,7 @@ export default function RootLayout({ children }) {
             <Footer />
             <Analytics />
             <SpeedInsights />
+            <GoogleAnalytics gaId="G-WVXM8RGKBL" />
           </CartProvider>
         </AuthProvider>
       </body>
