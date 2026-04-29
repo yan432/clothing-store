@@ -11,6 +11,8 @@ import { getApiUrl } from './lib/api'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { GoogleAnalytics } from '@next/third-parties/google'
+import Script from 'next/script'
+import CookieConsent from './components/CookieConsent'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -47,6 +49,20 @@ export async function generateMetadata() {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        {/* Consent Mode v2 — must run before GA loads */}
+        <Script id="ga-consent-defaults" strategy="beforeInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('consent', 'default', {
+            ad_storage:         'denied',
+            analytics_storage:  'denied',
+            ad_user_data:       'denied',
+            ad_personalization: 'denied',
+            wait_for_update:    500
+          });
+        `}</Script>
+      </head>
       <body className={inter.className}>
         <AuthProvider>
           <CartProvider>
@@ -56,6 +72,7 @@ export default function RootLayout({ children }) {
             <EmailCapturePopup />
             {children}
             <Footer />
+            <CookieConsent />
             <Analytics />
             <SpeedInsights />
             <GoogleAnalytics gaId="G-WVXM8RGKBL" />
