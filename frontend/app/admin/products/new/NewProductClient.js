@@ -163,14 +163,12 @@ export default function NewProductClient() {
             <input value={form.image_url} onChange={(e) => setField('image_url', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
           </label>
 
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr',gap:10}}>
             <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price' : 'Price'}
               <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setField('price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
             </label>
-            <label style={{fontSize:13,color:'#444'}}>Available stock
-              <input type="number" min="0" value={form.available_stock} onChange={(e) => setField('available_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
-            </label>
           </div>
+          <p style={{fontSize:12,color:'#aaa',margin:'0'}}>Stock is managed per-size in the <a href="/admin/inventory" style={{color:'#888'}}>Inventory</a> page after creating the product.</p>
           {form.is_sale && (
             <label style={{fontSize:13,color:'#444'}}>Old price (before discount)
               <input type="number" step="0.01" min="0" value={form.compare_price} onChange={(e) => setField('compare_price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />

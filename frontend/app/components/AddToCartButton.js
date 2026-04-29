@@ -46,7 +46,13 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
 
   function handleAdd() {
     if (!canAdd) return
-    const result = addToCart({ ...product, size: selectedSize || sizeOptions[0] || null })
+    const size = selectedSize || sizeOptions[0] || null
+    const sizeSpecificStock = size != null ? getSizeQty(size) : undefined
+    // Override available_stock with size-specific stock so CartContext enforces per-size limits
+    const stockOverride = sizeSpecificStock !== undefined
+      ? { available_stock: sizeSpecificStock }
+      : {}
+    const result = addToCart({ ...product, size, ...stockOverride })
     if (!result?.ok) {
       setMaxReached(true); setTimeout(() => setMaxReached(false), 1800); return
     }

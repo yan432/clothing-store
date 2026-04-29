@@ -472,12 +472,18 @@ export default function ProductEditorClient({ id }) {
               <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price' : 'Price'}
                 <input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setField('price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
-              <label style={{fontSize:13,color:'#444'}}>Available stock
-                <input type="number" min="0" value={form.available_stock} onChange={(e) => setField('available_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
-              </label>
-              <label style={{fontSize:13,color:'#444'}}>Reserved stock
-                <input type="number" min="0" value={form.reserved_stock} onChange={(e) => setField('reserved_stock', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
-              </label>
+              <div style={{fontSize:13,color:'#444'}}>Available stock
+                <div style={{marginTop:6,border:'1px solid #eee',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#f9f9f7',color:'#555'}}>
+                  {form.available_stock ?? '—'}
+                </div>
+                <div style={{fontSize:11,color:'#aaa',marginTop:4}}>Managed in <a href="/admin/inventory" style={{color:'#888'}}>Inventory</a></div>
+              </div>
+              <div style={{fontSize:13,color:'#444'}}>Reserved stock
+                <div style={{marginTop:6,border:'1px solid #eee',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#f9f9f7',color:'#555'}}>
+                  {form.reserved_stock ?? '—'}
+                </div>
+                <div style={{fontSize:11,color:'#aaa',marginTop:4}}>Updated automatically</div>
+              </div>
             </div>
             {form.is_sale && (
               <label style={{fontSize:13,color:'#444'}}>Old price (before discount)

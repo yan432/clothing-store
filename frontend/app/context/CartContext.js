@@ -22,23 +22,25 @@ export function CartProvider({ children }) {
     return Math.max(0, Number(item?.available_stock ?? item?.stock ?? 0))
   }
 
-  function getQtyForProduct(productId, ignoreSize = null) {
-    return cart.reduce((sum, item) => {
-      if (item.id !== productId) return sum
-      if (ignoreSize != null && item.size === ignoreSize) return sum
-      return sum + item.qty
-    }, 0)
+  // How many units of a specific (product, size) combination are already in the cart
+  function getQtyForSize(productId, size) {
+    return cart.reduce((sum, item) =>
+      item.id === productId && item.size === size ? sum + item.qty : sum, 0)
   }
 
   function addToCart(product) {
     const maxStock = getMaxStock(product)
     if (maxStock <= 0) return { ok: false, reason: 'out_of_stock' }
-    const currentQty = getQtyForProduct(product.id)
-    if (currentQty >= maxStock) return { ok: false, reason: 'max_reached' }
+    // Per-size limit: compare only the qty already in cart for this exact (product, size)
+    const currentSizeQty = getQtyForSize(product.id, product.size)
+    if (currentSizeQty >= maxStock) return { ok: false, reason: 'max_reached' }
 
     const existing = cart.find(i => i.id === product.id && i.size === product.size)
     if (existing) {
-      save(cart.map(i => (i.id === product.id && i.size === product.size) ? {...i, qty: i.qty + 1} : i))
+      // Also refresh available_stock so the stored value stays per-size accurate
+      save(cart.map(i => (i.id === product.id && i.size === product.size)
+        ? { ...i, qty: i.qty + 1, available_stock: maxStock }
+        : i))
     } else {
       save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
@@ -57,14 +59,9 @@ export function CartProvider({ children }) {
     if (!target) return
 
     const maxStock = getMaxStock(target)
-    const otherQty = cart.reduce((sum, item) => {
-      if (item.id !== id) return sum
-      if (item.size === size) return sum
-      return sum + item.qty
-    }, 0)
-    const maxForLine = Math.max(0, maxStock - otherQty)
-    if (maxForLine < 1) return removeFromCart(id, size)
-    const nextQty = Math.min(qty, maxForLine)
+    if (maxStock < 1) return removeFromCart(id, size)
+    // Cap at per-size stock (each size is independent)
+    const nextQty = Math.min(qty, maxStock)
     save(cart.map(i => (i.id === id && i.size === size) ? {...i, qty: nextQty} : i))
   }
 

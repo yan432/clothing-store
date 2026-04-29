@@ -70,7 +70,13 @@ export default function CartPage() {
                       style={{width:32,height:32,borderRadius:'50%',border:'1.5px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
                     <span style={{fontSize:15,fontWeight:500,minWidth:20,textAlign:'center'}}>{item.qty}</span>
                     <button onClick={() => updateQty(item.id, item.qty + 1, item.size)}
-                      style={{width:32,height:32,borderRadius:'50%',border:'1.5px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+                      disabled={item.available_stock > 0 && item.qty >= item.available_stock}
+                      style={{width:32,height:32,borderRadius:'50%',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',
+                        border: (item.available_stock > 0 && item.qty >= item.available_stock) ? '1.5px solid #eee' : '1.5px solid #e5e5e3',
+                        background:'none',
+                        cursor: (item.available_stock > 0 && item.qty >= item.available_stock) ? 'not-allowed' : 'pointer',
+                        color:  (item.available_stock > 0 && item.qty >= item.available_stock) ? '#ccc' : 'inherit',
+                      }}>+</button>
                   </div>
                   <div className="cart-item-price">
                     <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>€{(item.price * item.qty).toFixed(2)}</p>

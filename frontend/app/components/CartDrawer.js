@@ -151,7 +151,11 @@ export default function CartDrawer({ open, onClose }) {
                           style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:'#555',padding:0,lineHeight:1}}>−</button>
                         <span style={{fontSize:13,fontWeight:500,minWidth:16,textAlign:'center'}}>{item.qty}</span>
                         <button onClick={() => updateQty(item.id, item.qty + 1, item.size)}
-                          style={{background:'none',border:'none',cursor:'pointer',fontSize:16,color:'#555',padding:0,lineHeight:1}}>+</button>
+                          disabled={item.available_stock > 0 && item.qty >= item.available_stock}
+                          style={{background:'none',border:'none',fontSize:16,padding:0,lineHeight:1,
+                            cursor: (item.available_stock > 0 && item.qty >= item.available_stock) ? 'not-allowed' : 'pointer',
+                            color:  (item.available_stock > 0 && item.qty >= item.available_stock) ? '#ccc' : '#555',
+                          }}>+</button>
                       </div>
                       <p style={{fontSize:14,fontWeight:600,margin:0}}>€{(item.price * item.qty).toFixed(2)}</p>
                     </div>

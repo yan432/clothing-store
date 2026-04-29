@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import os
 import random
@@ -694,6 +694,7 @@ def _decorate_product_with_images(product: dict) -> dict:
     }
 
 def reserve_stock(items: list[dict]) -> None:
+    # ── product-level ─────────────────────────────────────────────────────────
     quantities_by_product: dict[int, int] = {}
     for item in items:
         product_id = int(item["id"])
@@ -721,8 +722,33 @@ def reserve_stock(items: list[dict]) -> None:
             "stock": available - qty,
         }).eq("id", product_id).execute()
 
+    # ── size-level ────────────────────────────────────────────────────────────
+    quantities_by_size: dict[tuple[int, str], int] = {}
+    for item in items:
+        size = str(item.get("size") or "").strip()
+        if not size:
+            continue
+        key = (int(item["id"]), size)
+        qty = max(0, int(item["quantity"]))
+        quantities_by_size[key] = quantities_by_size.get(key, 0) + qty
+
+    if not quantities_by_size:
+        return
+    try:
+        for (product_id, size), qty in quantities_by_size.items():
+            row = supabase.table("product_size_stock").select("stock,reserved").eq("product_id", product_id).eq("size", size).limit(1).execute()
+            if not row.data:
+                continue
+            current_reserved = int(row.data[0].get("reserved", 0) or 0)
+            supabase.table("product_size_stock").update({
+                "reserved": current_reserved + qty,
+            }).eq("product_id", product_id).eq("size", size).execute()
+    except Exception:
+        pass  # size-level tracking is optional — never block checkout
+
 
 def release_reserved_stock(items: list[dict]) -> None:
+    # ── product-level ─────────────────────────────────────────────────────────
     quantities_by_product: dict[int, int] = {}
     for item in items:
         product_id = int(item["id"])
@@ -741,8 +767,33 @@ def release_reserved_stock(items: list[dict]) -> None:
             "stock": available + returned,
         }).eq("id", product_id).execute()
 
+    # ── size-level ────────────────────────────────────────────────────────────
+    quantities_by_size: dict[tuple[int, str], int] = {}
+    for item in items:
+        size = str(item.get("size") or "").strip()
+        if not size:
+            continue
+        key = (int(item["id"]), size)
+        qty = max(0, int(item["quantity"]))
+        quantities_by_size[key] = quantities_by_size.get(key, 0) + qty
+
+    if not quantities_by_size:
+        return
+    try:
+        for (product_id, size), qty in quantities_by_size.items():
+            row = supabase.table("product_size_stock").select("reserved").eq("product_id", product_id).eq("size", size).limit(1).execute()
+            if not row.data:
+                continue
+            current_reserved = int(row.data[0].get("reserved", 0) or 0)
+            supabase.table("product_size_stock").update({
+                "reserved": max(0, current_reserved - qty),
+            }).eq("product_id", product_id).eq("size", size).execute()
+    except Exception:
+        pass
+
 
 def finalize_paid_stock(items: list[dict]) -> None:
+    # ── product-level ─────────────────────────────────────────────────────────
     quantities_by_product: dict[int, int] = {}
     for item in items:
         product_id = int(item["id"])
@@ -757,6 +808,39 @@ def finalize_paid_stock(items: list[dict]) -> None:
             "reserved_stock": new_reserved,
             "stock": get_available_stock_value(product),
         }).eq("id", product_id).execute()
+
+    # ── size-level ────────────────────────────────────────────────────────────
+    quantities_by_size: dict[tuple[int, str], int] = {}
+    for item in items:
+        size = str(item.get("size") or "").strip()
+        if not size:
+            continue
+        key = (int(item["id"]), size)
+        qty = max(0, int(item["quantity"]))
+        quantities_by_size[key] = quantities_by_size.get(key, 0) + qty
+
+    if not quantities_by_size:
+        return
+    try:
+        affected_products: set[int] = set()
+        for (product_id, size), qty in quantities_by_size.items():
+            row = supabase.table("product_size_stock").select("stock,reserved").eq("product_id", product_id).eq("size", size).limit(1).execute()
+            if not row.data:
+                continue
+            current_stock    = int(row.data[0].get("stock",    0) or 0)
+            current_reserved = int(row.data[0].get("reserved", 0) or 0)
+            supabase.table("product_size_stock").update({
+                "stock":    max(0, current_stock    - qty),
+                "reserved": max(0, current_reserved - qty),
+            }).eq("product_id", product_id).eq("size", size).execute()
+            affected_products.add(product_id)
+        # Re-sync products.available_stock from sum of size stocks
+        for product_id in affected_products:
+            size_data = supabase.table("product_size_stock").select("stock").eq("product_id", product_id).execute()
+            total_stock = sum(int(r.get("stock", 0) or 0) for r in (size_data.data or []))
+            supabase.table("products").update({"available_stock": total_stock, "stock": total_stock}).eq("id", product_id).execute()
+    except Exception:
+        pass
 
 
 def find_order(client_reference_id: Optional[str], stripe_session_id: Optional[str]) -> Optional[dict]:
@@ -961,9 +1045,22 @@ def archive_product(product_id: int):
 
 @app.get("/products/{product_id}/size-stock")
 def get_product_size_stock(product_id: int):
-    """Returns {size: stock} map for a product. Missing sizes = not tracked."""
-    data = supabase.table("product_size_stock").select("size,stock").eq("product_id", product_id).execute()
-    return {row["size"]: row["stock"] for row in (data.data or [])}
+    """Returns {size: available_stock} map (stock - reserved). Missing sizes = not tracked."""
+    try:
+        data = supabase.table("product_size_stock").select("size,stock,reserved").eq("product_id", product_id).execute()
+        result = {}
+        for row in (data.data or []):
+            stock    = int(row.get("stock",    0) or 0)
+            reserved = int(row.get("reserved", 0) or 0)
+            result[row["size"]] = max(0, stock - reserved)
+        return result
+    except Exception:
+        # Fallback: reserved column may not exist yet — return raw stock
+        try:
+            data = supabase.table("product_size_stock").select("size,stock").eq("product_id", product_id).execute()
+            return {row["size"]: max(0, int(row.get("stock", 0) or 0)) for row in (data.data or [])}
+        except Exception:
+            return {}
 
 @app.put("/products/{product_id}/size-stock")
 def update_product_size_stock(product_id: int, stock_map: dict):
@@ -1440,6 +1537,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             client_reference_id=client_reference_id,
             billing_address_collection="required",
             customer_email=payload.customer_email,
+            expires_at=int((datetime.now(tz=timezone.utc) + timedelta(minutes=30)).timestamp()),
             metadata={
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
