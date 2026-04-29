@@ -668,7 +668,12 @@ def send_order_confirmation_emails(order: dict) -> None:
     )
     send_email(customer_email, customer_subject, customer_html, customer_text)
 
-    admin_target = str(ORDER_ALERT_EMAIL or "").strip()
+    _db_admin_email = get_setting("admin_email", "")
+    admin_target = (
+        str(ORDER_ALERT_EMAIL or "").strip()
+        or str(_db_admin_email or "").strip()
+        or "sales@edmclothes.net"
+    )
     if admin_target:
         admin_subj_tpl = cfg.get("email_admin_subject") or "New order #{order_id} — {total}"
         admin_subject = fmt(admin_subj_tpl)
