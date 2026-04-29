@@ -465,10 +465,62 @@ def send_email(to_email: str, subject: str, html: str, text: str) -> None:
     """Отправляет через Zoho SMTP (приоритет) или Resend как fallback."""
     target = str(to_email or "").strip()
     if not target:
+        print(f"send_email: skipped — empty recipient (subject={subject!r})")
         return
+    print(f"send_email: sending to={target!r} subject={subject!r}")
     if send_email_zoho(target, subject, html, text):
+        print(f"send_email: sent via Zoho SMTP to={target!r}")
         return
     send_resend_email(target, subject, html, text)
+
+
+def send_email_sync_debug(to_email: str, subject: str, html: str, text: str) -> dict:
+    """Like send_email but returns a debug dict instead of raising — used by test endpoint."""
+    target = str(to_email or "").strip()
+    result: dict = {"to": target, "subject": subject, "zoho_ok": False, "resend_ok": False,
+                    "zoho_error": None, "resend_error": None}
+    if not target:
+        result["error"] = "Empty recipient"
+        return result
+    # Try Zoho
+    if ZOHO_SMTP_USER and ZOHO_SMTP_PASSWORD:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["From"] = f"EDM Clothes <{ZOHO_SMTP_USER}>"
+            msg["To"] = target
+            msg["Subject"] = subject
+            msg.attach(MIMEText(text, "plain", "utf-8"))
+            msg.attach(MIMEText(html, "html", "utf-8"))
+            with smtplib.SMTP(ZOHO_SMTP_HOST, ZOHO_SMTP_PORT, timeout=10) as server:
+                server.ehlo()
+                server.starttls()
+                server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
+                server.sendmail(ZOHO_SMTP_USER, target, msg.as_string())
+            result["zoho_ok"] = True
+            return result
+        except Exception as exc:
+            result["zoho_error"] = str(exc)
+    else:
+        result["zoho_error"] = "ZOHO_SMTP_USER or ZOHO_SMTP_PASSWORD not set"
+    # Try Resend
+    if RESEND_API_KEY:
+        sender = str(RESEND_FROM_EMAIL or "").strip() or "Store <onboarding@resend.dev>"
+        try:
+            resp = requests.post(
+                RESEND_API_URL,
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+                json={"from": sender, "to": [target], "subject": subject, "html": html, "text": text},
+                timeout=8,
+            )
+            if resp.status_code < 400:
+                result["resend_ok"] = True
+            else:
+                result["resend_error"] = f"HTTP {resp.status_code}: {resp.text[:300]}"
+        except Exception as exc:
+            result["resend_error"] = str(exc)
+    else:
+        result["resend_error"] = "RESEND_API_KEY not set"
+    return result
 
 
 def order_items_html(items: list[dict]) -> str:
@@ -2717,8 +2769,17 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
     if "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
 
-    admin_email = get_setting("admin_email", ZOHO_SMTP_USER or "sales@edmclothes.net")
-    site_url    = get_setting("site_url", "https://edmclothes.net")
+    # Recipient priority: ORDER_ALERT_EMAIL env var (works for order notifications)
+    # → admin_email in settings table → Zoho user → hardcoded fallback
+    _db_admin = get_setting("admin_email", "")
+    admin_email = (
+        str(ORDER_ALERT_EMAIL or "").strip()
+        or _db_admin.strip()
+        or str(ZOHO_SMTP_USER or "").strip()
+        or "sales@edmclothes.net"
+    )
+    site_url = get_setting("site_url", "https://edmclothes.net")
+    print(f"contact form: admin_email={admin_email!r} ORDER_ALERT_EMAIL={ORDER_ALERT_EMAIL!r} db_admin={_db_admin!r}")
 
     # HTML-escape all user-supplied fields before embedding in email
     e_name    = _html.escape(name)
@@ -2778,6 +2839,39 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
     )
 
     return {"ok": True}
+
+
+@app.get("/admin/test-email", dependencies=[Depends(require_admin)])
+def test_email_delivery(to: str = ""):
+    """Send a test email and return a full diagnostic report.
+    Usage: GET /admin/test-email?to=you@example.com
+    If 'to' is omitted, sends to the same address as contact-form admin notifications."""
+    _db_admin = get_setting("admin_email", "")
+    recipient = (
+        str(to or "").strip()
+        or str(ORDER_ALERT_EMAIL or "").strip()
+        or _db_admin.strip()
+        or str(ZOHO_SMTP_USER or "").strip()
+        or "sales@edmclothes.net"
+    )
+    result = send_email_sync_debug(
+        recipient,
+        "EDM Clothes — email delivery test",
+        "<h2>Test email</h2><p>If you see this, email delivery is working ✅</p>",
+        "Test email — if you see this, email delivery is working.",
+    )
+    result["config"] = {
+        "zoho_host": ZOHO_SMTP_HOST,
+        "zoho_port": ZOHO_SMTP_PORT,
+        "zoho_user_set": bool(ZOHO_SMTP_USER),
+        "zoho_pass_set": bool(ZOHO_SMTP_PASSWORD),
+        "resend_key_set": bool(RESEND_API_KEY),
+        "resend_from": RESEND_FROM_EMAIL or "(not set)",
+        "order_alert_email": ORDER_ALERT_EMAIL or "(not set)",
+        "db_admin_email": _db_admin or "(not set in DB)",
+        "resolved_recipient": recipient,
+    }
+    return result
 
 
 # ── FAQ & Static Pages ──────────────────────────────────────────────────────
