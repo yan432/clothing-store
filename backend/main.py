@@ -1694,8 +1694,47 @@ DEFAULT_SHIPPING_CONFIG: dict = {
     "ukrposhta": {
         "usd_eur_rate": 0.92,   # 1 USD → EUR. Adjust periodically in CMS.
         "countries": {
-            # Eastern Europe / CIS (not in Nova Poshta zones)
+            # ── Western Europe (also in Nova Poshta zones — system picks cheaper) ──
+            # Rates from Ukr Poshta 2026 tariff PDF (col1=base ≤250g, col2=per started kg >250g)
+            "DE": {"base_usd": 6.50,  "per_kg_usd": 2.00},   # Germany
+            "PL": {"base_usd": 12.00, "per_kg_usd": 3.50},   # Poland
+            "CZ": {"base_usd": 6.00,  "per_kg_usd": 4.50},   # Czech Republic
+            "SK": {"base_usd": 9.50,  "per_kg_usd": 3.50},   # Slovakia
+            "HU": {"base_usd": 15.50, "per_kg_usd": 4.50},   # Hungary
+            "AT": {"base_usd": 12.00, "per_kg_usd": 4.00},   # Austria (est. ~CZ/SK avg)
+            "LT": {"base_usd": 4.00,  "per_kg_usd": 3.50},   # Lithuania
+            "LV": {"base_usd": 7.50,  "per_kg_usd": 2.50},   # Latvia
+            "EE": {"base_usd": 8.00,  "per_kg_usd": 3.50},   # Estonia
+            "NL": {"base_usd": 12.00, "per_kg_usd": 4.50},   # Netherlands
+            "BE": {"base_usd": 20.00, "per_kg_usd": 4.50},   # Belgium
+            "FR": {"base_usd": 17.00, "per_kg_usd": 5.00},   # France
+            "IT": {"base_usd": 13.50, "per_kg_usd": 4.00},   # Italy
+            "ES": {"base_usd": 14.50, "per_kg_usd": 5.00},   # Spain
+            "PT": {"base_usd": 15.50, "per_kg_usd": 4.00},   # Portugal
+            "GB": {"base_usd": 21.00, "per_kg_usd": 5.50},   # United Kingdom
+            "IE": {"base_usd": 6.00,  "per_kg_usd": 4.00},   # Ireland
+            "DK": {"base_usd": 15.00, "per_kg_usd": 4.50},   # Denmark
+            "SE": {"base_usd": 21.00, "per_kg_usd": 5.00},   # Sweden
+            "FI": {"base_usd": 20.00, "per_kg_usd": 4.50},   # Finland
+            "NO": {"base_usd": 18.00, "per_kg_usd": 5.50},   # Norway
+            "CH": {"base_usd": 12.00, "per_kg_usd": 4.50},   # Switzerland
+            "LU": {"base_usd": 13.50, "per_kg_usd": 5.00},   # Luxembourg
+            "TR": {"base_usd": 19.00, "per_kg_usd": 7.50},   # Turkey
+            "GR": {"base_usd": 11.50, "per_kg_usd": 5.00},   # Greece
+            "BG": {"base_usd": 10.00, "per_kg_usd": 4.50},   # Bulgaria
             "RO": {"base_usd": 20.50, "per_kg_usd": 4.50},   # Romania
+            "HR": {"base_usd": 9.00,  "per_kg_usd": 4.50},   # Croatia
+            "SI": {"base_usd": 10.00, "per_kg_usd": 5.00},   # Slovenia
+            # ── Zone 7 (NP is very expensive here — UP dramatically cheaper) ──────
+            "CY": {"base_usd": 12.50, "per_kg_usd": 6.00},   # Cyprus
+            "AL": {"base_usd": 13.50, "per_kg_usd": 6.00},   # Albania (est. ~Balkans avg)
+            "BA": {"base_usd": 12.50, "per_kg_usd": 6.00},   # Bosnia & Herzegovina
+            "MT": {"base_usd": 13.50, "per_kg_usd": 20.00},  # Malta
+            "ME": {"base_usd": 14.00, "per_kg_usd": 6.00},   # Montenegro
+            "MK": {"base_usd": 11.00, "per_kg_usd": 6.00},   # North Macedonia
+            "IS": {"base_usd": 19.00, "per_kg_usd": 5.50},   # Iceland
+            "RS": {"base_usd": 13.50, "per_kg_usd": 5.00},   # Serbia
+            # ── Eastern Europe / CIS ─────────────────────────────────────────────
             "MD": {"base_usd": 13.00, "per_kg_usd": 3.50},   # Moldova
             "GE": {"base_usd": 17.00, "per_kg_usd": 6.50},   # Georgia
             "AM": {"base_usd": 14.50, "per_kg_usd": 6.00},   # Armenia
@@ -1705,7 +1744,7 @@ DEFAULT_SHIPPING_CONFIG: dict = {
             "TM": {"base_usd": 8.50,  "per_kg_usd": 6.00},   # Turkmenistan
             "TJ": {"base_usd": 9.00,  "per_kg_usd": 10.50},  # Tajikistan
             "KG": {"base_usd": 8.50,  "per_kg_usd": 6.50},   # Kyrgyzstan
-            # Americas
+            # ── Americas ─────────────────────────────────────────────────────────
             "US": {"base_usd": 9.00,  "per_kg_usd": 9.00},   # USA
             "CA": {"base_usd": 9.00,  "per_kg_usd": 9.00},   # Canada
             "MX": {"base_usd": 10.00, "per_kg_usd": 9.50},   # Mexico
@@ -1716,7 +1755,7 @@ DEFAULT_SHIPPING_CONFIG: dict = {
             "PE": {"base_usd": 11.50, "per_kg_usd": 11.50},  # Peru
             "UY": {"base_usd": 15.00, "per_kg_usd": 14.00},  # Uruguay
             "VE": {"base_usd": 7.50,  "per_kg_usd": 15.00},  # Venezuela
-            # Asia-Pacific
+            # ── Asia-Pacific ──────────────────────────────────────────────────────
             "JP": {"base_usd": 20.00, "per_kg_usd": 7.50},   # Japan
             "CN": {"base_usd": 11.50, "per_kg_usd": 6.50},   # China
             "KR": {"base_usd": 12.50, "per_kg_usd": 6.00},   # South Korea
@@ -1734,7 +1773,7 @@ DEFAULT_SHIPPING_CONFIG: dict = {
             "AU": {"base_usd": 13.00, "per_kg_usd": 13.00},  # Australia
             "NZ": {"base_usd": 16.00, "per_kg_usd": 17.00},  # New Zealand
             "MN": {"base_usd": 12.50, "per_kg_usd": 16.50},  # Mongolia
-            # Middle East / North Africa
+            # ── Middle East / North Africa ────────────────────────────────────────
             "AE": {"base_usd": 8.50,  "per_kg_usd": 4.50},   # UAE
             "SA": {"base_usd": 8.00,  "per_kg_usd": 6.50},   # Saudi Arabia
             "QA": {"base_usd": 9.00,  "per_kg_usd": 6.50},   # Qatar
@@ -1748,7 +1787,7 @@ DEFAULT_SHIPPING_CONFIG: dict = {
             "IQ": {"base_usd": 8.50,  "per_kg_usd": 6.50},   # Iraq
             "MA": {"base_usd": 11.00, "per_kg_usd": 8.50},   # Morocco
             "TN": {"base_usd": 15.00, "per_kg_usd": 11.00},  # Tunisia
-            # Sub-Saharan Africa
+            # ── Sub-Saharan Africa ────────────────────────────────────────────────
             "ZA": {"base_usd": 15.00, "per_kg_usd": 20.50},  # South Africa
             "KE": {"base_usd": 10.50, "per_kg_usd": 6.50},   # Kenya
             "NG": {"base_usd": 14.00, "per_kg_usd": 8.00},   # Nigeria
