@@ -22,7 +22,7 @@ export default async function ReturnsPage() {
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '56px 24px 80px' }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Returns & Exchanges</h1>
-      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>Last updated: May 2025</p>
+      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>Last updated: April 2026</p>
 
       {/* Quick summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 48 }}>
