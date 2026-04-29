@@ -8,6 +8,7 @@ import DrawerWrapper from './components/DrawerWrapper'
 import Footer from './components/Footer'
 import EmailCapturePopup from './components/EmailCapturePopup'
 import { getApiUrl } from './lib/api'
+import { Analytics } from '@vercel/analytics/next'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -53,6 +54,7 @@ export default function RootLayout({ children }) {
             <EmailCapturePopup />
             {children}
             <Footer />
+            <Analytics />
           </CartProvider>
         </AuthProvider>
       </body>
