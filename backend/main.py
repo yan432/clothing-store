@@ -2716,7 +2716,7 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
         <tr>
           <td style="padding:24px 40px;text-align:center;">
             <p style="margin:0;font-size:12px;color:#b0b0a8;">
-              © 2025 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
+              © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
             </p>
           </td>
         </tr>
@@ -2901,7 +2901,7 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
         </td></tr>
         <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;"/></td></tr>
         <tr><td style="padding:20px 40px;text-align:center;">
-          <p style="margin:0;font-size:12px;color:#b0b0a8;">© 2025 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a></p>
+          <p style="margin:0;font-size:12px;color:#b0b0a8;">© 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a></p>
         </td></tr>
       </table>
     </td></tr>
