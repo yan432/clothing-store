@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import html as _html
 import json
 import os
 import random
@@ -12,7 +13,7 @@ import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -38,10 +39,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
-)
+# Use service role key if available (bypasses RLS — backend is trusted server).
+# Falls back to anon key for local dev without RLS configured.
+_supabase_key = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(os.getenv("SUPABASE_URL"), _supabase_key)
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 ORDER_PENDING = "pending"
@@ -52,6 +53,20 @@ RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Store <onboarding@resend.dev>")
 ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
+
+# ── Admin auth ────────────────────────────────────────────────────────────────
+# Set ADMIN_SECRET to a long random string in your backend .env.
+# The Next.js proxy reads the same value as BACKEND_ADMIN_SECRET and forwards
+# it in X-Admin-Secret for every request coming from an authenticated admin session.
+ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
+
+def require_admin(request: Request):
+    """FastAPI dependency: reject non-admin requests."""
+    if not ADMIN_SECRET:
+        return  # Secret not configured — open (local dev only, set it in production!)
+    header = request.headers.get("X-Admin-Secret", "")
+    if header != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 # Zoho SMTP (приоритет над Resend если настроен)
 ZOHO_SMTP_HOST = os.getenv("ZOHO_SMTP_HOST", "smtp.zoho.eu")
@@ -917,7 +932,7 @@ def get_categories():
     return cats
 
 
-@app.get("/products/admin")
+@app.get("/products/admin", dependencies=[Depends(require_admin)])
 def get_products_admin():
     data = supabase.table("products").select("*").order("id").execute()
     # Fast admin listing: avoid per-product storage listing.
@@ -965,12 +980,12 @@ def get_product(product_id: str):
     return product
 
 
-@app.get("/products/admin/{product_id}")
+@app.get("/products/admin/{product_id}", dependencies=[Depends(require_admin)])
 def get_product_admin(product_id: int):
     return _decorate_product_with_images(get_product_row(product_id))
 
 
-@app.post("/products")
+@app.post("/products", dependencies=[Depends(require_admin)])
 def create_product(product: Product):
     payload = {k: v for k, v in product.dict().items() if v is not None}
     if not payload.get("slug"):
@@ -993,7 +1008,7 @@ def create_product(product: Product):
     return {**new_product, "image_urls": urls}
 
 
-@app.put("/products/{product_id}")
+@app.put("/products/{product_id}", dependencies=[Depends(require_admin)])
 def update_product(product_id: int, product: ProductUpdate):
     existing = get_product_row(product_id)
     updates = product.dict(exclude_unset=True)
@@ -1018,13 +1033,13 @@ def update_product(product_id: int, product: ProductUpdate):
     return _decorate_product_with_images(data.data[0])
 
 
-@app.delete("/products/{product_id}")
+@app.delete("/products/{product_id}", dependencies=[Depends(require_admin)])
 def delete_product(product_id: int):
     supabase.table("products").delete().eq("id", product_id).execute()
     return {"message": "Удалён"}
 
 
-@app.post("/products/{product_id}/archive")
+@app.post("/products/{product_id}/archive", dependencies=[Depends(require_admin)])
 def archive_product(product_id: int):
     product = get_product_row(product_id)
     current_name = product.get("name") or f"Product {product_id}"
@@ -1062,7 +1077,7 @@ def get_product_size_stock(product_id: int):
         except Exception:
             return {}
 
-@app.put("/products/{product_id}/size-stock")
+@app.put("/products/{product_id}/size-stock", dependencies=[Depends(require_admin)])
 def update_product_size_stock(product_id: int, stock_map: dict):
     """Upsert size stock for a product. stock_map = {size: stock_int}."""
     for size, stock in stock_map.items():
@@ -1072,7 +1087,7 @@ def update_product_size_stock(product_id: int, stock_map: dict):
         ).execute()
     return {"ok": True}
 
-@app.get("/admin/inventory")
+@app.get("/admin/inventory", dependencies=[Depends(require_admin)])
 def get_inventory():
     """All visible products with their per-size stock for CMS."""
     products = supabase.table("products").select("id,name,slug,tags").eq("is_hidden", False).neq("category", "archived").order("name").execute()
@@ -1099,7 +1114,7 @@ def get_inventory():
         })
     return result
 
-@app.put("/admin/inventory")
+@app.put("/admin/inventory", dependencies=[Depends(require_admin)])
 async def update_inventory(request: Request):
     """Batch upsert: [{product_id, size, stock}]
     Also syncs product-level available_stock = sum of all its sizes."""
@@ -1122,23 +1137,29 @@ async def update_inventory(request: Request):
     return {"ok": True, "count": len(rows)}
 
 
-@app.post("/upload")
+_ALLOWED_IMAGE_EXTS = {"jpg", "jpeg", "png", "gif", "webp", "avif"}
+_EXT_CONTENT_TYPE = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
+                     "gif": "image/gif", "webp": "image/webp", "avif": "image/avif"}
+
+def _safe_image_ext(filename: str) -> str:
+    ext = (filename or "").rsplit(".", 1)[-1].lower()
+    if ext not in _ALLOWED_IMAGE_EXTS:
+        raise HTTPException(status_code=400, detail=f"File type .{ext} not allowed. Use: {', '.join(sorted(_ALLOWED_IMAGE_EXTS))}")
+    return ext
+
+@app.post("/upload", dependencies=[Depends(require_admin)])
 async def upload_image(file: UploadFile = File(...)):
-    ext = file.filename.split(".")[-1]
+    ext = _safe_image_ext(file.filename)
     filename = f"{uuid.uuid4()}.{ext}"
     content = await file.read()
+    content_type = _EXT_CONTENT_TYPE[ext]
 
-    supabase.storage.from_("product-images").upload(
-        filename,
-        content,
-        {"content-type": file.content_type}
-    )
-
+    supabase.storage.from_("product-images").upload(filename, content, {"content-type": content_type})
     url = supabase.storage.from_("product-images").get_public_url(filename)
     return {"url": url}
 
 
-@app.put("/products/{product_id}/image")
+@app.put("/products/{product_id}/image", dependencies=[Depends(require_admin)])
 async def update_product_image(
     product_id: int,
     files: list[UploadFile] = File(default=[]),
@@ -1148,14 +1169,14 @@ async def update_product_image(
 
     uploaded_urls: list[str] = []
     for file in files:
-        ext = (file.filename or "jpg").split(".")[-1]
+        ext = _safe_image_ext(file.filename or "file.jpg")
         filename = f"{uuid.uuid4()}.{ext}"
         path = f"{product_id}/{filename}"
         content = await file.read()
         supabase.storage.from_("product-images").upload(
             path,
             content,
-            {"content-type": file.content_type}
+            {"content-type": _EXT_CONTENT_TYPE[ext]}
         )
         uploaded_urls.append(supabase.storage.from_("product-images").get_public_url(path))
 
@@ -1176,7 +1197,7 @@ async def update_product_image(
     return _decorate_product_with_images(data.data[0])
 
 
-@app.delete("/products/{product_id}/image")
+@app.delete("/products/{product_id}/image", dependencies=[Depends(require_admin)])
 def delete_product_image(product_id: int, payload: ProductImageDelete):
     product = get_product_row(product_id)
     path = _storage_path_from_public_url(payload.image_url)
@@ -1204,7 +1225,7 @@ def delete_product_image(product_id: int, payload: ProductImageDelete):
 class ProductImagesReorder(BaseModel):
     image_urls: list[str]
 
-@app.put("/products/{product_id}/images/reorder")
+@app.put("/products/{product_id}/images/reorder", dependencies=[Depends(require_admin)])
 def reorder_product_images(product_id: int, payload: ProductImagesReorder):
     """Save a new image order. First URL becomes the cover."""
     if not payload.image_urls:
@@ -1240,13 +1261,13 @@ def validate_promo_code(code: str, subtotal: float = 0.0, shipping: float = 0.0)
     )
 
 
-@app.get("/promo-codes/admin")
+@app.get("/promo-codes/admin", dependencies=[Depends(require_admin)])
 def list_promo_codes_admin():
     data = supabase.table("promo_codes").select("*").order("created_at", desc=True).limit(300).execute()
     return data.data or []
 
 
-@app.post("/promo-codes")
+@app.post("/promo-codes", dependencies=[Depends(require_admin)])
 def create_promo_code(payload: PromoCodeCreate):
     discount_type = str(payload.discount_type or "").lower()
     if discount_type not in ("percent", "fixed", "free_shipping"):
@@ -1294,7 +1315,7 @@ def create_promo_code(payload: PromoCodeCreate):
     return data.data[0]
 
 
-@app.put("/promo-codes/{promo_id}")
+@app.put("/promo-codes/{promo_id}", dependencies=[Depends(require_admin)])
 def update_promo_code(promo_id: int, payload: PromoCodeUpdate):
     updates = payload.dict(exclude_unset=True)
     existing_result = supabase.table("promo_codes").select("*").eq("id", promo_id).limit(1).execute()
@@ -1334,7 +1355,7 @@ def update_promo_code(promo_id: int, payload: PromoCodeUpdate):
     return data.data[0]
 
 
-@app.delete("/promo-codes/{promo_id}")
+@app.delete("/promo-codes/{promo_id}", dependencies=[Depends(require_admin)])
 def delete_promo_code(promo_id: int):
     data = supabase.table("promo_codes").delete().eq("id", promo_id).execute()
     if not data.data:
@@ -1392,10 +1413,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
 
     for item in payload.items:
         qty = max(1, int(item.quantity))
-        price = max(0.01, float(item.price))
+        # Always fetch the authoritative price from DB — never trust client-supplied price
+        try:
+            db_product = get_visible_product_row(int(item.id))
+            price = float(db_product.get("price") or item.price)
+        except HTTPException:
+            raise HTTPException(status_code=400, detail=f"Product {item.id} not found or unavailable")
         normalized_item = {
             "id": int(item.id),
-            "name": item.name,
+            "name": db_product.get("name") or item.name,
             "price": price,
             "quantity": qty,
             "image_url": item.image_url,
@@ -1721,7 +1747,7 @@ async def stripe_webhook(request: Request):
     return {"received": True}
 
 
-@app.get("/orders")
+@app.get("/orders", dependencies=[Depends(require_admin)])
 def list_orders():
     data = supabase.table("orders").select("*").order("created_at", desc=True).limit(100).execute()
     return data.data
@@ -1730,9 +1756,13 @@ def list_orders():
 _USER_VISIBLE_STATUSES = ["paid", "shipped", "delivered"]
 
 
-@app.get("/orders/track")
-def track_orders(email: str):
-    normalized = str(email or "").strip().lower()
+class OrderTrackRequest(BaseModel):
+    email: str
+
+@app.post("/orders/track")
+def track_orders(payload: OrderTrackRequest):
+    """POST so email stays out of URL / server logs / analytics."""
+    normalized = str(payload.email or "").strip().lower()
     if not normalized:
         raise HTTPException(status_code=400, detail="email is required")
     data = (
@@ -1749,9 +1779,10 @@ def track_orders(email: str):
     return list(reversed(numbered))
 
 
-@app.get("/orders/track/{order_id}")
-def track_order_details(order_id: int, email: str):
-    normalized = str(email or "").strip().lower()
+@app.post("/orders/track/{order_id}")
+def track_order_details(order_id: int, payload: OrderTrackRequest):
+    """POST so email stays out of URL / server logs / analytics."""
+    normalized = str(payload.email or "").strip().lower()
     if not normalized:
         raise HTTPException(status_code=400, detail="email is required")
     data = (
@@ -1812,7 +1843,7 @@ class OrderUpdatePayload(BaseModel):
     tracking_url: Optional[str] = None
 
 
-@app.patch("/orders/{order_id}")
+@app.patch("/orders/{order_id}", dependencies=[Depends(require_admin)])
 def update_order_admin(order_id: int, payload: OrderUpdatePayload):
     try:
         updates: dict = {"updated_at": now_iso()}
@@ -1849,7 +1880,7 @@ def update_order_admin(order_id: int, payload: OrderUpdatePayload):
         raise HTTPException(status_code=500, detail=f"update_order error: {type(exc).__name__}: {exc}") from exc
 
 
-@app.delete("/orders/{order_id}")
+@app.delete("/orders/{order_id}", dependencies=[Depends(require_admin)])
 def delete_order_admin(order_id: int):
     supabase.table("orders").delete().eq("id", order_id).execute()
     return {"ok": True}
@@ -1945,7 +1976,7 @@ Questions? Contact us at {store_url}
     return html, text
 
 
-@app.post("/orders/{order_id}/resend-confirmation")
+@app.post("/orders/{order_id}/resend-confirmation", dependencies=[Depends(require_admin)])
 def resend_order_confirmation(order_id: int):
     result = supabase.table("orders").select("*").eq("id", order_id).limit(1).execute()
     if not result.data:
@@ -1961,7 +1992,7 @@ def resend_order_confirmation(order_id: int):
     return {"ok": True}
 
 
-@app.post("/orders/{order_id}/notify-shipped")
+@app.post("/orders/{order_id}/notify-shipped", dependencies=[Depends(require_admin)])
 def notify_order_shipped(order_id: int):
     result = supabase.table("orders").select("*").eq("id", order_id).limit(1).execute()
     if not result.data:
@@ -1983,9 +2014,14 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
 
-    # Check if already subscribed (don't send duplicate welcome emails)
-    existing = supabase.table("email_subscribers").select("id").eq("email", email).limit(1).execute()
-    is_new = not existing.data
+    # Check if already actively subscribed
+    existing = supabase.table("email_subscribers").select("id,is_active").eq("email", email).limit(1).execute()
+    row = existing.data[0] if existing.data else None
+    is_new = not row
+    already_active = row and row.get("is_active") is not False
+
+    if already_active and not is_new:
+        return {"ok": True, "already_subscribed": True}
 
     capture_subscriber_email(email, payload.source or "unknown", payload.metadata or {})
 
@@ -2067,7 +2103,7 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
             text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products"
             send_email(email, "Welcome — here's your discount code", html, text)
 
-    return {"ok": True}
+    return {"ok": True, "already_subscribed": False}
 
 
 @app.get("/settings")
@@ -2076,7 +2112,7 @@ def get_all_settings():
     return {row["key"]: row.get("value", "") for row in (data.data or [])}
 
 
-@app.put("/settings")
+@app.put("/settings", dependencies=[Depends(require_admin)])
 def update_settings(payload: dict):
     for key, value in payload.items():
         supabase.table("settings").upsert(
@@ -2111,23 +2147,23 @@ def get_homepage_slides():
     data = supabase.table("homepage_slides").select("*").eq("is_active", True).order("sort_order").execute()
     return data.data or []
 
-@app.get("/homepage-slides/admin")
+@app.get("/homepage-slides/admin", dependencies=[Depends(require_admin)])
 def get_homepage_slides_admin():
     """Admin: all slides."""
     data = supabase.table("homepage_slides").select("*").order("sort_order").execute()
     return data.data or []
 
-@app.post("/homepage-slides/upload")
+@app.post("/homepage-slides/upload", dependencies=[Depends(require_admin)])
 async def upload_and_create_homepage_slide(
     file: UploadFile = File(...),
     href: str = Form("/products"),
     title: str = Form(""),
 ):
     """Upload a photo and create a slide in one shot."""
-    ext = (file.filename or "jpg").rsplit(".", 1)[-1].lower()
+    ext = _safe_image_ext(file.filename or "file.jpg")
     path = f"homepage/{uuid.uuid4()}.{ext}"
     content = await file.read()
-    supabase.storage.from_("product-images").upload(path, content, {"content-type": file.content_type})
+    supabase.storage.from_("product-images").upload(path, content, {"content-type": _EXT_CONTENT_TYPE[ext]})
     url = supabase.storage.from_("product-images").get_public_url(path)
     existing = supabase.table("homepage_slides").select("sort_order").order("sort_order", desc=True).limit(1).execute()
     next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
@@ -2137,20 +2173,20 @@ async def upload_and_create_homepage_slide(
         raise HTTPException(status_code=500, detail="Failed to create slide")
     return data.data[0]
 
-@app.post("/homepage-slides")
+@app.post("/homepage-slides", dependencies=[Depends(require_admin)])
 def create_homepage_slide(slide: HomepageSlide):
     data = supabase.table("homepage_slides").insert(slide.dict()).execute()
     if not data.data:
         raise HTTPException(status_code=500, detail="Failed to create slide")
     return data.data[0]
 
-@app.put("/homepage-slides/reorder")
+@app.put("/homepage-slides/reorder", dependencies=[Depends(require_admin)])
 def reorder_homepage_slides(payload: HomepageSlidesReorder):
     for order, slide_id in enumerate(payload.ids):
         supabase.table("homepage_slides").update({"sort_order": order}).eq("id", slide_id).execute()
     return {"ok": True}
 
-@app.put("/homepage-slides/{slide_id}")
+@app.put("/homepage-slides/{slide_id}", dependencies=[Depends(require_admin)])
 def update_homepage_slide(slide_id: int, slide: HomepageSlideUpdate):
     updates = {k: v for k, v in slide.dict().items() if v is not None}
     data = supabase.table("homepage_slides").update(updates).eq("id", slide_id).execute()
@@ -2158,7 +2194,7 @@ def update_homepage_slide(slide_id: int, slide: HomepageSlideUpdate):
         raise HTTPException(status_code=404, detail="Slide not found")
     return data.data[0]
 
-@app.delete("/homepage-slides/{slide_id}")
+@app.delete("/homepage-slides/{slide_id}", dependencies=[Depends(require_admin)])
 def delete_homepage_slide(slide_id: int):
     supabase.table("homepage_slides").delete().eq("id", slide_id).execute()
     return {"ok": True}
@@ -2185,16 +2221,22 @@ def send_contact_message(payload: ContactMessagePayload):
     admin_email = get_setting("admin_email", ZOHO_SMTP_USER or "sales@edmclothes.net")
     site_url    = get_setting("site_url", "https://edmclothes.net")
 
+    # HTML-escape all user-supplied fields before embedding in email
+    e_name    = _html.escape(name)
+    e_email   = _html.escape(email)
+    e_subject = _html.escape(subject)
+    e_message = _html.escape(message)
+
     # Email to admin
     admin_html = f"""<!DOCTYPE html>
 <html><body style="font-family:sans-serif;padding:32px;color:#111;">
   <h2 style="margin:0 0 16px">New contact message</h2>
-  <p><strong>From:</strong> {name} &lt;{email}&gt;</p>
-  <p><strong>Subject:</strong> {subject}</p>
+  <p><strong>From:</strong> {e_name} &lt;{e_email}&gt;</p>
+  <p><strong>Subject:</strong> {e_subject}</p>
   <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
-  <p style="white-space:pre-wrap;line-height:1.6">{message}</p>
+  <p style="white-space:pre-wrap;line-height:1.6">{e_message}</p>
   <hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>
-  <p style="color:#888;font-size:12px">Reply to: <a href="mailto:{email}">{email}</a></p>
+  <p style="color:#888;font-size:12px">Reply to: <a href="mailto:{e_email}">{e_email}</a></p>
 </body></html>"""
     send_email(admin_email, f"[Contact] {subject} — {name}", admin_html, f"From: {name} <{email}>\n\n{message}")
 
@@ -2212,11 +2254,11 @@ def send_contact_message(payload: ContactMessagePayload):
         <tr><td style="padding:36px 40px 28px;">
           <h1 style="margin:0 0 12px;font-size:20px;font-weight:600;color:#0a0a0a;">We got your message</h1>
           <p style="margin:0 0 24px;font-size:15px;color:#6b6b66;line-height:1.6;">
-            Hi {name}, thanks for reaching out. We'll get back to you as soon as possible — usually within 1–2 business days.
+            Hi {e_name}, thanks for reaching out. We'll get back to you as soon as possible — usually within 1–2 business days.
           </p>
           <div style="background:#f5f5f3;border-radius:10px;padding:16px 20px;margin:0 0 24px;">
             <p style="margin:0 0 4px;font-size:12px;color:#9b9b96;text-transform:uppercase;letter-spacing:0.08em;">Your message</p>
-            <p style="margin:0;font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap">{message}</p>
+            <p style="margin:0;font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap">{e_message}</p>
           </div>
           <a href="{site_url}/products" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:14px 32px;border-radius:999px;">Browse store</a>
         </td></tr>
@@ -2315,11 +2357,11 @@ def _get_faq_html() -> str:
 def get_faq():
     return {"html": _get_faq_html()}
 
-@app.get("/faq/admin")
+@app.get("/faq/admin", dependencies=[Depends(require_admin)])
 def get_faq_admin():
     return {"html": _get_faq_html()}
 
-@app.put("/faq/admin")
+@app.put("/faq/admin", dependencies=[Depends(require_admin)])
 async def update_faq(request: Request):
     body = await request.json()
     # Accept both {"html": "..."} and plain string
@@ -2343,7 +2385,7 @@ def get_page(slug: str):
     default = DEFAULT_SHIPPING if slug == "shipping" else DEFAULT_RETURNS
     return get_json_setting(f"page_{slug}", default)
 
-@app.put("/pages/{slug}")
+@app.put("/pages/{slug}", dependencies=[Depends(require_admin)])
 def update_page(slug: str, data: dict):
     allowed = {"shipping", "returns"}
     if slug not in allowed:
@@ -2352,7 +2394,7 @@ def update_page(slug: str, data: dict):
     return {"ok": True}
 
 
-@app.get("/email-subscribers")
+@app.get("/email-subscribers", dependencies=[Depends(require_admin)])
 def list_email_subscribers(limit: int = 500, all: bool = False):
     safe_limit = max(1, min(int(limit or 500), 5000))
     query = supabase.table("email_subscribers").select("*")
@@ -2362,7 +2404,7 @@ def list_email_subscribers(limit: int = 500, all: bool = False):
     return data.data or []
 
 
-@app.get("/email-subscribers/export.csv")
+@app.get("/email-subscribers/export.csv", dependencies=[Depends(require_admin)])
 def export_email_subscribers_csv():
     data = (
         supabase.table("email_subscribers")

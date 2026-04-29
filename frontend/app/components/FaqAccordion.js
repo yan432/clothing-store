@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useEffect } from 'react'
+import DOMPurify from 'dompurify'
 
 function normaliseFaqHtml(html) {
   if (!html || !html.includes('<div class="faq-item">')) return html
@@ -32,7 +33,13 @@ export default function FaqAccordion({ html }) {
   const processed = normaliseFaqHtml(html)
   if (!processed) return <p style={{ color: '#aaa', fontSize: 14 }}>No FAQ items yet.</p>
 
+  // Sanitize before rendering to prevent XSS from stored HTML
+  const safe = DOMPurify.sanitize(processed, {
+    ALLOWED_TAGS: ['details', 'summary', 'p', 'br', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'h3', 'div'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+  })
+
   return (
-    <div ref={ref} className="faq-content" dangerouslySetInnerHTML={{ __html: processed }} />
+    <div ref={ref} className="faq-content" dangerouslySetInnerHTML={{ __html: safe }} />
   )
 }

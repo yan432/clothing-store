@@ -36,8 +36,8 @@ export default function AccountOrderDetailsClient({ orderId }) {
         setLoading(true)
         setError('')
         const res = await fetch(
-          `${getApiUrl(`/orders/track/${orderId}`)}?email=${encodeURIComponent(user.email)}`,
-          { cache: 'no-store' }
+          getApiUrl(`/orders/track/${orderId}`),
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }), cache: 'no-store' }
         )
         if (!res.ok) throw new Error('Order not found')
         const data = await res.json()

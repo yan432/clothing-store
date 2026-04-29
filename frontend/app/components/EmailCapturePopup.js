@@ -12,6 +12,7 @@ export default function EmailCapturePopup() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [alreadySubscribed, setAlreadySubscribed] = useState(false)
 
   const canShow = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -65,7 +66,12 @@ export default function EmailCapturePopup() {
         }),
       })
       if (!res.ok) throw new Error()
-      setDone(true)
+      const data = await res.json()
+      if (data.already_subscribed) {
+        setAlreadySubscribed(true)
+      } else {
+        setDone(true)
+      }
     } catch (_) {
       setDone(true)
     } finally {
@@ -95,6 +101,14 @@ export default function EmailCapturePopup() {
           <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Check your email</p>
           <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
             We sent your personal discount code to your inbox.
+          </p>
+        </div>
+      ) : alreadySubscribed ? (
+        <div style={{ textAlign: 'center', padding: '8px 0' }}>
+          <p style={{ fontSize: 28, margin: '0 0 8px' }}>👋</p>
+          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Already subscribed</p>
+          <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
+            This email is already on the list — check your inbox for your discount code.
           </p>
         </div>
       ) : (

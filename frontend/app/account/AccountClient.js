@@ -89,7 +89,7 @@ function InfoSection({ user }) {
       } catch {}
       // 2. Pre-fill from most recent order if profile is empty
       try {
-        const r = await fetch(`${getApiUrl('/orders/track')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
+        const r = await fetch(getApiUrl('/orders/track'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }), cache: 'no-store' })
         if (r.ok) {
           const orders = await r.json()
           if (orders.length > 0) {
@@ -421,7 +421,7 @@ function OrdersSection({ user }) {
 
   useEffect(() => {
     if (!user?.email) return
-    fetch(`${getApiUrl('/orders/track')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
+    fetch(getApiUrl('/orders/track'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }) })
       .then(r => { if (!r.ok) throw new Error('Failed'); return r.json() })
       .then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(e => { setErr(e.message); setLoading(false) })
