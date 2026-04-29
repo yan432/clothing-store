@@ -11,7 +11,7 @@ const SHOP_STATIC = [
 ]
 
 const INFO_LINKS = [
-  { label: 'Contact us',          href: 'mailto:info@edmclothes.com' },
+  { label: 'Contact us',          href: '/contact' },
   { label: 'Shipping info',       href: '/shipping' },
   { label: 'Returns & exchanges', href: '/returns' },
   { label: 'Size guide',          href: '/size-guide' },
