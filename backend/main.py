@@ -735,6 +735,8 @@ def _decorate_product_with_images(product: dict) -> dict:
     }
 
 def reserve_stock(items: list[dict]) -> None:
+    """Reserve stock for a checkout. Uses atomic PostgreSQL RPCs to prevent race
+    conditions. Falls back to non-atomic updates if RPCs are not installed yet."""
     # ── product-level ─────────────────────────────────────────────────────────
     quantities_by_product: dict[int, int] = {}
     for item in items:
@@ -742,26 +744,54 @@ def reserve_stock(items: list[dict]) -> None:
         qty = max(0, int(item["quantity"]))
         quantities_by_product[product_id] = quantities_by_product.get(product_id, 0) + qty
 
+    # Pre-validate stock (fast read before atomic ops)
     products_map: dict[int, dict] = {}
     for product_id, qty in quantities_by_product.items():
         product = get_product_row(product_id)
         available = get_available_stock_value(product)
         if available < qty:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Not enough stock for product {product_id}",
-            )
+            name = product.get("name") or f"Product {product_id}"
+            raise HTTPException(status_code=400, detail=f"Not enough stock for {name}")
         products_map[product_id] = product
 
-    for product_id, qty in quantities_by_product.items():
-        product = products_map[product_id]
-        available = get_available_stock_value(product)
-        reserved = get_reserved_stock_value(product)
-        supabase.table("products").update({
-            "available_stock": available - qty,
-            "reserved_stock": reserved + qty,
-            "stock": available - qty,
-        }).eq("id", product_id).execute()
+    # Atomic reserve via PostgreSQL function (prevents race conditions)
+    rpc_available = True
+    reserved_product_ids: list[int] = []
+    try:
+        for product_id, qty in quantities_by_product.items():
+            result = supabase.rpc("reserve_product_stock", {"p_id": product_id, "p_qty": qty}).execute()
+            if not result.data:
+                # Concurrent checkout claimed the last unit — roll back what we reserved
+                for done_id in reserved_product_ids:
+                    done_qty = quantities_by_product[done_id]
+                    try:
+                        p = get_product_row(done_id)
+                        av = get_available_stock_value(p)
+                        rv = get_reserved_stock_value(p)
+                        supabase.table("products").update({
+                            "available_stock": av + done_qty,
+                            "reserved_stock": max(0, rv - done_qty),
+                            "stock": av + done_qty,
+                        }).eq("id", done_id).execute()
+                    except Exception:
+                        pass
+                name = products_map.get(product_id, {}).get("name") or f"Product {product_id}"
+                raise HTTPException(status_code=400, detail=f"Not enough stock for {name} (concurrent checkout)")
+            reserved_product_ids.append(product_id)
+    except HTTPException:
+        raise
+    except Exception:
+        # RPC not installed yet — fall back to non-atomic update (run migration 016)
+        rpc_available = False
+        for product_id, qty in quantities_by_product.items():
+            product = products_map[product_id]
+            available = get_available_stock_value(product)
+            reserved = get_reserved_stock_value(product)
+            supabase.table("products").update({
+                "available_stock": available - qty,
+                "reserved_stock": reserved + qty,
+                "stock": available - qty,
+            }).eq("id", product_id).execute()
 
     # ── size-level ────────────────────────────────────────────────────────────
     quantities_by_size: dict[tuple[int, str], int] = {}
@@ -777,13 +807,18 @@ def reserve_stock(items: list[dict]) -> None:
         return
     try:
         for (product_id, size), qty in quantities_by_size.items():
-            row = supabase.table("product_size_stock").select("stock,reserved").eq("product_id", product_id).eq("size", size).limit(1).execute()
-            if not row.data:
-                continue
-            current_reserved = int(row.data[0].get("reserved", 0) or 0)
-            supabase.table("product_size_stock").update({
-                "reserved": current_reserved + qty,
-            }).eq("product_id", product_id).eq("size", size).execute()
+            if rpc_available:
+                supabase.rpc("reserve_size_stock", {
+                    "p_product_id": product_id, "p_size": size, "p_qty": qty,
+                }).execute()
+            else:
+                row = supabase.table("product_size_stock").select("reserved").eq("product_id", product_id).eq("size", size).limit(1).execute()
+                if not row.data:
+                    continue
+                current_reserved = int(row.data[0].get("reserved", 0) or 0)
+                supabase.table("product_size_stock").update({
+                    "reserved": current_reserved + qty,
+                }).eq("product_id", product_id).eq("size", size).execute()
     except Exception:
         pass  # size-level tracking is optional — never block checkout
 
@@ -882,6 +917,63 @@ def finalize_paid_stock(items: list[dict]) -> None:
             supabase.table("products").update({"available_stock": total_stock, "stock": total_stock}).eq("id", product_id).execute()
     except Exception:
         pass
+
+
+def restore_sold_stock(items: list[dict]) -> None:
+    """Restore stock for orders that were already paid/finalized (reserved_stock
+    already cleared). Called when admin cancels a paid/shipped/delivered order."""
+    # ── product-level ─────────────────────────────────────────────────────────
+    quantities_by_product: dict[int, int] = {}
+    for item in items:
+        product_id = int(item.get("id") or item.get("product_id") or 0)
+        qty = max(0, int(item.get("quantity") or 0))
+        if product_id and qty:
+            quantities_by_product[product_id] = quantities_by_product.get(product_id, 0) + qty
+
+    for product_id, qty in quantities_by_product.items():
+        try:
+            product = get_product_row(product_id)
+            available = get_available_stock_value(product)
+            supabase.table("products").update({
+                "available_stock": available + qty,
+                "stock": available + qty,
+            }).eq("id", product_id).execute()
+        except Exception as exc:
+            print(f"restore_sold_stock product {product_id}: {exc}")
+
+    # ── size-level ────────────────────────────────────────────────────────────
+    quantities_by_size: dict[tuple[int, str], int] = {}
+    for item in items:
+        size = str(item.get("size") or "").strip()
+        product_id = int(item.get("id") or item.get("product_id") or 0)
+        qty = max(0, int(item.get("quantity") or 0))
+        if size and product_id and qty:
+            key = (product_id, size)
+            quantities_by_size[key] = quantities_by_size.get(key, 0) + qty
+
+    if not quantities_by_size:
+        return
+    try:
+        affected_products: set[int] = set()
+        for (product_id, size), qty in quantities_by_size.items():
+            row = supabase.table("product_size_stock").select("stock").eq("product_id", product_id).eq("size", size).limit(1).execute()
+            if not row.data:
+                continue
+            current_stock = int(row.data[0].get("stock", 0) or 0)
+            supabase.table("product_size_stock").update({
+                "stock": current_stock + qty,
+            }).eq("product_id", product_id).eq("size", size).execute()
+            affected_products.add(product_id)
+        # Re-sync products.available_stock from size totals
+        for pid in affected_products:
+            size_data = supabase.table("product_size_stock").select("stock,reserved").eq("product_id", pid).execute()
+            total = sum(
+                max(0, int(r.get("stock", 0) or 0) - int(r.get("reserved", 0) or 0))
+                for r in (size_data.data or [])
+            )
+            supabase.table("products").update({"available_stock": total, "stock": total}).eq("id", pid).execute()
+    except Exception as exc:
+        print(f"restore_sold_stock size-level: {exc}")
 
 
 def find_order(client_reference_id: Optional[str], stripe_session_id: Optional[str]) -> Optional[dict]:
@@ -2242,6 +2334,22 @@ def update_order_admin(order_id: int, payload: OrderUpdatePayload):
             if payload.status not in VALID_ORDER_STATUSES:
                 raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(sorted(VALID_ORDER_STATUSES))}")
             updates["status"] = payload.status
+
+            # Restore stock when admin manually cancels an order
+            if payload.status == "cancelled":
+                try:
+                    cur = supabase.table("orders").select("status,items_json").eq("id", order_id).limit(1).execute()
+                    if cur.data:
+                        current_status = cur.data[0].get("status") or ""
+                        items = cur.data[0].get("items_json") or []
+                        if items and current_status not in ("cancelled", "payment_failed"):
+                            if current_status == "pending":
+                                release_reserved_stock(items)
+                            elif current_status in ("paid", "shipped", "delivered"):
+                                restore_sold_stock(items)
+                except Exception as exc:
+                    print(f"Warning: stock restoration on cancel failed for order {order_id}: {exc}")
+
             if payload.status == "shipped":
                 try:
                     row = supabase.table("orders").select("shipped_at").eq("id", order_id).limit(1).execute()

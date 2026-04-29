@@ -271,7 +271,7 @@ export default function ConfirmPage() {
               <input type="text" placeholder="Enter promo code" value={promo}
                 onChange={e => { setPromo(e.target.value); setPromoError('') }}
                 onKeyDown={e => e.key === 'Enter' && applyPromo()}
-                style={{flex:1,padding:'12px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff'}}/>
+                style={{flex:1,padding:'12px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',background:'#fff'}}/>
               <button onClick={applyPromo}
                 disabled={promoLoading}
                 style={{padding:'12px 20px',borderRadius:12,border:'1.5px solid #000',background:'#fff',fontSize:13,fontWeight:500,cursor:'pointer',opacity:promoLoading ? 0.7 : 1}}>

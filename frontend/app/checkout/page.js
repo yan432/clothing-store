@@ -340,7 +340,7 @@ export default function CheckoutPage() {
   }
 
   const inputStyle = (key) => ({
-    padding:'13px 16px',borderRadius:12,fontSize:14,outline:'none',width:'100%',
+    padding:'13px 16px',borderRadius:12,fontSize:16,outline:'none',width:'100%',
     border: errors[key] ? '1.5px solid #ef4444' : '1px solid #e5e5e3',
     background:'#fff', boxSizing:'border-box',
   })
@@ -390,10 +390,10 @@ export default function CheckoutPage() {
                     </div>
                   )}
                   <input type="email" placeholder="Email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required
-                    style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none'}}/>
+                    style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none'}}/>
                   <div style={{position:'relative'}}>
                     <input type={showAuthPassword ? 'text' : 'password'} placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required
-                      style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}/>
+                      style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
                     <button
                       type="button"
                       onClick={() => setShowAuthPassword((v) => !v)}
@@ -416,7 +416,7 @@ export default function CheckoutPage() {
                     <>
                       <div style={{position:'relative'}}>
                         <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder="Confirm password" value={authConfirmPassword} onChange={e => setAuthConfirmPassword(e.target.value)} required
-                          style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}/>
+                          style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
                         <button
                           type="button"
                           onClick={() => setShowAuthConfirmPassword((v) => !v)}
@@ -457,7 +457,7 @@ export default function CheckoutPage() {
                     placeholder="Enter code"
                     value={authVerifyCode}
                     onChange={(e) => setAuthVerifyCode(e.target.value)}
-                    style={{padding:'12px 14px',borderRadius:10,border:'1px solid #e5e5e3',fontSize:14,outline:'none'}}
+                    style={{padding:'12px 14px',borderRadius:10,border:'1px solid #e5e5e3',fontSize:16,outline:'none'}}
                   />
                   <div style={{display:'flex',gap:8}}>
                     <button
@@ -559,7 +559,7 @@ export default function CheckoutPage() {
             </div>
             <div style={{position:'relative'}}>
               <select value={form.country} onChange={e => set('country', e.target.value)}
-                style={{display:'block',padding:'13px 40px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',height:50,appearance:'none',WebkitAppearance:'none',cursor:'pointer'}}>
+                style={{display:'block',padding:'13px 40px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',height:50,appearance:'none',WebkitAppearance:'none',cursor:'pointer'}}>
                 {COUNTRIES.map(([code, name]) => (
                   <option key={code} value={code}>{name}</option>
                 ))}
@@ -578,7 +578,7 @@ export default function CheckoutPage() {
               value={form.comment}
               onChange={e => set('comment', e.target.value)}
               rows={3}
-              style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%',boxSizing:'border-box',resize:'vertical',fontFamily:'inherit',color:'#1a1a18',lineHeight:1.5}}
+              style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%',boxSizing:'border-box',resize:'vertical',fontFamily:'inherit',color:'#1a1a18',lineHeight:1.5}}
             />
           </div>
 
