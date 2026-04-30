@@ -1452,15 +1452,16 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
 
     # Fetch product info for the email
     try:
-        prod = supabase.table("products").select("name,slug,images").eq("id", product_id).limit(1).execute().data
+        prod = supabase.table("products").select("name,slug,image_url,image_urls").eq("id", product_id).limit(1).execute().data
         product = prod[0] if prod else {}
     except Exception:
         product = {}
 
     product_name = product.get("name") or f"Product #{product_id}"
     product_slug = product.get("slug") or str(product_id)
-    images       = product.get("images") or []
-    image_url    = images[0] if images else ""
+    # image_urls is an ordered list; fall back to image_url (legacy single-image column)
+    image_urls   = product.get("image_urls") or []
+    image_url    = (image_urls[0] if image_urls else None) or product.get("image_url") or ""
     site_url     = get_setting("site_url", "https://edmclothes.net")
     shop_url     = f"{site_url}/products/{product_slug}"
 
