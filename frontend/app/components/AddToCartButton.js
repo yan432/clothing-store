@@ -1,14 +1,18 @@
 'use client'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { useEffect, useMemo, useState } from 'react'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
+import NotifyMePopup from './NotifyMePopup'
 
 // sizeStock: { S: 5, M: 0, L: 1 } — undefined key = not tracked (available)
 export default function AddToCartButton({ product, showSizeSelector = false, sizeStock = {} }) {
   const { addToCart } = useCart()
-  const [added, setAdded]         = useState(false)
+  const { user } = useAuth()
+  const [added, setAdded]           = useState(false)
   const [maxReached, setMaxReached] = useState(false)
   const [selectedSize, setSelectedSize] = useState('')
+  const [notifyPopup, setNotifyPopup]   = useState(false)
 
   // Parse + sort sizes in standard preset order (XS → S → M → L → XL → XXL → One Size)
   const sizeOptions = useMemo(() => {
@@ -141,31 +145,55 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
         </>
       )}
 
-      {/* ── Add to cart ───────────────────────────────── */}
-      <button
-        onClick={handleAdd}
-        disabled={!canAdd}
-        style={{
-          background: added ? '#16a34a' : '#000',
-          color: '#fff',
-          border: 'none',
-          padding: '16px 24px',
-          borderRadius: 999,
-          fontSize: 14,
-          fontWeight: 500,
-          cursor: canAdd ? 'pointer' : 'not-allowed',
-          transition: 'background 0.2s, opacity 0.2s',
-          width: '100%',
-          opacity: canAdd ? 1 : 0.55,
-        }}
-      >
-        {isInStock
-          ? maxReached   ? 'Max available quantity reached'
-          : added        ? 'Added to cart!'
-          : mustSelectSize && !selectedSize ? 'Select size first'
-          : 'Add to Cart'
-          : 'Out of stock'}
-      </button>
+      {/* ── Add to cart / Notify me ───────────────────── */}
+      {/* Show "Notify me" when a specific sold-out size is selected */}
+      {selectedSize && isSoldOut(selectedSize) ? (
+        <button
+          onClick={() => setNotifyPopup(true)}
+          style={{
+            background: 'transparent',
+            color: '#111',
+            border: '1.5px solid #111',
+            padding: '16px 24px',
+            borderRadius: 999,
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: 'pointer',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+          }}
+        >
+          🔔 Notify me when available
+        </button>
+      ) : (
+        <button
+          onClick={handleAdd}
+          disabled={!canAdd}
+          style={{
+            background: added ? '#16a34a' : '#000',
+            color: '#fff',
+            border: 'none',
+            padding: '16px 24px',
+            borderRadius: 999,
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: canAdd ? 'pointer' : 'not-allowed',
+            transition: 'background 0.2s, opacity 0.2s',
+            width: '100%',
+            opacity: canAdd ? 1 : 0.55,
+          }}
+        >
+          {isInStock
+            ? maxReached   ? 'Max available quantity reached'
+            : added        ? 'Added to cart!'
+            : mustSelectSize && !selectedSize ? 'Select size first'
+            : 'Add to Cart'
+            : 'Out of stock'}
+        </button>
+      )}
 
       <a href="/cart" style={{
         border: '1px solid #e5e5e3',
@@ -178,6 +206,16 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
       }}>
         View Cart
       </a>
+
+      {/* Notify me popup */}
+      {notifyPopup && (
+        <NotifyMePopup
+          product={product}
+          size={selectedSize}
+          initialEmail={user?.email || ''}
+          onClose={() => setNotifyPopup(false)}
+        />
+      )}
     </div>
   )
 }

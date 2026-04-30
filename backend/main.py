@@ -1348,26 +1348,164 @@ def get_inventory():
     return result
 
 @app.put("/admin/inventory", dependencies=[Depends(require_admin)])
-async def update_inventory(request: Request):
+async def update_inventory(request: Request, bg: BackgroundTasks):
     """Batch upsert: [{product_id, size, stock}]
-    Also syncs product-level available_stock = sum of all its sizes."""
+    Also syncs product-level available_stock = sum of all its sizes
+    and triggers back-in-stock waitlist notifications."""
     updates = await request.json()
     if not updates:
         return {"ok": True, "count": 0}
+
     rows = [
         {"product_id": int(r["product_id"]), "size": str(r["size"]), "stock": max(0, int(r.get("stock") or 0))}
         for r in updates
     ]
+
+    # Snapshot previous stock to detect 0 → positive transitions
+    prev_stock: dict[tuple, int] = {}
+    affected_products = list({r["product_id"] for r in rows})
+    for pid in affected_products:
+        existing = supabase.table("product_size_stock").select("size,stock").eq("product_id", pid).execute()
+        for row in (existing.data or []):
+            prev_stock[(pid, row["size"])] = int(row.get("stock") or 0)
+
     supabase.table("product_size_stock").upsert(rows, on_conflict="product_id,size").execute()
 
-    # Sync product-level available_stock = sum of all sizes for each affected product
-    affected_products = list({r["product_id"] for r in rows})
+    # Sync product-level available_stock = sum of all sizes
     for pid in affected_products:
         size_data = supabase.table("product_size_stock").select("stock").eq("product_id", pid).execute()
         total = sum(row["stock"] for row in (size_data.data or []))
         supabase.table("products").update({"available_stock": total, "stock": total}).eq("id", pid).execute()
 
+    # Trigger waitlist notifications for sizes that went from 0 → positive
+    for row in rows:
+        pid  = row["product_id"]
+        size = row["size"]
+        new_stock = row["stock"]
+        old_stock = prev_stock.get((pid, size), 0)
+        if old_stock == 0 and new_stock > 0:
+            _notify_waitlist(pid, size, new_stock, bg)
+
     return {"ok": True, "count": len(rows)}
+
+
+# ── Waitlist (back-in-stock notifications) ────────────────────────────────────
+
+@app.post("/waitlist")
+def join_waitlist(payload: dict = Body(...)):
+    """Add an email to the waitlist for a specific product + size."""
+    email      = normalize_email(str(payload.get("email") or ""))
+    product_id = int(payload.get("product_id") or 0)
+    size       = str(payload.get("size") or "").strip()
+    if not email or not product_id or not size:
+        raise HTTPException(status_code=400, detail="email, product_id and size are required")
+
+    # Upsert — ignore duplicate (already on waitlist)
+    supabase.table("waitlist").upsert(
+        {"email": email, "product_id": product_id, "size": size, "status": "pending"},
+        on_conflict="email,product_id,size",
+        ignore_duplicates=True,
+    ).execute()
+    return {"ok": True}
+
+
+@app.get("/waitlist", dependencies=[Depends(require_admin)])
+def get_waitlist(product_id: int = None):
+    """Admin: list all pending waitlist entries, optionally filtered by product."""
+    q = supabase.table("waitlist").select("*").eq("status", "pending").order("created_at", desc=True)
+    if product_id:
+        q = q.eq("product_id", product_id)
+    return (q.execute().data or [])
+
+
+def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks):
+    """Send back-in-stock emails for a (product, size) that just went > 0."""
+    if stock <= 0:
+        return
+    try:
+        entries = (
+            supabase.table("waitlist")
+            .select("id,email")
+            .eq("product_id", product_id)
+            .eq("size", size)
+            .eq("status", "pending")
+            .execute()
+            .data or []
+        )
+    except Exception:
+        return
+    if not entries:
+        return
+
+    # Fetch product info for the email
+    try:
+        prod = supabase.table("products").select("name,slug,images").eq("id", product_id).limit(1).execute().data
+        product = prod[0] if prod else {}
+    except Exception:
+        product = {}
+
+    product_name = product.get("name") or f"Product #{product_id}"
+    product_slug = product.get("slug") or str(product_id)
+    images       = product.get("images") or []
+    image_url    = images[0] if images else ""
+    site_url     = get_setting("site_url", "https://edmclothes.net")
+    shop_url     = f"{site_url}/products/{product_slug}"
+
+    ids_to_fulfill = []
+    for entry in entries:
+        email = entry["email"]
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#0a0a0a;padding:28px 40px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:17px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
+        </td></tr>
+        {'<tr><td style="padding:0"><img src="' + image_url + '" width="480" style="display:block;width:100%;max-height:320px;object-fit:cover;" alt="' + product_name + '"/></td></tr>' if image_url else ''}
+        <tr><td style="padding:36px 40px 28px;">
+          <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">Back in stock</p>
+          <h1 style="margin:0 0 10px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">{product_name}</h1>
+          <p style="margin:0 0 24px;font-size:15px;color:#6b6b66;line-height:1.6;">
+            Good news — <strong>size {size}</strong> is back in stock! Grab yours before it sells out again.
+          </p>
+          <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+            <a href="{shop_url}"
+               style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 40px;border-radius:999px;">
+              Shop now — Size {size}
+            </a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;margin:0;"/></td></tr>
+        <tr><td style="padding:20px 40px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#b0b0a8;">
+            © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
+          </p>
+          <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
+            You requested this notification. <a href="{site_url}/unsubscribe?email={email}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+        text = (
+            f"Good news! {product_name} — size {size} is back in stock.\n\n"
+            f"Shop now: {shop_url}\n\n"
+            f"---\nYou requested this notification from EDM Clothes.\n"
+            f"Unsubscribe: {site_url}/unsubscribe?email={email}"
+        )
+        bg.add_task(send_email, email, f"Back in stock: {product_name} — size {size}", html, text)
+        ids_to_fulfill.append(entry["id"])
+
+    if ids_to_fulfill:
+        from datetime import datetime, timezone
+        supabase.table("waitlist").update({
+            "status": "fulfilled",
+            "notified_at": datetime.now(timezone.utc).isoformat(),
+        }).in_("id", ids_to_fulfill).execute()
 
 
 _ALLOWED_IMAGE_EXTS = {"jpg", "jpeg", "png", "gif", "webp", "avif"}
