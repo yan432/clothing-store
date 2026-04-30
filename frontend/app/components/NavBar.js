@@ -20,11 +20,10 @@ const INFO_LINKS = [
 ]
 
 const ACCOUNT_LINKS = [
-  { href: '/account',                label: 'My account' },
-  { href: '/account?tab=orders',     label: 'Orders' },
-  { href: '/wishlist',               label: 'Wishlist' },
-  { href: '/account?tab=sizes',      label: 'Size guide' },
-  { href: '/account?tab=faq',        label: 'Help & FAQ' },
+  { href: '/account',            label: 'My account' },
+  { href: '/account?tab=orders', label: 'Orders' },
+  { href: '/wishlist',           label: 'Wishlist' },
+  { href: '/account?tab=sizes',  label: 'Size guide' },
 ]
 
 const ADMIN_LINKS = [

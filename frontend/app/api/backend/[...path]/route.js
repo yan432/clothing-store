@@ -1,13 +1,15 @@
 /**
  * Generic proxy: /api/backend/foo/bar → BACKEND_URL/foo/bar
  *
- * Auth: the browser stores the Supabase access token in an `adm_tok` cookie
- * (set by AuthContext on every session change). The proxy verifies it by
- * calling supabase.auth.getUser(token), then checks the email against the
- * ADMIN_EMAILS list before forwarding the request with X-Admin-Secret.
+ * Auth (two methods, tried in order):
+ * 1. adm_tok cookie — Supabase access token stored by AuthContext on session change.
+ *    Verified via supabase.auth.getUser(token). Fast and reliable after first page load.
+ * 2. SSR session — @supabase/ssr reads the chunked Supabase session cookies directly.
+ *    Fallback for the first admin request before AuthContext has set adm_tok.
  */
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 const BACKEND = (
@@ -33,22 +35,33 @@ async function proxy(request, context) {
   let adminVerified = false
 
   if (BACKEND_ADMIN_SECRET) {
-    try {
-      const cookieStore = await cookies()
-      const admTok = cookieStore.get('adm_tok')?.value
+    const cookieStore = await cookies()
 
+    // ── Method 1: adm_tok cookie (set by AuthContext after getSession resolves) ──
+    try {
+      const admTok = cookieStore.get('adm_tok')?.value
       if (admTok) {
-        // Verify the Supabase JWT directly — no cookie reassembly needed
         const supabase = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
           { auth: { persistSession: false, autoRefreshToken: false } }
         )
         const { data: { user } } = await supabase.auth.getUser(admTok)
-        adminVerified = isAdminEmail(user?.email)
+        if (isAdminEmail(user?.email)) adminVerified = true
       }
-    } catch (_) {
-      adminVerified = false
+    } catch (_) {}
+
+    // ── Method 2: SSR session cookies (@supabase/ssr chunked format) ──
+    if (!adminVerified) {
+      try {
+        const supabase = createServerClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+        )
+        const { data: { user } } = await supabase.auth.getUser()
+        if (isAdminEmail(user?.email)) adminVerified = true
+      } catch (_) {}
     }
 
     if (!adminVerified) {
