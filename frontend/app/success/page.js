@@ -7,22 +7,24 @@ export default function SuccessPage() {
   const { clearCart } = useCart()
 
   useEffect(() => {
-    // Fire GA4 purchase event once per order (guard with sessionStorage)
-    const alreadyTracked = sessionStorage.getItem('purchase_tracked')
-    if (!alreadyTracked) {
-      try {
-        const pendingOrder = JSON.parse(localStorage.getItem('pending_order') || '{}')
-        trackPurchase({
-          orderId: pendingOrder.order_id || pendingOrder.id || 'unknown',
-          total:   Number(pendingOrder.total || pendingOrder.amount_total || 0),
-          currency: 'EUR',
-          items:   pendingOrder.items || [],
-        })
-        sessionStorage.setItem('purchase_tracked', '1')
-        localStorage.removeItem('pending_order')
-      } catch (_) {}
-    }
-    clearCart()
+    try {
+      const pendingOrder = JSON.parse(localStorage.getItem('pending_order') || 'null')
+      // Only clear cart and track purchase if we actually came from checkout
+      if (pendingOrder) {
+        clearCart()
+        const alreadyTracked = sessionStorage.getItem('purchase_tracked')
+        if (!alreadyTracked) {
+          trackPurchase({
+            orderId:  pendingOrder.order_id || pendingOrder.id || 'unknown',
+            total:    Number(pendingOrder.total || pendingOrder.amount_total || 0),
+            currency: 'EUR',
+            items:    pendingOrder.items || [],
+          })
+          sessionStorage.setItem('purchase_tracked', '1')
+          localStorage.removeItem('pending_order')
+        }
+      }
+    } catch (_) {}
   }, [])
 
   return (

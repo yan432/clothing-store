@@ -9,8 +9,12 @@ export function CartProvider({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('cart')
-    if (saved) setCart(JSON.parse(saved))
+    try {
+      const saved = localStorage.getItem('cart')
+      if (saved) setCart(JSON.parse(saved))
+    } catch {
+      localStorage.removeItem('cart') // corrupted — reset silently
+    }
   }, [])
 
   function save(items) {

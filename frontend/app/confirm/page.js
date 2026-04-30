@@ -205,11 +205,16 @@ export default function ConfirmPage() {
           }))
         } catch (_) {}
         window.location.href = data.url
-      } else alert('Error: ' + JSON.stringify(data))
+        return // keep loading spinner while Stripe redirects
+      }
+      // Backend returned an error (e.g. out of stock, promo expired)
+      const detail = data.detail || data.error || JSON.stringify(data)
+      alert('Could not place order: ' + detail)
+      setLoading(false)
     } catch (e) {
       alert('Something went wrong: ' + e.message)
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const COUNTRY_NAMES = {

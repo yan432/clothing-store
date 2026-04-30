@@ -64,7 +64,10 @@ ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
 def require_admin(request: Request):
     """FastAPI dependency: reject non-admin requests."""
     if not ADMIN_SECRET:
-        return  # Secret not configured — open (local dev only, set it in production!)
+        # In production this must be set — log a loud warning so it's never missed
+        import sys
+        print("WARNING: ADMIN_SECRET is not set — all admin endpoints are OPEN. Set it in your environment!", file=sys.stderr, flush=True)
+        return
     header = request.headers.get("X-Admin-Secret", "")
     if header != ADMIN_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
