@@ -14,7 +14,7 @@ import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -3684,9 +3684,12 @@ def _send_and_mark_cart(entry: dict, site_url: str, now: str) -> None:
 
 
 # ── Wishlist (favourites) ─────────────────────────────────────────────────────
+# IMPORTANT: static paths (/wishlist/products, /wishlist/notify-*)
+# must be registered BEFORE the dynamic /wishlist/{product_id} route,
+# otherwise FastAPI matches them as product_id and returns 422.
 
 @app.get("/wishlist")
-def get_wishlist(email: str):
+def get_wishlist(email: str = Query(...)):
     """Return all wishlisted product_ids for an email."""
     email = normalize_email(email)
     if not email:
@@ -3695,31 +3698,8 @@ def get_wishlist(email: str):
     return [r["product_id"] for r in rows]
 
 
-@app.post("/wishlist/{product_id}")
-def add_to_wishlist(product_id: int, email: str):
-    """Add a product to the wishlist. Idempotent (upsert)."""
-    email = normalize_email(email)
-    if not email:
-        raise HTTPException(status_code=400, detail="email required")
-    supabase.table("wishlists").upsert(
-        {"email": email, "product_id": product_id},
-        on_conflict="email,product_id",
-    ).execute()
-    return {"ok": True}
-
-
-@app.delete("/wishlist/{product_id}")
-def remove_from_wishlist(product_id: int, email: str):
-    """Remove a product from the wishlist."""
-    email = normalize_email(email)
-    if not email:
-        raise HTTPException(status_code=400, detail="email required")
-    supabase.table("wishlists").delete().eq("email", email).eq("product_id", product_id).execute()
-    return {"ok": True}
-
-
 @app.get("/wishlist/products")
-def get_wishlist_products(email: str):
+def get_wishlist_products(email: str = Query(...)):
     """Return full product details for all wishlisted items."""
     email = normalize_email(email)
     if not email:
@@ -3951,6 +3931,30 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
         sent += 1
 
     return {"notified": sent}
+
+
+# Dynamic wishlist routes — registered LAST so static paths above take priority
+@app.post("/wishlist/{product_id}")
+def add_to_wishlist(product_id: int, email: str = Query(...)):
+    """Add a product to the wishlist. Idempotent (upsert)."""
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    supabase.table("wishlists").upsert(
+        {"email": email, "product_id": product_id},
+        on_conflict="email,product_id",
+    ).execute()
+    return {"ok": True}
+
+
+@app.delete("/wishlist/{product_id}")
+def remove_from_wishlist(product_id: int, email: str = Query(...)):
+    """Remove a product from the wishlist."""
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    supabase.table("wishlists").delete().eq("email", email).eq("product_id", product_id).execute()
+    return {"ok": True}
 
 
 # ── Resend email webhooks ──────────────────────────────────────────────────────
