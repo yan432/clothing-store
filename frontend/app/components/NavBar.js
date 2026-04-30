@@ -22,7 +22,7 @@ const INFO_LINKS = [
 const ACCOUNT_LINKS = [
   { href: '/account',                label: 'My account' },
   { href: '/account?tab=orders',     label: 'Orders' },
-  { href: '/account?tab=wishlist',   label: 'Wishlist' },
+  { href: '/wishlist',               label: 'Wishlist' },
   { href: '/account?tab=sizes',      label: 'Size guide' },
   { href: '/account?tab=faq',        label: 'Help & FAQ' },
 ]
@@ -40,7 +40,7 @@ const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear
 export default function NavBar() {
   const { count, setDrawerOpen } = useCart()
   const { user, signOut, isAdmin } = useAuth()
-  const { ids: wishlistIds, setDrawerOpen: setWishlistDrawerOpen } = useWishlist()
+  const { ids: wishlistIds } = useWishlist()
 
   const [openMenu,   setOpenMenu]   = useState(null) // 'shop' | 'info' | 'admin'
   const [categories, setCategories] = useState([])
@@ -210,14 +210,14 @@ export default function NavBar() {
 
             {/* Wishlist icon — only for logged-in users */}
             {user && (
-              <button type="button" onClick={() => setWishlistDrawerOpen(true)} aria-label="Wishlist"
-                style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', cursor: 'pointer' }}>
+              <a href="/wishlist" aria-label="Wishlist"
+                style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24"
                   fill={wishlistIds.size > 0 ? '#111' : 'none'}
                   stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
                 </svg>
-              </button>
+              </a>
             )}
 
             {/* User icon */}

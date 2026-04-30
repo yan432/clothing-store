@@ -15,7 +15,6 @@ import Script from 'next/script'
 import CookieConsent from './components/CookieConsent'
 import UtmCapture from './components/UtmCapture'
 import { WishlistProvider } from './context/WishlistContext'
-import WishlistDrawer from './components/WishlistDrawer'
 import { Suspense } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -74,7 +73,6 @@ export default function RootLayout({ children }) {
             <AnnouncementBar />
             <NavBar />
             <DrawerWrapper />
-            <WishlistDrawer />
             <EmailCapturePopup />
             <Suspense fallback={null}><UtmCapture /></Suspense>
             {children}

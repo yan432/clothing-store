@@ -7,8 +7,7 @@ const WishlistContext = createContext()
 
 export function WishlistProvider({ children }) {
   const { user } = useAuth()
-  const [ids, setIds]             = useState(new Set())   // Set of product_id numbers
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [ids, setIds] = useState(new Set())   // Set of product_id numbers
 
   // Load wishlist whenever user changes
   const load = useCallback(async () => {
@@ -53,7 +52,7 @@ export function WishlistProvider({ children }) {
   }
 
   return (
-    <WishlistContext.Provider value={{ ids, toggle, isWishlisted, reload: load, drawerOpen, setDrawerOpen }}>
+    <WishlistContext.Provider value={{ ids, toggle, isWishlisted, reload: load }}>
       {children}
     </WishlistContext.Provider>
   )
