@@ -2755,6 +2755,10 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
             <p style="margin:0;font-size:12px;color:#b0b0a8;">
               © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
             </p>
+            <p style="margin:8px 0 0;font-size:11px;color:#c8c8c0;">
+              Don't want to hear from us?
+              <a href="{site_url}/unsubscribe?email={email}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+            </p>
           </td>
         </tr>
       </table>
@@ -2762,7 +2766,7 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
   </table>
 </body>
 </html>"""
-            text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products"
+            text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products\n\n---\nTo unsubscribe: {site_url}/unsubscribe?email={email}"
             send_email(email, "Welcome — here's your discount code", html, text)
 
     return {"ok": True, "already_subscribed": False}
