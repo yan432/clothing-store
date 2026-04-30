@@ -17,9 +17,10 @@ export default function HomepageSlidesClient() {
   async function load() {
     try {
       const res = await fetch(getApiUrl('/homepage-slides/admin'), { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setSlides(Array.isArray(data) ? data : [])
-    } catch { setError('Failed to load slides') }
+    } catch (e) { setError(e?.message || 'Failed to load slides') }
     finally { setLoading(false) }
   }
 

@@ -14,15 +14,27 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setAdmCookie(session)
       setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setAdmCookie(session)
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  function setAdmCookie(session) {
+    if (typeof document === 'undefined') return
+    if (session?.access_token) {
+      const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `adm_tok=${session.access_token}; path=/; max-age=3600; SameSite=Lax${secure}`
+    } else {
+      document.cookie = 'adm_tok=; path=/; max-age=0; SameSite=Lax'
+    }
+  }
 
   async function signUp(email, password) {
     const { data, error } = await supabase.auth.signUp({ email, password })
