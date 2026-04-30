@@ -139,9 +139,7 @@ export default function SizeGuideClient() {
         </div>
         <div style={{ marginTop: 16, padding: '14px 18px', background: '#fffbeb', borderRadius: 10, border: '1px solid #fde68a' }}>
           <p style={{ fontSize: 13, color: '#92400e', margin: 0, lineHeight: 1.6 }}>
-            👗 <strong>Women's sizing tip:</strong> Our clothes are cut for a unisex/menswear silhouette.
-            A women's <strong>L</strong> typically fits our <strong>M</strong>, and a women's <strong>M</strong> fits our <strong>S</strong>.
-            Use the calculator below for a personalised recommendation.
+            <strong>Women's sizing tip:</strong> Women usually size down 1–2 sizes depending on the desired fit.
           </p>
         </div>
       </section>
