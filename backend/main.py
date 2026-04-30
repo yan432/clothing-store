@@ -3815,13 +3815,14 @@ def _build_wishlist_email(
 @app.post("/wishlist/notify-low-stock", dependencies=[Depends(require_admin)])
 def notify_wishlist_low_stock(bg: BackgroundTasks):
     """
-    Find wishlist items with available_stock between 1 and 3 and notify owners.
-    Run daily via cron. Each (email, product) is notified at most once per week.
+    Notify wishlist owners when items have stock ≤ 3.
+    Each (email, product) is notified at most ONCE — notified_low_stock_at is set
+    and the entry is skipped on future runs until stock goes back up then low again.
     """
+    from datetime import datetime, timezone
     site_url = get_setting("site_url", "https://edmclothes.net")
 
     try:
-        # Low-stock products in any wishlist
         low = (
             supabase.table("products")
             .select("id,name,slug,price,compare_price,image_url,image_urls,available_stock")
@@ -3840,34 +3841,39 @@ def notify_wishlist_low_stock(bg: BackgroundTasks):
     low_ids = [p["id"] for p in low]
     low_map = {p["id"]: p for p in low}
 
-    # Find wishlist entries for these products
+    # Only entries not yet notified for low stock
     entries = (
         supabase.table("wishlists")
-        .select("email,product_id")
+        .select("id,email,product_id")
         .in_("product_id", low_ids)
+        .is_("notified_low_stock_at", "null")
         .execute()
         .data or []
     )
+    if not entries:
+        return {"notified": 0}
 
-    # Group by email
     from collections import defaultdict
     by_email: dict = defaultdict(list)
+    entry_ids_by_email: dict = defaultdict(list)
     for e in entries:
         by_email[e["email"]].append(low_map[e["product_id"]])
+        entry_ids_by_email[e["email"]].append(e["id"])
 
+    now = datetime.now(timezone.utc).isoformat()
     sent = 0
     for email, products in by_email.items():
         html, text = _build_wishlist_email(
-            email=email,
-            first_name="there",
+            email=email, first_name="there",
             headline="Your saved items are almost gone 🔥",
             subtext="Stock is running low on items you saved. Grab them before they sell out.",
-            products=products,
-            site_url=site_url,
-            badge="Almost gone",
+            products=products, site_url=site_url, badge="Almost gone",
         )
         bg.add_task(_send_wishlist_email, email,
                     "Items in your wishlist are almost sold out", html, text)
+        # Mark as notified so we don't send again
+        supabase.table("wishlists").update({"notified_low_stock_at": now}) \
+            .in_("id", entry_ids_by_email[email]).execute()
         sent += 1
 
     return {"notified": sent}
@@ -3876,9 +3882,11 @@ def notify_wishlist_low_stock(bg: BackgroundTasks):
 @app.post("/wishlist/notify-on-sale", dependencies=[Depends(require_admin)])
 def notify_wishlist_on_sale(bg: BackgroundTasks):
     """
-    Find wishlist items that now have a compare_price (i.e. are on sale) and notify owners.
-    Run daily via cron.
+    Notify wishlist owners when items go on sale.
+    Each (email, product) is notified at most ONCE per sale — notified_on_sale_at
+    is set when emailed. Resets when compare_price is cleared (sale ends).
     """
+    from datetime import datetime, timezone
     site_url = get_setting("site_url", "https://edmclothes.net")
 
     try:
@@ -3891,7 +3899,6 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
             .execute()
             .data or []
         )
-        # Only truly on sale (compare_price > price)
         on_sale = [p for p in on_sale if float(p.get("compare_price") or 0) > float(p.get("price") or 0)]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -3902,32 +3909,39 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
     sale_ids = [p["id"] for p in on_sale]
     sale_map = {p["id"]: p for p in on_sale}
 
+    # Only entries not yet notified for this sale
     entries = (
         supabase.table("wishlists")
-        .select("email,product_id")
+        .select("id,email,product_id")
         .in_("product_id", sale_ids)
+        .is_("notified_on_sale_at", "null")
         .execute()
         .data or []
     )
+    if not entries:
+        return {"notified": 0}
 
     from collections import defaultdict
     by_email: dict = defaultdict(list)
+    entry_ids_by_email: dict = defaultdict(list)
     for e in entries:
         by_email[e["email"]].append(sale_map[e["product_id"]])
+        entry_ids_by_email[e["email"]].append(e["id"])
 
+    now = datetime.now(timezone.utc).isoformat()
     sent = 0
     for email, products in by_email.items():
         html, text = _build_wishlist_email(
-            email=email,
-            first_name="there",
+            email=email, first_name="there",
             headline="Your saved items are now on sale 🏷️",
             subtext="Good news — items you saved to your wishlist just went on sale. Don't miss out.",
-            products=products,
-            site_url=site_url,
-            badge="On sale",
+            products=products, site_url=site_url, badge="On sale",
         )
         bg.add_task(_send_wishlist_email, email,
                     "Items in your wishlist are now on sale 🏷️", html, text)
+        # Mark as notified
+        supabase.table("wishlists").update({"notified_on_sale_at": now}) \
+            .in_("id", entry_ids_by_email[email]).execute()
         sent += 1
 
     return {"notified": sent}
