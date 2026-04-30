@@ -1,4 +1,5 @@
 import AddToCartButton from '../../components/AddToCartButton'
+import WishlistButton from '../../components/WishlistButton'
 import ProductGallery from '../../components/ProductGallery'
 import ProductViewTracker from '../../components/ProductViewTracker'
 import ProductCard from '../../components/ProductCard'
@@ -204,6 +205,13 @@ export default async function ProductPage({ params }) {
             )}
 
             <AddToCartButton product={product} showSizeSelector sizeStock={sizeStock} />
+            <div style={{display:'flex',alignItems:'center',gap:10,marginTop:4}}>
+              <WishlistButton productId={product.id} style={{
+                width:44,height:44,borderRadius:12,
+                background:'#f5f5f3',border:'1px solid #e5e5e3',
+              }}/>
+              <span style={{fontSize:13,color:'#888'}}>Save to wishlist</span>
+            </div>
 
             <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{product.description}</p>
 

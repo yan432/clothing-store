@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
+import { useWishlist } from '../context/WishlistContext'
 import { getApiUrl } from '../lib/api'
 
 const SHOP_STATIC = [
@@ -19,10 +20,11 @@ const INFO_LINKS = [
 ]
 
 const ACCOUNT_LINKS = [
-  { href: '/account',             label: 'My account' },
-  { href: '/account?tab=orders',  label: 'Orders' },
-  { href: '/account?tab=sizes',   label: 'Size guide' },
-  { href: '/account?tab=faq',     label: 'Help & FAQ' },
+  { href: '/account',                label: 'My account' },
+  { href: '/account?tab=orders',     label: 'Orders' },
+  { href: '/account?tab=wishlist',   label: 'Wishlist' },
+  { href: '/account?tab=sizes',      label: 'Size guide' },
+  { href: '/account?tab=faq',        label: 'Help & FAQ' },
 ]
 
 const ADMIN_LINKS = [
@@ -38,6 +40,7 @@ const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear
 export default function NavBar() {
   const { count, setDrawerOpen } = useCart()
   const { user, signOut, isAdmin } = useAuth()
+  const { ids: wishlistIds } = useWishlist()
 
   const [openMenu,   setOpenMenu]   = useState(null) // 'shop' | 'info' | 'admin'
   const [categories, setCategories] = useState([])
@@ -204,6 +207,22 @@ export default function NavBar() {
                 </span>
               )}
             </button>
+
+            {/* Wishlist icon — only for logged-in users */}
+            {user && (
+              <a href="/account?tab=wishlist" aria-label="Wishlist"
+                style={{ position: 'relative', width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill={wishlistIds.size > 0 ? '#ef4444' : 'none'}
+                  stroke={wishlistIds.size > 0 ? '#ef4444' : '#1a1a18'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                {wishlistIds.size > 0 && (
+                  <span style={{ position: 'absolute', top: 5, right: 4, width: 15, height: 15, borderRadius: '50%', background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {wishlistIds.size}
+                  </span>
+                )}
+              </a>
+            )}
 
             {/* User icon */}
             <a href={user ? '/account' : '/auth'} aria-label={user ? 'Account' : 'Sign in'}
