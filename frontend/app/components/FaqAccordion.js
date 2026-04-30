@@ -38,20 +38,6 @@ export default function FaqAccordion({ html }) {
     setSafe(sanitize(processed || ''))
   }, [processed])
 
-  useEffect(() => {
-    const container = ref.current
-    if (!container) return
-
-    function handleToggle(e) {
-      if (!e.target.open) return
-      container.querySelectorAll('details.faq-item').forEach(d => {
-        if (d !== e.target) d.open = false
-      })
-    }
-
-    container.addEventListener('toggle', handleToggle, true)
-    return () => container.removeEventListener('toggle', handleToggle, true)
-  }, [safe])
 
   if (!processed) return <p style={{ color: '#aaa', fontSize: 14 }}>No FAQ items yet.</p>
 
