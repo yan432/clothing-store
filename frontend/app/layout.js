@@ -13,6 +13,8 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { GoogleAnalytics } from '@next/third-parties/google'
 import Script from 'next/script'
 import CookieConsent from './components/CookieConsent'
+import UtmCapture from './components/UtmCapture'
+import { Suspense } from 'react'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -70,6 +72,7 @@ export default function RootLayout({ children }) {
             <NavBar />
             <DrawerWrapper />
             <EmailCapturePopup />
+            <Suspense fallback={null}><UtmCapture /></Suspense>
             {children}
             <Footer />
             <CookieConsent />

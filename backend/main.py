@@ -53,6 +53,7 @@ ORDER_CANCELLED = "cancelled"
 RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Store <onboarding@resend.dev>")
+RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
 
 # ── Admin auth ────────────────────────────────────────────────────────────────
@@ -150,6 +151,7 @@ class CheckoutRequest(BaseModel):
     promo_code: Optional[str] = None
     comment: Optional[str] = None
     quick: bool = False  # True = quick checkout from cart; Stripe collects shipping
+    utm: Optional[dict] = None  # { utm_source, utm_medium, utm_campaign, utm_content, utm_term }
 
 
 class PromoCodeCreate(BaseModel):
@@ -2276,6 +2278,12 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
 
     try:
         metadata_json = {"source": "web_checkout"}
+        # UTM attribution — capture last-touch email/ad source at purchase time
+        if payload.utm and isinstance(payload.utm, dict):
+            allowed_utm = {"utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"}
+            for k, v in payload.utm.items():
+                if k in allowed_utm and isinstance(v, str) and v:
+                    metadata_json[k] = v[:200]
         if promo:
             metadata_json["promo_code"] = promo.get("code")
             metadata_json["promo_discount_type"] = promo.get("discount_type")
@@ -3462,5 +3470,94 @@ def track_event(payload: UserEventPayload):
         product_id=payload.product_id,
         order_id=payload.order_id,
         metadata=payload.metadata,
+    )
+    return {"ok": True}
+
+
+# ── Resend email webhooks ──────────────────────────────────────────────────────
+
+# Maps Resend event types → internal user_event event_type strings
+_RESEND_EVENT_MAP = {
+    "email.sent":      "email_sent",
+    "email.delivered": "email_delivered",
+    "email.opened":    "email_opened",
+    "email.clicked":   "email_clicked",
+    "email.bounced":   "email_bounced",
+    "email.complained": "email_complained",  # spam complaint
+}
+
+@app.post("/webhooks/resend")
+async def resend_webhook(request: Request):
+    """
+    Receives event webhooks from Resend and stores them in user_events.
+
+    Set RESEND_WEBHOOK_SECRET in env vars, then register this URL in
+    Resend dashboard → Webhooks → Add endpoint:
+      https://your-backend.onrender.com/webhooks/resend
+    Select events: email.sent, email.delivered, email.opened, email.clicked,
+                   email.bounced, email.complained
+    """
+    import hmac, hashlib
+
+    body = await request.body()
+
+    # Verify Svix signature when secret is configured
+    if RESEND_WEBHOOK_SECRET:
+        import hmac as _hmac, hashlib as _hashlib, base64 as _base64
+
+        svix_id        = request.headers.get("svix-id", "")
+        svix_timestamp = request.headers.get("svix-timestamp", "")
+        svix_signature = request.headers.get("svix-signature", "")
+
+        # Svix secret is base64-encoded after the "whsec_" prefix
+        raw_secret = RESEND_WEBHOOK_SECRET
+        if raw_secret.startswith("whsec_"):
+            raw_secret = raw_secret[len("whsec_"):]
+        try:
+            secret_bytes = _base64.b64decode(raw_secret)
+        except Exception:
+            secret_bytes = raw_secret.encode("utf-8")
+
+        signed_content = f"{svix_id}.{svix_timestamp}.{body.decode('utf-8')}"
+        expected = _hmac.new(secret_bytes, signed_content.encode(), _hashlib.sha256).digest()
+        expected_b64 = _base64.b64encode(expected).decode()
+
+        # svix-signature may contain multiple space-separated "v1,<sig>" values
+        valid = any(
+            sig.split(",", 1)[-1] == expected_b64
+            for sig in svix_signature.split(" ")
+            if "," in sig
+        )
+        if not valid:
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    try:
+        event = json.loads(body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    resend_type = event.get("type", "")
+    event_type  = _RESEND_EVENT_MAP.get(resend_type)
+    if not event_type:
+        return {"ok": True, "ignored": resend_type}
+
+    data    = event.get("data") or {}
+    email   = normalize_email(data.get("to") or "")
+    tags    = data.get("tags") or {}          # Resend tags dict attached when sending
+    subject = data.get("subject") or ""
+
+    metadata = {
+        "resend_email_id": data.get("email_id") or data.get("id") or "",
+        "subject":         subject,
+    }
+    # Capture click URL if available
+    if resend_type == "email.clicked":
+        metadata["click_url"] = (data.get("click") or {}).get("link") or ""
+
+    record_user_event(
+        session_id=f"resend_{data.get('email_id') or data.get('id') or 'unknown'}",
+        event_type=event_type,
+        email=email or None,
+        metadata=metadata,
     )
     return {"ok": True}

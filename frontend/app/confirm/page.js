@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackCheckoutStarted } from '../lib/track'
+import { getStoredUtm } from '../components/UtmCapture'
 
 const DEFAULT_SHIPPING = 30
 const DEFAULT_THRESHOLD = 120
@@ -187,6 +188,7 @@ export default function ConfirmPage() {
           comment: details.comment || null,
           success_url: `${origin}/success`,
           cancel_url: `${origin}/cart`,
+          utm: getStoredUtm() || undefined,
         }),
       })
       const data = await res.json()
