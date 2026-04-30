@@ -82,12 +82,25 @@ export default function EmailCapturePopup() {
   if (!visible) return null
 
   return (
-    <div style={{
-      position: 'fixed', right: 18, bottom: 18, zIndex: 90,
-      width: 'min(360px, calc(100vw - 24px))',
-      background: '#fff', border: '1px solid #ecece6',
-      borderRadius: 14, boxShadow: '0 18px 44px rgba(0,0,0,0.12)', padding: 20,
-    }}>
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={closePopup}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 89,
+          background: 'rgba(0,0,0,0.35)',
+        }}
+      />
+      {/* Popup — centered on all screen sizes */}
+      <div style={{
+        position: 'fixed',
+        top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 90,
+        width: 'min(380px, calc(100vw - 32px))',
+        background: '#fff', border: '1px solid #ecece6',
+        borderRadius: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.18)', padding: 28,
+      }}>
       <button
         type="button"
         onClick={closePopup}
@@ -136,6 +149,7 @@ export default function EmailCapturePopup() {
           </form>
         </>
       )}
-    </div>
+      </div>
+    </>
   )
 }
