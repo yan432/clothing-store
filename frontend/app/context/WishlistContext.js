@@ -7,42 +7,53 @@ const WishlistContext = createContext()
 
 export function WishlistProvider({ children }) {
   const { user } = useAuth()
-  const [ids, setIds] = useState(new Set())   // Set of product_id numbers
+  const [ids, setIds] = useState(new Set())
 
-  // Load wishlist whenever user changes
   const load = useCallback(async () => {
-    if (!user?.email) { setIds(new Set()); return }
+    if (!user?.email) return
     try {
-      const res = await fetch(
-        getApiUrl(`/wishlist?email=${encodeURIComponent(user.email)}`)
-      )
+      const res = await fetch(getApiUrl(`/wishlist?email=${encodeURIComponent(user.email)}`))
       if (!res.ok) return
       const data = await res.json()
       setIds(new Set(data))
     } catch {}
   }, [user?.email])
 
-  useEffect(() => { load() }, [load])
+  // Clear on logout; load on login — separated so token refresh never clears the list
+  useEffect(() => {
+    if (user?.email) {
+      load()
+    } else {
+      setIds(new Set())
+    }
+  }, [user?.email]) // intentionally not depending on `load` to avoid extra calls
 
   async function toggle(productId) {
-    if (!user?.email) return false   // caller should show login prompt
+    if (!user?.email) return false
     const numId = Number(productId)
-    const isIn  = ids.has(numId)
-    const next  = new Set(ids)
-    if (isIn) {
-      next.delete(numId)
-      setIds(next)
-      await fetch(
+    const wasIn = ids.has(numId)
+
+    // Optimistic update
+    setIds(prev => {
+      const next = new Set(prev)
+      wasIn ? next.delete(numId) : next.add(numId)
+      return next
+    })
+
+    try {
+      const res = await fetch(
         getApiUrl(`/wishlist/${numId}?email=${encodeURIComponent(user.email)}`),
-        { method: 'DELETE' }
-      ).catch(() => {})
-    } else {
-      next.add(numId)
-      setIds(next)
-      await fetch(
-        getApiUrl(`/wishlist/${numId}?email=${encodeURIComponent(user.email)}`),
-        { method: 'POST' }
-      ).catch(() => {})
+        { method: wasIn ? 'DELETE' : 'POST' }
+      )
+      if (!res.ok) throw new Error()
+    } catch {
+      // Rollback optimistic update on failure
+      setIds(prev => {
+        const next = new Set(prev)
+        wasIn ? next.add(numId) : next.delete(numId)
+        return next
+      })
+      return false
     }
     return true
   }

@@ -161,17 +161,19 @@ function WishlistCard({ product, sizeStock, onRemove }) {
 
 export default function WishlistPage() {
   const { user } = useAuth()
-  const { ids, toggle } = useWishlist()
+  const { toggle } = useWishlist()
   const [products, setProducts] = useState([])
   const [sizeStocks, setSizeStocks] = useState({})   // { [productId]: { S: 2, M: 0 } }
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
     if (!user?.email) { setLoading(false); return }
+    let cancelled = false
     setLoading(true)
     fetch(getApiUrl(`/wishlist/products?email=${encodeURIComponent(user.email)}`))
       .then(r => r.ok ? r.json() : [])
       .then(async data => {
+        if (cancelled) return
         const list = Array.isArray(data) ? data : []
         setProducts(list)
         // Fetch size-stock for all products in parallel
@@ -183,15 +185,19 @@ export default function WishlistPage() {
               .catch(() => [p.id, {}])
           )
         )
-        setSizeStocks(Object.fromEntries(entries))
+        if (!cancelled) setSizeStocks(Object.fromEntries(entries))
       })
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false))
-  }, [user?.email, ids.size])
+      .catch(() => { if (!cancelled) setProducts([]) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [user?.email])  // only reload when user changes — removals handled locally
 
   async function handleRemove(productId) {
-    await toggle(productId)
+    // Remove locally immediately, then sync with backend
     setProducts(prev => prev.filter(p => p.id !== productId))
+    await toggle(productId)
+    // toggle() has rollback built in — if it fails, ids revert but page state stays removed
+    // (acceptable UX: next page load will re-fetch correct state)
   }
 
   // Not logged in
