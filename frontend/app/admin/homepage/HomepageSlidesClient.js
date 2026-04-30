@@ -31,12 +31,40 @@ export default function HomepageSlidesClient() {
     else { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
   }
 
+  // Compress image to fit Vercel's 4.5 MB serverless payload limit
+  async function compressImage(file, maxPx = 1920, maxBytes = 3.5 * 1024 * 1024) {
+    if (file.size <= maxBytes) return file  // already small enough
+    return new Promise(resolve => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        let { width, height } = img
+        if (width > maxPx) { height = Math.round(height * maxPx / width); width = maxPx }
+        const canvas = document.createElement('canvas')
+        canvas.width = width; canvas.height = height
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height)
+        let quality = 0.85
+        const tryBlob = () => canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return }
+          if (blob.size <= maxBytes || quality <= 0.35) {
+            resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }))
+          } else { quality -= 0.1; tryBlob() }
+        }, 'image/jpeg', quality)
+        tryBlob()
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file) }
+      img.src = url
+    })
+  }
+
   async function handleUpload(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const raw = e.target.files?.[0]
+    if (!raw) return
     setUploading(true)
     setError('')
     try {
+      const file = await compressImage(raw)
       const href = newHrefRef.current?.value.trim() || '/products'
       const title = newTitleRef.current?.value.trim() || ''
       const fd = new FormData()

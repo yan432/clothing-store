@@ -38,9 +38,10 @@ function WishlistCard({ product, sizeStock, onRemove }) {
   const isLowStock = inStock && stockForSize <= 2  // only at 1–2 units
   const canAdd     = inStock && (sizeOptions.length === 0 || !!selectedSize)
 
-  // Whole product out of stock = all sizes (or no-size product) are 0
-  const allOutOfStock = sizeOptions.length
-    ? sizeOptions.every(s => (sizeStock[s] ?? 0) === 0)
+  // Show "Notify when available" when selected size is out of stock,
+  // or when no-size product is out of stock
+  const showNotify = sizeOptions.length
+    ? (!!selectedSize && !inStock)
     : !inStock
 
   function handleAddToCart() {
@@ -131,15 +132,14 @@ function WishlistCard({ product, sizeStock, onRemove }) {
               const outOfStock = qty !== null && qty === 0
               const isSelected = selectedSize === s
               return (
-                <button key={s} onClick={() => !outOfStock && setSelectedSize(s)}
-                  disabled={outOfStock}
+                <button key={s} onClick={() => setSelectedSize(s)}
                   title={outOfStock ? `${s} — out of stock` : s}
                   style={{
                     padding: '4px 10px', fontSize: 12, fontWeight: 600, borderRadius: 7,
                     border: isSelected ? '1.5px solid #111' : '1px solid #ddd',
-                    background: isSelected ? '#111' : outOfStock ? '#fafaf8' : '#fff',
-                    color: isSelected ? '#fff' : outOfStock ? '#ccc' : '#444',
-                    cursor: outOfStock ? 'not-allowed' : 'pointer',
+                    background: isSelected ? (outOfStock ? '#f5f5f3' : '#111') : '#fff',
+                    color: isSelected ? (outOfStock ? '#888' : '#fff') : outOfStock ? '#ccc' : '#444',
+                    cursor: 'pointer',
                     textDecoration: outOfStock ? 'line-through' : 'none',
                   }}>
                   {s}
@@ -150,7 +150,7 @@ function WishlistCard({ product, sizeStock, onRemove }) {
         )}
 
         {/* Add to cart OR notify when back in stock */}
-        {allOutOfStock ? (
+        {showNotify ? (
           <button onClick={() => setNotifyPopup(true)}
             style={{
               marginTop: 'auto', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600,
