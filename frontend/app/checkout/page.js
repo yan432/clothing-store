@@ -336,6 +336,28 @@ export default function CheckoutPage() {
     }
     sessionStorage.setItem('checkout_details', JSON.stringify(form))
     if (shippingResult) sessionStorage.setItem('checkout_shipping', JSON.stringify(shippingResult))
+
+    // Fire-and-forget: save abandoned cart so we can follow up if they don't complete
+    const cartTotal = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
+    fetch(getApiUrl('/abandoned-cart'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email:      form.email.trim().toLowerCase(),
+        first_name: form.firstName.trim(),
+        total_eur:  Math.round(cartTotal * 100) / 100,
+        items: cart.map(item => ({
+          id:        item.id,
+          name:      item.name,
+          price:     parseFloat(item.price),
+          quantity:  item.qty,
+          image_url: item.image_url || null,
+          size:      item.size || null,
+          slug:      item.slug  || null,
+        })),
+      }),
+    }).catch(() => {})
+
     router.push('/confirm')
   }
 

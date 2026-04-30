@@ -2495,6 +2495,8 @@ async def stripe_webhook(request: Request):
     # Record purchase event for marketing tracking
     if target_status == ORDER_PAID:
         order_email = update_payload.get("email") or order.get("email")
+        # Mark abandoned cart as converted so no recovery email is sent
+        _mark_abandoned_cart_completed(order_email)
         record_user_event(
             session_id=order.get("client_reference_id") or "webhook",
             event_type="purchase",
@@ -3470,6 +3472,215 @@ def track_event(payload: UserEventPayload):
         metadata=payload.metadata,
     )
     return {"ok": True}
+
+
+# ── Abandoned cart recovery ───────────────────────────────────────────────────
+
+class AbandonedCartPayload(BaseModel):
+    email:      str
+    first_name: Optional[str] = None
+    items:      list          = []
+    total_eur:  Optional[float] = None
+
+
+@app.post("/abandoned-cart")
+def save_abandoned_cart(payload: AbandonedCartPayload):
+    """
+    Called by the frontend when the user moves from /checkout → /confirm.
+    Upserts a row per email — if the user goes back and changes the cart
+    we get the latest snapshot, and the 2-hour countdown resets.
+    """
+    email = normalize_email(payload.email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+
+    now = now_iso()
+    supabase.table("abandoned_carts").upsert({
+        "email":      email,
+        "first_name": (payload.first_name or "").strip() or None,
+        "items_json": payload.items,
+        "total_eur":  payload.total_eur,
+        "status":     "pending",
+        "updated_at": now,
+        "emailed_at": None,   # reset if they came back and updated cart
+    }, on_conflict="email").execute()
+    return {"ok": True}
+
+
+def _mark_abandoned_cart_completed(email: str) -> None:
+    """Call this when an order is paid — suppresses recovery emails."""
+    if not email:
+        return
+    try:
+        supabase.table("abandoned_carts").update({
+            "status":     "completed",
+            "updated_at": now_iso(),
+        }).eq("email", normalize_email(email)).in_("status", ["pending", "emailed"]).execute()
+    except Exception:
+        pass
+
+
+def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
+    """Build and send the recovery email. Returns True on success."""
+    email      = entry.get("email", "")
+    first_name = entry.get("first_name") or "there"
+    items      = entry.get("items_json") or []
+    total      = entry.get("total_eur")
+
+    if not items or not email:
+        return False
+
+    # Build item rows for the email
+    item_rows_html = ""
+    for item in items[:6]:  # cap at 6 items to keep email short
+        name     = item.get("name", "")
+        price    = float(item.get("price") or 0)
+        qty      = int(item.get("quantity") or item.get("qty") or 1)
+        size     = item.get("size") or ""
+        img      = item.get("image_url") or ""
+        slug     = item.get("slug") or str(item.get("id") or "")
+        item_url = f"{site_url}/products/{slug}" if slug else site_url
+
+        img_block = (
+            f'<a href="{item_url}"><img src="{img}" width="64" height="64" '
+            f'style="width:64px;height:64px;object-fit:cover;border-radius:8px;display:block;" alt="{name}"/></a>'
+            if img else
+            f'<div style="width:64px;height:64px;background:#f0f0ee;border-radius:8px;"></div>'
+        )
+        size_label = f' · {size}' if size else ''
+        item_rows_html += f"""
+        <tr>
+          <td style="padding:10px 0;border-bottom:1px solid #f0f0ee;">
+            <table cellpadding="0" cellspacing="0"><tr>
+              <td style="padding-right:14px;">{img_block}</td>
+              <td style="vertical-align:top;">
+                <p style="margin:0 0 4px;font-size:14px;font-weight:500;color:#0a0a0a;">
+                  <a href="{item_url}" style="color:#0a0a0a;text-decoration:none;">{name}</a>
+                </p>
+                <p style="margin:0;font-size:12px;color:#9b9b96;">x{qty}{size_label} · €{price:.2f}</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>"""
+
+    total_line = f"<p style='margin:12px 0 0;font-size:15px;font-weight:700;color:#0a0a0a;'>Total: €{total:.2f}</p>" if total else ""
+    cart_url   = f"{site_url}/cart"
+    unsub_url  = f"{site_url}/unsubscribe?email={email}"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#0a0a0a;padding:28px 40px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:17px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px 24px;">
+          <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">You left something behind</p>
+          <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">
+            Hey {first_name}, your cart is waiting 🛒
+          </h1>
+          <p style="margin:0 0 28px;font-size:15px;color:#6b6b66;line-height:1.6;">
+            You got close! These items are still in your cart — but stock is limited, so grab them before they sell out.
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            {item_rows_html}
+          </table>
+          {total_line}
+        </td></tr>
+        <tr><td style="padding:0 40px 36px;">
+          <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+            <a href="{cart_url}"
+               style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 48px;border-radius:999px;">
+              Complete my order →
+            </a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;margin:0;"/></td></tr>
+        <tr><td style="padding:20px 40px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#b0b0a8;">
+            © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
+          </p>
+          <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
+            You're receiving this because you started a checkout. <a href="{unsub_url}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+
+    text = (
+        f"Hey {first_name}, you left something in your cart!\n\n"
+        + "\n".join(
+            f"- {i.get('name','')} x{i.get('quantity') or i.get('qty',1)}"
+            + (f" · {i['size']}" if i.get('size') else "")
+            + f" · €{float(i.get('price',0)):.2f}"
+            for i in items[:6]
+        )
+        + (f"\n\nTotal: €{total:.2f}" if total else "")
+        + f"\n\nComplete your order: {cart_url}\n\n"
+        f"---\nTo unsubscribe: {unsub_url}"
+    )
+
+    subject = f"Hey {first_name}, you left something behind 👀"
+    send_email(email, subject, html, text)
+    return True
+
+
+@app.post("/abandoned-cart/process", dependencies=[Depends(require_admin)])
+def process_abandoned_carts(bg: BackgroundTasks):
+    """
+    Find carts that have been abandoned for ≥ 2 hours and haven't been emailed yet.
+    Call this endpoint hourly via a cron service (cron-job.org or Render Cron Jobs).
+
+    Example cron-job.org setup:
+      URL: https://your-backend.onrender.com/abandoned-cart/process
+      Method: POST
+      Header: X-Admin-Secret: <your ADMIN_SECRET>
+      Schedule: every hour
+    """
+    from datetime import datetime, timezone, timedelta
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    site_url = get_setting("site_url", "https://edmclothes.net")
+
+    try:
+        rows = (
+            supabase.table("abandoned_carts")
+            .select("*")
+            .eq("status", "pending")
+            .is_("emailed_at", "null")
+            .lt("updated_at", cutoff)
+            .execute()
+            .data or []
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"DB error: {e}")
+
+    sent = 0
+    now  = now_iso()
+    for row in rows:
+        bg.add_task(_send_and_mark_cart, row, site_url, now)
+        sent += 1
+
+    return {"queued": sent}
+
+
+def _send_and_mark_cart(entry: dict, site_url: str, now: str) -> None:
+    """Background task: send email then update status."""
+    ok = _send_abandoned_cart_email(entry, site_url)
+    if ok:
+        try:
+            supabase.table("abandoned_carts").update({
+                "status":     "emailed",
+                "emailed_at": now,
+                "updated_at": now,
+            }).eq("id", entry["id"]).execute()
+        except Exception:
+            pass
 
 
 # ── Resend email webhooks ──────────────────────────────────────────────────────
