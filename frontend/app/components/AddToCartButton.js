@@ -112,11 +112,12 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
                 const qty     = getSizeQty(size)
                 const soldOut = isSoldOut(size)
                 let label = size
-                if (soldOut)  label = `${size}  ·  sold out`
+                if (soldOut)        label = `${size}  ·  sold out`
                 else if (qty === 1) label = `${size}  ·  last 1 left!`
                 else if (qty === 2) label = `${size}  ·  only 2 left`
                 return (
-                  <option key={size} value={size} disabled={soldOut}>
+                  // Not disabled — user can select sold-out sizes to trigger "Notify me"
+                  <option key={size} value={size}>
                     {label}
                   </option>
                 )
