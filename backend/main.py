@@ -1251,22 +1251,35 @@ def delete_product(product_id: int):
 def duplicate_product(product_id: int):
     """Create an identical copy of a product (hidden draft, new slug, no images)."""
     original = get_product_row(product_id)
-    # Fields to copy
-    skip = {"id", "created_at", "updated_at", "slug", "image_url", "image_urls",
-             "stock", "available_stock", "reserved_stock"}
-    payload = {k: v for k, v in original.items() if k not in skip and v is not None}
+    # Explicit allowlist — only known insertable columns are copied.
+    # Using a denylist on select("*") is fragile because Supabase may return
+    # generated/computed columns that are rejected on INSERT.
+    copy_fields = [
+        "description", "material_care", "product_details", "fit_info", "faq",
+        "price", "compare_price", "category",
+        "tags", "color_name", "color_hex", "color_group_id",
+        "volumetric_weight",
+    ]
     base_name = str(original.get("name") or "Product")
-    payload["name"] = f"{base_name} (copy)"
-    payload["slug"] = _unique_slug(_make_slug(payload["name"]))
-    payload["is_hidden"] = True  # always start as draft
-    payload["stock"] = 0
+    payload: dict = {}
+    for field in copy_fields:
+        val = original.get(field)
+        if val is not None:
+            payload[field] = val
+    payload["name"]            = f"{base_name} (copy)"
+    payload["slug"]            = _unique_slug(_make_slug(payload["name"]))
+    payload["is_hidden"]       = True   # always start as draft
+    payload["stock"]           = 0
     payload["available_stock"] = 0
-    payload["reserved_stock"] = 0
-    payload["image_url"] = None
-    payload["image_urls"] = []
-    payload["created_at"] = now_iso()
-    payload["updated_at"] = now_iso()
-    data = supabase.table("products").insert(payload).execute()
+    payload["reserved_stock"]  = 0
+    payload["image_url"]       = None
+    payload["image_urls"]      = []
+    payload["created_at"]      = now_iso()
+    payload["updated_at"]      = now_iso()
+    try:
+        data = supabase.table("products").insert(payload).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Duplicate failed: {e}")
     if not data.data:
         raise HTTPException(status_code=500, detail="Duplicate failed")
     return data.data[0]

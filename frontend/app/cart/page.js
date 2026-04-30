@@ -54,14 +54,18 @@ export default function CartPage() {
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
               {cart.map(item => (
                 <div key={item.id + (item.size || '')} className="cart-item">
-                  <div style={{width:90,height:90,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0}}>
+                  <a href={`/products/${item.slug || item.id}`}
+                    style={{width:90,height:90,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'block'}}>
                     {item.image_url
                       ? <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                       : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#ccc'}}>No image</div>
                     }
-                  </div>
+                  </a>
                   <div style={{flex:1}}>
-                    <p style={{fontWeight:600,fontSize:15,margin:'0 0 2px'}}>{item.name}</p>
+                    <a href={`/products/${item.slug || item.id}`}
+                      style={{fontWeight:600,fontSize:15,margin:'0 0 2px',color:'inherit',textDecoration:'none',display:'block'}}>
+                      {item.name}
+                    </a>
                     {item.size && <p style={{fontSize:13,color:'#888',margin:'0 0 2px'}}>Size: {item.size}</p>}
                     <p style={{fontSize:13,color:'#aaa',margin:0}}>€{item.price}</p>
                   </div>

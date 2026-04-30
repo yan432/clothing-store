@@ -134,12 +134,16 @@ export default function CartDrawer({ open, onClose }) {
                     transform: visible ? 'translateY(0)' : 'translateY(12px)',
                     transition: `opacity 0.3s ease ${idx * 0.05 + 0.1}s, transform 0.3s ease ${idx * 0.05 + 0.1}s`,
                   }}>
-                  <div style={{width:80,height:80,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0}}>
+                  <a href={`/products/${item.slug || item.id}`} onClick={onClose}
+                    style={{width:80,height:80,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'block'}}>
                     {item.image_url && <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
-                  </div>
+                  </a>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                      <p style={{fontSize:14,fontWeight:500,margin:'0 0 4px',lineHeight:1.3}}>{item.name}</p>
+                      <a href={`/products/${item.slug || item.id}`} onClick={onClose}
+                        style={{fontSize:14,fontWeight:500,margin:'0 0 4px',lineHeight:1.3,color:'inherit',textDecoration:'none',display:'block'}}>
+                        {item.name}
+                      </a>
                       <button onClick={() => removeFromCart(item.id, item.size)}
                         style={{background:'none',border:'none',cursor:'pointer',color:'#ccc',fontSize:18,padding:0,flexShrink:0,lineHeight:1}}>×</button>
                     </div>
