@@ -4,11 +4,11 @@ import { useState } from 'react'
 
 // Our unisex/male size chart
 const OUR_SIZES = [
-  { size: 'XS', eu_m: '44',    eu_w: '32–34', us: 'XS',     uk_m: '34', chest: '84–88',  waist: '68–72',  hips: '86–90'  },
-  { size: 'S',  eu_m: '46',    eu_w: '36–38', us: 'S',      uk_m: '36', chest: '88–92',  waist: '72–76',  hips: '90–94'  },
-  { size: 'M',  eu_m: '48–50', eu_w: '40–42', us: 'M',      uk_m: '38', chest: '92–96',  waist: '76–80',  hips: '94–98'  },
-  { size: 'L',  eu_m: '52',    eu_w: '44–46', us: 'L',      uk_m: '40', chest: '96–102', waist: '80–86',  hips: '98–104' },
-  { size: 'XL', eu_m: '54–56', eu_w: '48–50', us: 'XL',    uk_m: '42', chest: '102–108','waist': '86–92', hips: '104–110'},
+  { size: 'XS', eu_m: '44',    eu_w: '32–34', chest: '84–88',   waist: '68–72', height: '150–160 cm' },
+  { size: 'S',  eu_m: '46',    eu_w: '36–38', chest: '88–94',   waist: '72–78', height: '160–170 cm' },
+  { size: 'M',  eu_m: '48–50', eu_w: '40–42', chest: '94–100',  waist: '78–84', height: '170–180 cm' },
+  { size: 'L',  eu_m: '52',    eu_w: '44–46', chest: '100–108', waist: '84–90', height: '180–190 cm' },
+  { size: 'XL', eu_m: '54–56', eu_w: '48–50', chest: '108–116', waist: '90–96', height: '190+ cm'    },
 ]
 
 // Women's standard sizes for reference / mapping
@@ -27,9 +27,9 @@ function recommendByBody(height, weight, gender) {
   if (gender === 'woman') chest += 4 // women typically have wider hips/chest relative to waist
 
   if (chest < 88)        return 0 // XS
-  else if (chest < 92)   return 1 // S
-  else if (chest < 97)   return 2 // M
-  else if (chest < 103)  return 3 // L
+  else if (chest < 94)   return 1 // S
+  else if (chest < 100)  return 2 // M
+  else if (chest < 108)  return 3 // L
   else                   return 4 // XL
 }
 
@@ -116,12 +116,11 @@ export default function SizeGuideClient() {
             <thead>
               <tr style={{ background: '#fafaf8' }}>
                 <th style={thStyle}>Size</th>
-                <th style={thStyle}>EU (men)</th>
-                <th style={thStyle}>EU (women)</th>
-                <th style={thStyle}>US</th>
-                <th style={thStyle}>Chest</th>
-                <th style={thStyle}>Waist</th>
-                <th style={thStyle}>Hips</th>
+                <th style={thStyle}>EU Men</th>
+                <th style={thStyle}>EU Women</th>
+                <th style={thStyle}>Chest, cm</th>
+                <th style={thStyle}>Waist, cm</th>
+                <th style={thStyle}>Recommended height</th>
               </tr>
             </thead>
             <tbody>
@@ -130,10 +129,9 @@ export default function SizeGuideClient() {
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{row.size}</td>
                   <td style={tdStyle}>{row.eu_m}</td>
                   <td style={tdStyle}>{row.eu_w}</td>
-                  <td style={tdStyle}>{row.us}</td>
-                  <td style={tdStyle}>{row.chest} cm</td>
-                  <td style={tdStyle}>{row.waist} cm</td>
-                  <td style={tdStyle}>{row.hips} cm</td>
+                  <td style={tdStyle}>{row.chest}</td>
+                  <td style={tdStyle}>{row.waist}</td>
+                  <td style={tdStyle}>{row.height}</td>
                 </tr>
               ))}
             </tbody>
@@ -228,10 +226,11 @@ export default function SizeGuideClient() {
             <div style={{ width: 1, height: 56, background: '#bbf7d0', flexShrink: 0 }} />
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               {[
-                { label: 'EU (men)',   value: result.eu_m },
-                { label: 'EU (women)', value: result.eu_w },
-                { label: 'Chest',      value: result.chest + ' cm' },
-                { label: 'Waist',      value: result.waist + ' cm' },
+                { label: 'EU Men',    value: result.eu_m },
+                { label: 'EU Women',  value: result.eu_w },
+                { label: 'Chest',     value: result.chest + ' cm' },
+                { label: 'Waist',     value: result.waist + ' cm' },
+                { label: 'Height',    value: result.height },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p style={{ fontSize: 11, color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
