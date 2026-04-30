@@ -2617,6 +2617,38 @@ def resend_order_confirmation(order_id: int):
     return {"ok": True}
 
 
+@app.post("/orders/{order_id}/fit-feedback")
+def order_fit_feedback(order_id: int, payload: dict = Body(...)):
+    """
+    Let a customer submit size fit feedback for a delivered order.
+    fit must be one of: perfect | too_small | too_big
+    Request must include the order's customer email for ownership check.
+    """
+    fit = str(payload.get("fit") or "").strip()
+    email = normalize_email(str(payload.get("email") or ""))
+    if fit not in ("perfect", "too_small", "too_big"):
+        raise HTTPException(status_code=400, detail="fit must be perfect | too_small | too_big")
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+
+    result = supabase.table("orders").select("id,status,email,metadata_json").eq("id", order_id).limit(1).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order = result.data[0]
+
+    # Ownership check — customer email must match
+    if normalize_email(str(order.get("email") or "")) != email:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if order.get("status") != "delivered":
+        raise HTTPException(status_code=400, detail="Fit feedback is only available for delivered orders")
+
+    meta = as_dict(order.get("metadata_json"))
+    meta["fit_feedback"] = fit
+    meta["fit_feedback_at"] = now_iso()
+    supabase.table("orders").update({"metadata_json": meta, "updated_at": now_iso()}).eq("id", order_id).execute()
+    return {"ok": True, "fit": fit}
+
+
 @app.post("/orders/{order_id}/notify-shipped", dependencies=[Depends(require_admin)])
 def notify_order_shipped(order_id: int):
     result = supabase.table("orders").select("*").eq("id", order_id).limit(1).execute()
