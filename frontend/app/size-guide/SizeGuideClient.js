@@ -60,6 +60,7 @@ const tdStyle = {
 const inputStyle = {
   border: '1px solid #ddd', borderRadius: 10,
   padding: '11px 14px', fontSize: 16, outline: 'none',
+  height: 46, boxSizing: 'border-box',
 }
 const labelStyle = {
   fontSize: 12, fontWeight: 600, color: '#555',
