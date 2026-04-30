@@ -564,18 +564,165 @@ function OrdersSection({ user }) {
   )
 }
 
+// ── Size Guide Tab ────────────────────────────────────────────────────────────
+const SG_SIZES = [
+  { size: 'XS', eu_m: '44',    eu_w: '32–34', chest: '84–88',  waist: '68–72' },
+  { size: 'S',  eu_m: '46',    eu_w: '36–38', chest: '88–92',  waist: '72–76' },
+  { size: 'M',  eu_m: '48–50', eu_w: '40–42', chest: '92–96',  waist: '76–80' },
+  { size: 'L',  eu_m: '52',    eu_w: '44–46', chest: '96–102', waist: '80–86' },
+  { size: 'XL', eu_m: '54–56', eu_w: '48–50', chest: '102–108','waist':'86–92'},
+]
+const SG_FIT_OPTIONS = [
+  { value: 'perfect',  emoji: '👌', label: 'Fits perfect' },
+  { value: 'too_small', emoji: '↓', label: 'Too small' },
+  { value: 'too_big',   emoji: '↑', label: 'Too big' },
+]
+function sgRecommend(height, weight, gender, knownSize) {
+  let chest = Number(height) * 0.52 + Number(weight) * 0.18
+  if (gender === 'woman') chest += 4
+  let idx = chest < 88 ? 0 : chest < 92 ? 1 : chest < 97 ? 2 : chest < 103 ? 3 : 4
+  if (knownSize) {
+    const declared = gender === 'woman'
+      ? ({ XS: 0, S: 0, M: 1, L: 2, XL: 3 }[knownSize] ?? idx)
+      : ({ XS: 0, S: 1, M: 2, L: 3, XL: 4 }[knownSize] ?? idx)
+    idx = Math.round((idx * 2 + declared) / 3)
+  }
+  return SG_SIZES[Math.min(4, Math.max(0, idx))]
+}
+
+function SizeGuideSection() {
+  const [height, setHeight]       = useState('')
+  const [weight, setWeight]       = useState('')
+  const [gender, setGender]       = useState('')
+  const [knownSize, setKnownSize] = useState('')
+  const [result, setResult]       = useState(null)
+
+  function handleCalc(e) {
+    e.preventDefault()
+    setResult(sgRecommend(height, weight, gender, knownSize))
+  }
+
+  const inp = { border: '1px solid #ddd', borderRadius: 8, padding: '9px 12px', fontSize: 15, outline: 'none', height: 40, boxSizing: 'border-box', background: '#fff' }
+  const lbl = { fontSize: 12, fontWeight: 600, color: '#666', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'block', marginBottom: 5 }
+
+  return (
+    <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 24 }}>
+      <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 4px' }}>Size Guide</h2>
+      <p style={{ fontSize: 13, color: '#888', margin: '0 0 20px', lineHeight: 1.5 }}>
+        Our clothes are cut in a <strong style={{ color: '#555' }}>unisex / menswear</strong> fit.
+        Women typically size down 1–2 sizes.
+      </p>
+
+      {/* Size table */}
+      <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid #eee', marginBottom: 24 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 400 }}>
+          <thead>
+            <tr style={{ background: '#fafaf8' }}>
+              {['Size', 'EU (men)', 'EU (women)', 'Chest (cm)', 'Waist (cm)'].map(h => (
+                <th key={h} style={{ padding: '9px 12px', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#888', textAlign: 'left', borderBottom: '2px solid #eee', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {SG_SIZES.map((row, i) => (
+              <tr key={row.size} style={{ background: i % 2 === 0 ? '#fff' : '#fafaf8' }}>
+                <td style={{ padding: '10px 12px', fontWeight: 700, fontSize: 14, borderBottom: '1px solid #f0f0ee' }}>{row.size}</td>
+                <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.eu_m}</td>
+                <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.eu_w}</td>
+                <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.chest}</td>
+                <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.waist}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Women's tip */}
+      <div style={{ padding: '11px 14px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', marginBottom: 24 }}>
+        <p style={{ fontSize: 13, color: '#92400e', margin: 0 }}>
+          👗 <strong>Women:</strong> women's L → our M &nbsp;·&nbsp; women's M → our S &nbsp;·&nbsp; women's XL → our L
+        </p>
+      </div>
+
+      {/* Calculator */}
+      <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 14px' }}>Find your size</h3>
+      <form onSubmit={handleCalc}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+          <div>
+            <label style={lbl}>Height (cm) *</label>
+            <input type="number" min={140} max={220} placeholder="e.g. 182" required
+              value={height} onChange={e => { setHeight(e.target.value); setResult(null) }}
+              style={{ ...inp, width: 110 }} />
+          </div>
+          <div>
+            <label style={lbl}>Weight (kg) *</label>
+            <input type="number" min={40} max={200} placeholder="e.g. 78" required
+              value={weight} onChange={e => { setWeight(e.target.value); setResult(null) }}
+              style={{ ...inp, width: 110 }} />
+          </div>
+          <div>
+            <label style={lbl}>I usually shop</label>
+            <select value={gender} onChange={e => { setGender(e.target.value); setResult(null) }}
+              style={{ ...inp, width: 150, cursor: 'pointer' }}>
+              <option value="">— optional —</option>
+              <option value="man">Men's sizes</option>
+              <option value="woman">Women's sizes</option>
+            </select>
+          </div>
+          <div>
+            <label style={lbl}>My usual size</label>
+            <select value={knownSize} onChange={e => { setKnownSize(e.target.value); setResult(null) }}
+              style={{ ...inp, width: 140, cursor: 'pointer' }}>
+              <option value="">— optional —</option>
+              {['XS','S','M','L','XL'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        </div>
+        <button type="submit" style={{ background: '#111', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          Find my size →
+        </button>
+      </form>
+
+      {result && (
+        <div style={{ marginTop: 18, background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#16a34a', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 2px' }}>We recommend</p>
+            <p style={{ fontSize: 40, fontWeight: 800, margin: 0, lineHeight: 1 }}>{result.size}</p>
+          </div>
+          <div style={{ width: 1, height: 48, background: '#bbf7d0' }} />
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            {[['EU (men)', result.eu_m], ['EU (women)', result.eu_w], ['Chest', result.chest + ' cm'], ['Waist', result.waist + ' cm']].map(([l, v]) => (
+              <div key={l}>
+                <p style={{ fontSize: 11, color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{l}</p>
+                <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{v}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {result && (
+        <p style={{ fontSize: 12, color: '#aaa', margin: '10px 0 0' }}>
+          Between sizes? Size up for a relaxed fit, size down for fitted.{' '}
+          <a href="/contact" style={{ color: '#555', textDecoration: 'underline' }}>Contact us</a> if unsure.
+        </p>
+      )}
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'account',    label: 'My account', href: '/account' },
-  { id: 'orders',     label: 'Orders',     href: '/account?tab=orders' },
-  { id: 'size-guide', label: 'Size guide', href: '/size-guide' },
-  { id: 'faq',        label: 'FAQ',        href: '/account?tab=faq' },
+  { id: 'account', label: 'My account', href: '/account' },
+  { id: 'orders',  label: 'Orders',     href: '/account?tab=orders' },
+  { id: 'sizes',   label: 'Size guide', href: '/account?tab=sizes' },
+  { id: 'faq',     label: 'FAQ',        href: '/account?tab=faq' },
 ]
 
 export default function AccountClient({ activeTab }) {
   const { user, signOut, updatePassword, updateEmail, reauthenticate, requestPasswordReset } = useAuth()
   const isOrders = activeTab === 'orders'
   const isFaq    = activeTab === 'faq'
+  const isSizes  = activeTab === 'sizes'
 
   // Prefetch FAQ immediately on mount so it's ready when user clicks the tab
   const [faqHtml, setFaqHtml] = useState(null)
@@ -608,7 +755,7 @@ export default function AccountClient({ activeTab }) {
           )}
           <div className="account-sidebar-nav" style={{ display: 'flex', flexDirection: 'column' }}>
             {NAV_ITEMS.map((item, i) => {
-              const active = isFaq ? item.id === 'faq' : isOrders ? item.id === 'orders' : item.id === 'account'
+              const active = isFaq ? item.id === 'faq' : isOrders ? item.id === 'orders' : isSizes ? item.id === 'sizes' : item.id === 'account'
               return (
                 <a key={item.id} href={item.href}
                   style={{
@@ -634,6 +781,8 @@ export default function AccountClient({ activeTab }) {
             <FaqSection html={faqHtml} />
           ) : isOrders ? (
             <OrdersSection user={user} />
+          ) : isSizes ? (
+            <SizeGuideSection />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <InfoSection user={user} />

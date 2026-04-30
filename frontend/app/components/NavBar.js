@@ -19,9 +19,10 @@ const INFO_LINKS = [
 ]
 
 const ACCOUNT_LINKS = [
-  { href: '/account',            label: 'My account' },
-  { href: '/account?tab=orders', label: 'Orders' },
-  { href: '/account?tab=faq',    label: 'Help & FAQ' },
+  { href: '/account',             label: 'My account' },
+  { href: '/account?tab=orders',  label: 'Orders' },
+  { href: '/account?tab=sizes',   label: 'Size guide' },
+  { href: '/account?tab=faq',     label: 'Help & FAQ' },
 ]
 
 const ADMIN_LINKS = [
