@@ -5,6 +5,7 @@ import HeroCarousel from './components/HeroCarousel'
 import HomeArrivalsCarousel from './components/HomeArrivalsCarousel'
 import HomeCategoriesCarousel from './components/HomeCategoriesCarousel'
 import ProductCard from './components/ProductCard'
+import DropCountdown from './components/DropCountdown'
 
 async function getProducts() {
   try {
@@ -21,6 +22,19 @@ async function getSlides() {
     if (!res.ok) return []
     return await res.json()
   } catch { return [] }
+}
+
+async function getDropTimer() {
+  try {
+    const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
+    if (!res.ok) return null
+    const rows = await res.json()
+    const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.key, r.value]))
+    if (map.drop_timer_enabled !== 'true') return null
+    if (!map.drop_timer_date) return null
+    if (new Date(map.drop_timer_date).getTime() <= Date.now()) return null
+    return { date: map.drop_timer_date, label: map.drop_timer_label || 'New Drop' }
+  } catch { return null }
 }
 
 const W = 1160
@@ -44,7 +58,7 @@ export default async function Home({ searchParams }) {
   }
 
   const { hero, promoTiles } = homepageContent
-  const [allProducts, slides] = await Promise.all([getProducts(), getSlides()])
+  const [allProducts, slides, dropTimer] = await Promise.all([getProducts(), getSlides(), getDropTimer()])
   const newArrivals = allProducts
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
@@ -77,7 +91,10 @@ export default async function Home({ searchParams }) {
         </div>
       </section>
 
-      {/* ── 2. NEW ARRIVALS ────────────────────────────── */}
+      {/* ── 2. DROP TIMER ─────────────────────────────── */}
+      {dropTimer && <DropCountdown targetDate={dropTimer.date} label={dropTimer.label} />}
+
+      {/* ── 3. NEW ARRIVALS ────────────────────────────── */}
       {newArrivals.length > 0 && (
         <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
@@ -101,14 +118,14 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
-      {/* ── 3. CUSTOM PHOTO CAROUSEL ───────────────────── */}
+      {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
         <section style={{ marginTop: 72 }}>
           <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, label: '' }))} fullWidth />
         </section>
       )}
 
-      {/* ── 4. CATEGORIES ─────────────────────────────── */}
+      {/* ── 5. CATEGORIES ─────────────────────────────── */}
       <section style={{ maxWidth: W, margin: '0 auto', padding: '72px 24px 0' }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>Shop by category</h2>
 

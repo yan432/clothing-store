@@ -14,6 +14,12 @@ export default function HomepageSlidesClient() {
   const newHrefRef = useRef(null)
   const newTitleRef = useRef(null)
 
+  // Drop timer state
+  const [timerEnabled, setTimerEnabled] = useState(false)
+  const [timerDate, setTimerDate]       = useState('')
+  const [timerLabel, setTimerLabel]     = useState('New Drop')
+  const [timerSaving, setTimerSaving]   = useState(false)
+
   async function load() {
     try {
       const res = await fetch(getApiUrl('/homepage-slides/admin'), { cache: 'no-store' })
@@ -24,7 +30,44 @@ export default function HomepageSlidesClient() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { load() }, [])
+  async function loadTimer() {
+    try {
+      const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
+      if (!res.ok) return
+      const rows = await res.json()
+      const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.key, r.value]))
+      setTimerEnabled(map.drop_timer_enabled === 'true')
+      // Convert stored ISO to datetime-local format (YYYY-MM-DDTHH:mm)
+      if (map.drop_timer_date) {
+        const local = new Date(map.drop_timer_date)
+        const pad = n => String(n).padStart(2, '0')
+        setTimerDate(
+          `${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
+        )
+      }
+      if (map.drop_timer_label) setTimerLabel(map.drop_timer_label)
+    } catch {}
+  }
+
+  async function saveTimer() {
+    setTimerSaving(true)
+    try {
+      const res = await fetch(getApiUrl('/settings'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          drop_timer_enabled: timerEnabled ? 'true' : 'false',
+          drop_timer_date:    timerDate ? new Date(timerDate).toISOString() : '',
+          drop_timer_label:   timerLabel || 'New Drop',
+        }),
+      })
+      if (!res.ok) throw new Error()
+      flash('Timer saved')
+    } catch { flash('Failed to save timer', true) }
+    finally { setTimerSaving(false) }
+  }
+
+  useEffect(() => { load(); loadTimer() }, [])
 
   function flash(msg, isErr = false) {
     if (isErr) { setError(msg); setTimeout(() => setError(''), 4000) }
@@ -146,6 +189,59 @@ export default function HomepageSlidesClient() {
 
       {message && <div style={{ background: '#ecfdf3', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>{message}</div>}
       {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>{error}</div>}
+
+      {/* ── Drop Timer ────────────────────────────────── */}
+      <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: 0 }}>Drop Timer</p>
+          {/* Toggle */}
+          <button onClick={() => setTimerEnabled(v => !v)} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+          }}>
+            <div style={{
+              width: 40, height: 22, borderRadius: 11,
+              background: timerEnabled ? '#111' : '#ddd',
+              position: 'relative', transition: 'background 0.2s',
+            }}>
+              <div style={{
+                position: 'absolute', top: 3, left: timerEnabled ? 21 : 3,
+                width: 16, height: 16, borderRadius: '50%', background: '#fff',
+                transition: 'left 0.2s',
+              }} />
+            </div>
+            <span style={{ fontSize: 13, color: timerEnabled ? '#111' : '#aaa', fontWeight: 600 }}>
+              {timerEnabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#555' }}>
+            Drop date &amp; time
+            <input
+              type="datetime-local"
+              value={timerDate}
+              onChange={e => setTimerDate(e.target.value)}
+              style={{ ...inp, marginTop: 4 }}
+            />
+          </label>
+          <label style={{ fontSize: 12, color: '#555' }}>
+            Label (shown above timer)
+            <input
+              value={timerLabel}
+              onChange={e => setTimerLabel(e.target.value)}
+              placeholder="New Drop"
+              style={{ ...inp, marginTop: 4 }}
+            />
+          </label>
+        </div>
+
+        <button onClick={saveTimer} disabled={timerSaving}
+          style={{ ...btn('#111'), opacity: timerSaving ? 0.6 : 1 }}>
+          {timerSaving ? 'Saving…' : 'Save timer'}
+        </button>
+      </div>
 
       {/* Upload new slide */}
       <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 24 }}>
