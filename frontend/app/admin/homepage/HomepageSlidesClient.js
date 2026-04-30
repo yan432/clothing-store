@@ -152,8 +152,9 @@ export default function HomepageSlidesClient() {
               opacity: slide.is_active ? 1 : 0.5,
             }}>
               {/* Thumbnail */}
-              <div style={{ aspectRatio: '16/9', borderRadius: 8, overflow: 'hidden', background: '#f5f5f3' }}>
-                <img src={slide.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <div style={{ width: 120, height: 68, borderRadius: 8, overflow: 'hidden', background: '#f5f5f3', flexShrink: 0 }}>
+                <img src={slide.image_url} alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
               </div>
 
               {/* Info / edit */}

@@ -17,51 +17,6 @@ const btn = (label, onClick, opts = {}) => (
 
 const ta = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #e5e5e0', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', lineHeight: 1.6, resize: 'vertical' }
 
-// ── FAQ Editor (HTML) ─────────────────────────────────────────────────────────
-function FaqEditor() {
-  const [html, setHtml] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    fetch(getApiUrl('/faq/admin')).then(r => r.json()).then(d => { setHtml(d.html || ''); setLoading(false) })
-  }, [])
-
-  const save = async () => {
-    setSaving(true); setSaved(false)
-    await fetch(getApiUrl('/faq/admin'), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ html }) })
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500)
-  }
-
-  if (loading) return <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
-          HTML content · <a href="/faq" target="_blank" rel="noopener noreferrer" style={{ color: '#888' }}>View page ↗</a>
-        </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {saved && <span style={{ fontSize: 13, color: '#15803d' }}>✓ Saved</span>}
-          {btn(saving ? 'Saving…' : 'Save', save, { primary: true, disabled: saving })}
-        </div>
-      </div>
-      <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 10px', lineHeight: 1.6 }}>
-        Use <code style={{ background: '#f3f3f0', padding: '1px 5px', borderRadius: 4 }}>&lt;details class="faq-item"&gt;&lt;summary&gt;Question&lt;/summary&gt;&lt;p&gt;Answer&lt;/p&gt;&lt;/details&gt;</code> for each item.
-      </p>
-      <textarea
-        value={html}
-        onChange={e => setHtml(e.target.value)}
-        rows={22}
-        placeholder={'<details class="faq-item">\n  <summary>Question here?</summary>\n  <p>Answer here.</p>\n</details>'}
-        style={{ ...ta, fontFamily: 'monospace', fontSize: 13 }}
-        spellCheck={false}
-      />
-    </div>
-  )
-}
-
 // ── Page Section Editor (Shipping / Returns) ──────────────────────────────────
 function PageEditor({ slug, title }) {
   const [sections, setSections] = useState([])
@@ -131,13 +86,12 @@ function PageEditor({ slug, title }) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'faq',      label: 'FAQ' },
   { id: 'shipping', label: 'Shipping Info' },
   { id: 'returns',  label: 'Returns & Exchanges' },
 ]
 
 export default function PagesClient() {
-  const [tab, setTab] = useState('faq')
+  const [tab, setTab] = useState('shipping')
 
   return (
     <div>
@@ -157,7 +111,6 @@ export default function PagesClient() {
         ))}
       </div>
 
-      {tab === 'faq'      && <FaqEditor />}
       {tab === 'shipping' && <PageEditor slug="shipping" title="Shipping Info" />}
       {tab === 'returns'  && <PageEditor slug="returns"  title="Returns & Exchanges" />}
     </div>
