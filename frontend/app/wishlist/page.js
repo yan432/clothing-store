@@ -5,13 +5,16 @@ import { useWishlist } from '../context/WishlistContext'
 import { useCart } from '../context/CartContext'
 import { getApiUrl } from '../lib/api'
 import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
+import NotifyMePopup from '../components/NotifyMePopup'
 
 function WishlistCard({ product, sizeStock, onRemove }) {
   const { addToCart, setDrawerOpen } = useCart()
+  const { user } = useAuth()
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
   const [selectedSize, setSelectedSize] = useState('')
   const [added, setAdded] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [notifyPopup, setNotifyPopup] = useState(false)
 
   // Pre-select first in-stock size
   useEffect(() => {
@@ -32,8 +35,13 @@ function WishlistCard({ product, sizeStock, onRemove }) {
     ? (selectedSize ? (sizeStock[selectedSize] ?? 0) : 0)
     : (product.available_stock ?? product.stock ?? 0)
   const inStock    = stockForSize > 0
-  const isLowStock = inStock && stockForSize <= 5
+  const isLowStock = inStock && stockForSize <= 2  // only at 1–2 units
   const canAdd     = inStock && (sizeOptions.length === 0 || !!selectedSize)
+
+  // Whole product out of stock = all sizes (or no-size product) are 0
+  const allOutOfStock = sizeOptions.length
+    ? sizeOptions.every(s => (sizeStock[s] ?? 0) === 0)
+    : !inStock
 
   function handleAddToCart() {
     const result = addToCart({
@@ -109,13 +117,11 @@ function WishlistCard({ product, sizeStock, onRemove }) {
         </div>
 
         {/* Stock status */}
-        <p style={{ margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
-          color: !inStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a' }}>
-          {!inStock
-            ? (selectedSize ? `${selectedSize} — out of stock` : 'Out of stock')
-            : isLowStock ? `Only ${stockForSize} left`
-            : 'In stock'}
-        </p>
+        {isLowStock && (
+          <p style={{ margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', color: '#f59e0b' }}>
+            Only {stockForSize} left
+          </p>
+        )}
 
         {/* Size selector */}
         {sizeOptions.length > 0 && (
@@ -143,18 +149,39 @@ function WishlistCard({ product, sizeStock, onRemove }) {
           </div>
         )}
 
-        {/* Add to cart */}
-        <button onClick={handleAddToCart} disabled={!canAdd}
-          style={{
-            marginTop: 'auto', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-            border: 'none', cursor: canAdd ? 'pointer' : 'not-allowed',
-            background: added ? '#16a34a' : !canAdd ? '#e5e5e3' : '#111',
-            color: !canAdd ? '#999' : '#fff',
-            transition: 'background 0.2s',
-          }}>
-          {added ? '✓ Added to cart' : !inStock ? 'Out of stock' : 'Add to cart'}
-        </button>
+        {/* Add to cart OR notify when back in stock */}
+        {allOutOfStock ? (
+          <button onClick={() => setNotifyPopup(true)}
+            style={{
+              marginTop: 'auto', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+              border: '1.5px solid #111', cursor: 'pointer',
+              background: '#fff', color: '#111',
+            }}>
+            Notify when available
+          </button>
+        ) : (
+          <button onClick={handleAddToCart} disabled={!canAdd}
+            style={{
+              marginTop: 'auto', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600,
+              border: 'none', cursor: canAdd ? 'pointer' : 'not-allowed',
+              background: added ? '#16a34a' : !canAdd ? '#e5e5e3' : '#111',
+              color: !canAdd ? '#999' : '#fff',
+              transition: 'background 0.2s',
+            }}>
+            {added ? '✓ Added to cart' : 'Add to cart'}
+          </button>
+        )}
       </div>
+
+      {/* Notify me popup */}
+      {notifyPopup && (
+        <NotifyMePopup
+          product={product}
+          size={selectedSize || sizeOptions[0] || ''}
+          initialEmail={user?.email || ''}
+          onClose={() => setNotifyPopup(false)}
+        />
+      )}
     </div>
   )
 }
