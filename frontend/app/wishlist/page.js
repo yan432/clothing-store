@@ -140,7 +140,7 @@ function WishlistCard({ product, sizeStock, onRemove }) {
                     background: isSelected ? (outOfStock ? '#f5f5f3' : '#111') : '#fff',
                     color: isSelected ? (outOfStock ? '#888' : '#fff') : outOfStock ? '#ccc' : '#444',
                     cursor: 'pointer',
-                    textDecoration: outOfStock ? 'line-through' : 'none',
+                    textDecoration: 'none',
                   }}>
                   {s}
                 </button>
