@@ -46,14 +46,26 @@ export function trackLogin(email) {
 /**
  * Fire GA4 purchase event after successful payment.
  * Call once on the /success page.
- * @param {{ orderId: string|number, total: number, currency?: string, items?: Array }} opts
+ * @param {{ orderId: string|number, total: number, currency?: string, items?: Array, utm?: object }} opts
  */
-export function trackPurchase({ orderId, total, currency = 'EUR', items = [] }) {
+export function trackPurchase({ orderId, total, currency = 'EUR', items = [], utm = null }) {
   // Internal backend event
   send('purchase', { order_id: orderId, total })
 
   // GA4 e-commerce purchase event
   if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    // Set campaign params so GA4 attributes the purchase to the right source.
+    // This overrides the session source for this hit only.
+    if (utm?.utm_source) {
+      window.gtag('set', {
+        campaign_source:  utm.utm_source,
+        campaign_medium:  utm.utm_medium  || undefined,
+        campaign_name:    utm.utm_campaign || undefined,
+        campaign_content: utm.utm_content  || undefined,
+        campaign_term:    utm.utm_term     || undefined,
+      })
+    }
+
     window.gtag('event', 'purchase', {
       transaction_id: String(orderId),
       value:          Number(total),

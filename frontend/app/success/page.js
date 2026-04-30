@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import { trackPurchase } from '../lib/track'
+import { getStoredUtm } from '../components/UtmCapture'
 
 export default function SuccessPage() {
   const { clearCart } = useCart()
@@ -19,6 +20,7 @@ export default function SuccessPage() {
             total:    Number(pendingOrder.total || pendingOrder.amount_total || 0),
             currency: 'EUR',
             items:    pendingOrder.items || [],
+            utm:      getStoredUtm(),
           })
           sessionStorage.setItem('purchase_tracked', '1')
           localStorage.removeItem('pending_order')
