@@ -1276,8 +1276,6 @@ def duplicate_product(product_id: int):
     payload["reserved_stock"]  = 0
     payload["image_url"]       = None
     payload["image_urls"]      = []
-    payload["created_at"]      = now_iso()
-    payload["updated_at"]      = now_iso()
     try:
         data = supabase.table("products").insert(payload).execute()
     except Exception as e:
