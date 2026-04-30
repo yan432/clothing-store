@@ -14,7 +14,7 @@ import uuid
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Body, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -2620,33 +2620,38 @@ def resend_order_confirmation(order_id: int):
 @app.post("/orders/{order_id}/fit-feedback")
 def order_fit_feedback(order_id: int, payload: dict = Body(...)):
     """
-    Let a customer submit size fit feedback for a delivered order.
+    Let a customer submit per-item size fit feedback for a delivered order.
     fit must be one of: perfect | too_small | too_big
+    item_index (int) identifies which item in items_json is being rated.
     Request must include the order's customer email for ownership check.
     """
-    fit = str(payload.get("fit") or "").strip()
-    email = normalize_email(str(payload.get("email") or ""))
+    fit        = str(payload.get("fit") or "").strip()
+    email      = normalize_email(str(payload.get("email") or ""))
+    item_index = payload.get("item_index")
+
     if fit not in ("perfect", "too_small", "too_big"):
         raise HTTPException(status_code=400, detail="fit must be perfect | too_small | too_big")
     if not email:
         raise HTTPException(status_code=400, detail="email required")
+    if item_index is None:
+        raise HTTPException(status_code=400, detail="item_index required")
 
     result = supabase.table("orders").select("id,status,email,metadata_json").eq("id", order_id).limit(1).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Order not found")
     order = result.data[0]
 
-    # Ownership check — customer email must match
     if normalize_email(str(order.get("email") or "")) != email:
         raise HTTPException(status_code=403, detail="Forbidden")
     if order.get("status") != "delivered":
         raise HTTPException(status_code=400, detail="Fit feedback is only available for delivered orders")
 
     meta = as_dict(order.get("metadata_json"))
-    meta["fit_feedback"] = fit
-    meta["fit_feedback_at"] = now_iso()
+    item_feedback = meta.get("item_fit_feedback") or {}
+    item_feedback[str(item_index)] = {"fit": fit, "at": now_iso()}
+    meta["item_fit_feedback"] = item_feedback
     supabase.table("orders").update({"metadata_json": meta, "updated_at": now_iso()}).eq("id", order_id).execute()
-    return {"ok": True, "fit": fit}
+    return {"ok": True, "fit": fit, "item_index": item_index}
 
 
 @app.post("/orders/{order_id}/notify-shipped", dependencies=[Depends(require_admin)])

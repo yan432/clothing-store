@@ -384,62 +384,6 @@ function formatItem(item) {
   return `${name}${size ? ` (${size})` : ''} ×${qty}`
 }
 
-const FIT_OPTIONS = [
-  { value: 'perfect',  emoji: '👌', label: 'Fits perfect' },
-  { value: 'too_small', emoji: '↓',  label: 'Too small' },
-  { value: 'too_big',   emoji: '↑',  label: 'Too big' },
-]
-const FIT_LABELS = { perfect: '👌 Fits perfect', too_small: '↓ Too small', too_big: '↑ Too big' }
-
-function FitFeedback({ orderId, userEmail, existingFit }) {
-  const [fit, setFit]       = useState(existingFit || null)
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved]   = useState(!!existingFit)
-
-  async function submitFit(value) {
-    setSaving(true)
-    try {
-      const res = await fetch(getApiUrl(`/orders/${orderId}/fit-feedback`), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fit: value, email: userEmail }),
-      })
-      if (res.ok) { setFit(value); setSaved(true) }
-    } finally { setSaving(false) }
-  }
-
-  return (
-    <div style={{ marginTop: 12, padding: '12px 14px', background: '#f7f7f5', borderRadius: 10 }}>
-      <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: '#666', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-        Did the size fit?
-      </p>
-      {saved ? (
-        <p style={{ margin: 0, fontSize: 13, color: '#16a34a', fontWeight: 600 }}>
-          ✓ Thanks for your feedback — {FIT_LABELS[fit]}
-        </p>
-      ) : (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {FIT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => submitFit(opt.value)}
-              disabled={saving}
-              style={{
-                border: '1px solid #ddd', borderRadius: 8,
-                padding: '6px 14px', fontSize: 13,
-                background: '#fff', cursor: 'pointer',
-                opacity: saving ? 0.6 : 1,
-                display: 'flex', alignItems: 'center', gap: 5,
-              }}
-            >
-              <span>{opt.emoji}</span> {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function orderStatusBadge(status) {
   if (status === 'paid')           return { label: 'Paid',       bg: '#dcfce7', color: '#166534' }
@@ -544,13 +488,14 @@ function OrdersSection({ user }) {
               </div>
             )}
 
-            {/* Size fit feedback — only for delivered orders */}
+            {/* Rate sizes — prompt for delivered orders */}
             {o.status === 'delivered' && (
-              <FitFeedback
-                orderId={o.id}
-                userEmail={user.email}
-                existingFit={(o.metadata_json || {}).fit_feedback || null}
-              />
+              <p style={{ margin: '10px 0 0', fontSize: 13, color: '#888' }}>
+                Did your items fit?{' '}
+                <Link href={`/account/orders/${o.id}`} style={{ color: '#111', fontWeight: 600, textDecoration: 'underline' }}>
+                  Rate sizes →
+                </Link>
+              </p>
             )}
 
             <Link href={`/account/orders/${o.id}`}

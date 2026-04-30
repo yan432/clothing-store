@@ -5,6 +5,56 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { getApiUrl } from '../../../lib/api'
 
+const FIT_OPTIONS = [
+  { value: 'perfect',   label: '👌 Fits perfect' },
+  { value: 'too_small', label: '↓ Too small' },
+  { value: 'too_big',   label: '↑ Too big' },
+]
+
+function ItemFitFeedback({ orderId, itemIndex, userEmail, existing }) {
+  const [fit, setFit]     = useState(existing?.fit || null)
+  const [saving, setSaving] = useState(false)
+
+  async function submit(value) {
+    setSaving(true)
+    try {
+      const res = await fetch(getApiUrl(`/orders/${orderId}/fit-feedback`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fit: value, email: userEmail, item_index: itemIndex }),
+      })
+      if (res.ok) setFit(value)
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <p style={{ margin: '0 0 6px', fontSize: 11, fontWeight: 600, color: '#999', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+        Did it fit?
+      </p>
+      {fit ? (
+        <p style={{ margin: 0, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+          ✓ {FIT_OPTIONS.find(o => o.value === fit)?.label}
+        </p>
+      ) : (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {FIT_OPTIONS.map(opt => (
+            <button key={opt.value} onClick={() => submit(opt.value)} disabled={saving}
+              style={{
+                border: '1px solid #e0e0e0', borderRadius: 6,
+                padding: '4px 10px', fontSize: 12,
+                background: '#fff', cursor: 'pointer',
+                opacity: saving ? 0.6 : 1,
+              }}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function formatDate(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -156,31 +206,45 @@ export default function AccountOrderDetailsClient({ orderId }) {
             <p style={{fontSize:14,color:'#666',margin:0}}>No items found.</p>
           ) : (
             <div style={{display:'flex',flexDirection:'column',gap:10}}>
-              {items.map((item, index) => (
-                <div key={`${item.id || 'item'}-${index}`} style={{display:'flex',justifyContent:'space-between',gap:12,borderBottom:'1px solid #f1f1ee',paddingBottom:8}}>
-                  <div style={{display:'flex',gap:10,alignItems:'center'}}>
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name || 'Item'}
-                        style={{width:52,height:52,objectFit:'cover',borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}}
-                      />
-                    ) : (
-                      <div style={{width:52,height:52,borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}} />
-                    )}
-                    <div>
-                      <p style={{margin:0,fontSize:14,fontWeight:500}}>{item.name || 'Item'}</p>
-                      <p style={{margin:'4px 0 0',fontSize:12,color:'#666'}}>
-                        Qty: {Math.max(1, Number(item.quantity || 1))}
-                        {item.size ? ` • Size: ${item.size}` : ''}
+              {items.map((item, index) => {
+                const itemFeedback = (order.metadata_json?.item_fit_feedback || {})[String(index)]
+                return (
+                  <div key={`${item.id || 'item'}-${index}`} style={{borderBottom:'1px solid #f1f1ee',paddingBottom:12,marginBottom:4}}>
+                    <div style={{display:'flex',justifyContent:'space-between',gap:12}}>
+                      <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name || 'Item'}
+                            style={{width:52,height:52,objectFit:'cover',borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}}
+                          />
+                        ) : (
+                          <div style={{width:52,height:52,borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}} />
+                        )}
+                        <div>
+                          <p style={{margin:0,fontSize:14,fontWeight:500}}>{item.name || 'Item'}</p>
+                          <p style={{margin:'4px 0 0',fontSize:12,color:'#666'}}>
+                            Qty: {Math.max(1, Number(item.quantity || 1))}
+                            {item.size ? ` • Size: ${item.size}` : ''}
+                          </p>
+                          {/* Per-item size fit feedback — only for delivered orders */}
+                          {order.status === 'delivered' && item.size && (
+                            <ItemFitFeedback
+                              orderId={order.id}
+                              itemIndex={index}
+                              userEmail={user.email}
+                              existing={itemFeedback}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <p style={{margin:0,fontSize:14,fontWeight:600,flexShrink:0}}>
+                        {formatMoney(Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)), order.currency || 'EUR')}
                       </p>
                     </div>
                   </div>
-                  <p style={{margin:0,fontSize:14,fontWeight:600}}>
-                    {formatMoney(Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)), order.currency || 'EUR')}
-                  </p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
           <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid #ecece8',display:'flex',flexDirection:'column',gap:8}}>
