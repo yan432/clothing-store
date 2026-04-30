@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import WishlistButton from './WishlistButton'
 
 export default function ProductCard({ product, colorSiblings = [] }) {
   const [hovered, setHovered] = useState(false)
@@ -97,6 +98,11 @@ export default function ProductCard({ product, colorSiblings = [] }) {
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 
         <div className="product-card-img-wrap" style={{position:'relative',aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
+
+          {/* Wishlist heart button */}
+          <div style={{position:'absolute',top:10,right:10,zIndex:4}}>
+            <WishlistButton productId={product.id} />
+          </div>
 
           {/* Все бейджи вместе */}
 <div style={{position:'absolute',top:10,left:10,zIndex:3,display:'flex',flexDirection:'column',gap:4}}>

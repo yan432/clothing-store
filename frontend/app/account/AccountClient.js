@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../lib/api'
 import FaqAccordion from '../components/FaqAccordion'
+import { useWishlist } from '../context/WishlistContext'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],
@@ -656,18 +657,95 @@ function SizeGuideSection() {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
+// ── Wishlist section ──────────────────────────────────────────────────────────
+function WishlistSection({ user }) {
+  const { ids } = useWishlist()
+  const [products, setProducts] = useState([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    if (!user?.email) return
+    setLoading(true)
+    fetch(getApiUrl(`/wishlist/products?email=${encodeURIComponent(user.email)}`))
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setProducts(data))
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false))
+  }, [user?.email, ids.size])   // reload when ids change
+
+  if (loading) return <p style={{ color: '#aaa', fontSize: 14 }}>Loading…</p>
+
+  if (!products.length) return (
+    <div style={{ textAlign: 'center', padding: '60px 0' }}>
+      <p style={{ fontSize: 32, margin: '0 0 12px' }}>♡</p>
+      <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 8px' }}>Your wishlist is empty</p>
+      <p style={{ fontSize: 14, color: '#888', margin: '0 0 24px' }}>
+        Save items you love — we'll notify you when they go on sale or almost sell out.
+      </p>
+      <a href="/products" style={{
+        background: '#111', color: '#fff',
+        padding: '12px 28px', borderRadius: 999,
+        fontSize: 14, fontWeight: 600, textDecoration: 'none',
+      }}>
+        Browse products
+      </a>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ margin: 0, fontSize: 13, color: '#aaa' }}>
+        {products.length} {products.length === 1 ? 'item' : 'items'} saved
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+        {products.map(p => {
+          const imgs  = Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls : (p.image_url ? [p.image_url] : [])
+          const img   = imgs[0]
+          const price = Number(p.price || 0)
+          const cmp   = Number(p.compare_price || 0)
+          const disc  = cmp > price ? Math.round((1 - price / cmp) * 100) : null
+          return (
+            <a key={p.id} href={`/products/${p.slug || p.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', background: '#f5f5f3', aspectRatio: '4/5', marginBottom: 10 }}>
+                {img
+                  ? <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#ccc' }}>No image</div>
+                }
+              </div>
+              <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 500, lineHeight: 1.3 }}>{p.name}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: disc ? '#ef4444' : 'inherit' }}>
+                  €{price.toFixed(2)}
+                </p>
+                {cmp > price && (
+                  <p style={{ margin: 0, fontSize: 12, color: '#aaa', textDecoration: 'line-through' }}>€{cmp.toFixed(2)}</p>
+                )}
+                {disc && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#ef4444' }}>−{disc}%</span>
+                )}
+              </div>
+            </a>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const NAV_ITEMS = [
-  { id: 'account', label: 'My account', href: '/account' },
-  { id: 'orders',  label: 'Orders',     href: '/account?tab=orders' },
-  { id: 'sizes',   label: 'Size guide', href: '/account?tab=sizes' },
-  { id: 'faq',     label: 'FAQ',        href: '/account?tab=faq' },
+  { id: 'account',  label: 'My account', href: '/account' },
+  { id: 'orders',   label: 'Orders',     href: '/account?tab=orders' },
+  { id: 'wishlist', label: 'Wishlist',   href: '/account?tab=wishlist' },
+  { id: 'sizes',    label: 'Size guide', href: '/account?tab=sizes' },
+  { id: 'faq',      label: 'FAQ',        href: '/account?tab=faq' },
 ]
 
 export default function AccountClient({ activeTab }) {
   const { user, signOut, updatePassword, updateEmail, reauthenticate, requestPasswordReset } = useAuth()
-  const isOrders = activeTab === 'orders'
-  const isFaq    = activeTab === 'faq'
-  const isSizes  = activeTab === 'sizes'
+  const isOrders   = activeTab === 'orders'
+  const isFaq      = activeTab === 'faq'
+  const isSizes    = activeTab === 'sizes'
+  const isWishlist = activeTab === 'wishlist'
 
   // Prefetch FAQ immediately on mount so it's ready when user clicks the tab
   const [faqHtml, setFaqHtml] = useState(null)
@@ -700,7 +778,7 @@ export default function AccountClient({ activeTab }) {
           )}
           <div className="account-sidebar-nav" style={{ display: 'flex', flexDirection: 'column' }}>
             {NAV_ITEMS.map((item, i) => {
-              const active = isFaq ? item.id === 'faq' : isOrders ? item.id === 'orders' : isSizes ? item.id === 'sizes' : item.id === 'account'
+              const active = isFaq ? item.id === 'faq' : isOrders ? item.id === 'orders' : isSizes ? item.id === 'sizes' : isWishlist ? item.id === 'wishlist' : item.id === 'account'
               return (
                 <a key={item.id} href={item.href}
                   style={{
@@ -726,6 +804,8 @@ export default function AccountClient({ activeTab }) {
             <FaqSection html={faqHtml} />
           ) : isOrders ? (
             <OrdersSection user={user} />
+          ) : isWishlist ? (
+            <WishlistSection user={user} />
           ) : isSizes ? (
             <SizeGuideSection />
           ) : (

@@ -3683,6 +3683,276 @@ def _send_and_mark_cart(entry: dict, site_url: str, now: str) -> None:
             pass
 
 
+# ── Wishlist (favourites) ─────────────────────────────────────────────────────
+
+@app.get("/wishlist")
+def get_wishlist(email: str):
+    """Return all wishlisted product_ids for an email."""
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    rows = supabase.table("wishlists").select("product_id").eq("email", email).execute().data or []
+    return [r["product_id"] for r in rows]
+
+
+@app.post("/wishlist/{product_id}")
+def add_to_wishlist(product_id: int, email: str):
+    """Add a product to the wishlist. Idempotent (upsert)."""
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    supabase.table("wishlists").upsert(
+        {"email": email, "product_id": product_id},
+        on_conflict="email,product_id",
+    ).execute()
+    return {"ok": True}
+
+
+@app.delete("/wishlist/{product_id}")
+def remove_from_wishlist(product_id: int, email: str):
+    """Remove a product from the wishlist."""
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    supabase.table("wishlists").delete().eq("email", email).eq("product_id", product_id).execute()
+    return {"ok": True}
+
+
+@app.get("/wishlist/products")
+def get_wishlist_products(email: str):
+    """Return full product details for all wishlisted items."""
+    email = normalize_email(email)
+    if not email:
+        raise HTTPException(status_code=400, detail="email required")
+    rows = supabase.table("wishlists").select("product_id").eq("email", email).execute().data or []
+    if not rows:
+        return []
+    ids = [r["product_id"] for r in rows]
+    products = supabase.table("products").select("*").in_("id", ids).execute().data or []
+    return [_decorate_product_with_images(p) for p in products]
+
+
+def _send_wishlist_email(email: str, subject: str, html: str, text: str) -> None:
+    send_email(email, subject, html, text)
+
+
+def _wishlist_product_row_html(p: dict, site_url: str, badge: str = "") -> str:
+    name  = p.get("name", "")
+    price = float(p.get("price") or 0)
+    cmp   = float(p.get("compare_price") or 0)
+    slug  = p.get("slug") or str(p.get("id", ""))
+    imgs  = p.get("image_urls") or []
+    img   = (imgs[0] if imgs else None) or p.get("image_url") or ""
+    url   = f"{site_url}/products/{slug}"
+
+    price_html = f"€{price:.2f}"
+    if cmp and cmp > price:
+        pct = round((1 - price / cmp) * 100)
+        price_html = (
+            f'<span style="color:#ef4444;font-weight:700;">€{price:.2f}</span> '
+            f'<span style="color:#aaa;text-decoration:line-through;font-size:12px;">€{cmp:.2f}</span> '
+            f'<span style="color:#ef4444;font-size:11px;">−{pct}%</span>'
+        )
+
+    img_block = (
+        f'<a href="{url}"><img src="{img}" width="72" height="72" '
+        f'style="width:72px;height:72px;object-fit:cover;border-radius:10px;display:block;" alt="{name}"/></a>'
+        if img else
+        f'<div style="width:72px;height:72px;background:#f0f0ee;border-radius:10px;"></div>'
+    )
+    badge_html = f'<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:0.06em;">{badge}</span>' if badge else ""
+
+    return f"""
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #f0f0ee;">
+        <table cellpadding="0" cellspacing="0"><tr>
+          <td style="padding-right:16px;">{img_block}</td>
+          <td style="vertical-align:top;">
+            {badge_html}
+            <p style="margin:{('4px' if badge else '0')} 0 4px;font-size:14px;font-weight:500;color:#0a0a0a;">
+              <a href="{url}" style="color:#0a0a0a;text-decoration:none;">{name}</a>
+            </p>
+            <p style="margin:0;font-size:14px;">{price_html}</p>
+          </td>
+        </tr></table>
+      </td>
+    </tr>"""
+
+
+def _build_wishlist_email(
+    email: str, first_name: str, headline: str, subtext: str,
+    products: list, site_url: str, badge: str = "",
+) -> tuple[str, str]:
+    rows_html = "".join(_wishlist_product_row_html(p, site_url, badge) for p in products[:5])
+    unsub_url = f"{site_url}/unsubscribe?email={email}"
+    wishlist_url = f"{site_url}/account?tab=wishlist"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
+<body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fff;border-radius:16px;overflow:hidden;">
+        <tr><td style="background:#0a0a0a;padding:28px 40px;text-align:center;">
+          <p style="margin:0;color:#fff;font-size:17px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
+        </td></tr>
+        <tr><td style="padding:36px 40px 24px;">
+          <h1 style="margin:0 0 10px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">{headline}</h1>
+          <p style="margin:0 0 28px;font-size:15px;color:#6b6b66;line-height:1.6;">{subtext}</p>
+          <table width="100%" cellpadding="0" cellspacing="0">{rows_html}</table>
+        </td></tr>
+        <tr><td style="padding:0 40px 36px;">
+          <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
+            <a href="{wishlist_url}"
+               style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 48px;border-radius:999px;">
+              View my wishlist →
+            </a>
+          </td></tr></table>
+        </td></tr>
+        <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;margin:0;"/></td></tr>
+        <tr><td style="padding:20px 40px;text-align:center;">
+          <p style="margin:0;font-size:12px;color:#b0b0a8;">
+            © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
+          </p>
+          <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
+            You saved these items to your wishlist. <a href="{unsub_url}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>"""
+
+    text = f"{headline}\n\n{subtext}\n\n" + "\n".join(
+        f"- {p.get('name','')} · €{float(p.get('price',0)):.2f}"
+        for p in products[:5]
+    ) + f"\n\nView wishlist: {wishlist_url}\n\nUnsubscribe: {unsub_url}"
+
+    return html, text
+
+
+@app.post("/wishlist/notify-low-stock", dependencies=[Depends(require_admin)])
+def notify_wishlist_low_stock(bg: BackgroundTasks):
+    """
+    Find wishlist items with available_stock between 1 and 3 and notify owners.
+    Run daily via cron. Each (email, product) is notified at most once per week.
+    """
+    site_url = get_setting("site_url", "https://edmclothes.net")
+
+    try:
+        # Low-stock products in any wishlist
+        low = (
+            supabase.table("products")
+            .select("id,name,slug,price,compare_price,image_url,image_urls,available_stock")
+            .gt("available_stock", 0)
+            .lte("available_stock", 3)
+            .eq("is_hidden", False)
+            .execute()
+            .data or []
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not low:
+        return {"notified": 0}
+
+    low_ids = [p["id"] for p in low]
+    low_map = {p["id"]: p for p in low}
+
+    # Find wishlist entries for these products
+    entries = (
+        supabase.table("wishlists")
+        .select("email,product_id")
+        .in_("product_id", low_ids)
+        .execute()
+        .data or []
+    )
+
+    # Group by email
+    from collections import defaultdict
+    by_email: dict = defaultdict(list)
+    for e in entries:
+        by_email[e["email"]].append(low_map[e["product_id"]])
+
+    sent = 0
+    for email, products in by_email.items():
+        html, text = _build_wishlist_email(
+            email=email,
+            first_name="there",
+            headline="Your saved items are almost gone 🔥",
+            subtext="Stock is running low on items you saved. Grab them before they sell out.",
+            products=products,
+            site_url=site_url,
+            badge="Almost gone",
+        )
+        bg.add_task(_send_wishlist_email, email,
+                    "Items in your wishlist are almost sold out", html, text)
+        sent += 1
+
+    return {"notified": sent}
+
+
+@app.post("/wishlist/notify-on-sale", dependencies=[Depends(require_admin)])
+def notify_wishlist_on_sale(bg: BackgroundTasks):
+    """
+    Find wishlist items that now have a compare_price (i.e. are on sale) and notify owners.
+    Run daily via cron.
+    """
+    site_url = get_setting("site_url", "https://edmclothes.net")
+
+    try:
+        on_sale = (
+            supabase.table("products")
+            .select("id,name,slug,price,compare_price,image_url,image_urls,available_stock")
+            .not_.is_("compare_price", "null")
+            .gt("available_stock", 0)
+            .eq("is_hidden", False)
+            .execute()
+            .data or []
+        )
+        # Only truly on sale (compare_price > price)
+        on_sale = [p for p in on_sale if float(p.get("compare_price") or 0) > float(p.get("price") or 0)]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    if not on_sale:
+        return {"notified": 0}
+
+    sale_ids = [p["id"] for p in on_sale]
+    sale_map = {p["id"]: p for p in on_sale}
+
+    entries = (
+        supabase.table("wishlists")
+        .select("email,product_id")
+        .in_("product_id", sale_ids)
+        .execute()
+        .data or []
+    )
+
+    from collections import defaultdict
+    by_email: dict = defaultdict(list)
+    for e in entries:
+        by_email[e["email"]].append(sale_map[e["product_id"]])
+
+    sent = 0
+    for email, products in by_email.items():
+        html, text = _build_wishlist_email(
+            email=email,
+            first_name="there",
+            headline="Your saved items are now on sale 🏷️",
+            subtext="Good news — items you saved to your wishlist just went on sale. Don't miss out.",
+            products=products,
+            site_url=site_url,
+            badge="On sale",
+        )
+        bg.add_task(_send_wishlist_email, email,
+                    "Items in your wishlist are now on sale 🏷️", html, text)
+        sent += 1
+
+    return {"notified": sent}
+
+
 # ── Resend email webhooks ──────────────────────────────────────────────────────
 
 # Maps Resend event types → internal user_event event_type strings
