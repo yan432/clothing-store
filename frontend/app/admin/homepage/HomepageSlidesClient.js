@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { getAdminApiUrl as getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl, getApiUrl as publicApiUrl } from '../../lib/api'
 
 export default function HomepageSlidesClient() {
   const [slides, setSlides] = useState([])
@@ -32,12 +32,12 @@ export default function HomepageSlidesClient() {
 
   async function loadTimer() {
     try {
-      const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
+      // GET /settings is public — use direct backend URL, no proxy needed
+      const res = await fetch(publicApiUrl('/settings'), { cache: 'no-store' })
       if (!res.ok) return
       const rows = await res.json()
       const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.key, r.value]))
       setTimerEnabled(map.drop_timer_enabled === 'true')
-      // Convert stored ISO to datetime-local format (YYYY-MM-DDTHH:mm)
       if (map.drop_timer_date) {
         const local = new Date(map.drop_timer_date)
         const pad = n => String(n).padStart(2, '0')
@@ -61,9 +61,12 @@ export default function HomepageSlidesClient() {
           drop_timer_label:   timerLabel || 'New Drop',
         }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(`HTTP ${res.status}: ${body}`)
+      }
       flash('Timer saved')
-    } catch { flash('Failed to save timer', true) }
+    } catch (e) { flash(e.message || 'Failed to save timer', true) }
     finally { setTimerSaving(false) }
   }
 
