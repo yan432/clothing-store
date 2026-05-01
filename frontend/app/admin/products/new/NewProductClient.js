@@ -5,7 +5,7 @@ import AdminTopBar from '../../../components/AdminTopBar'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import { buildSizeTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 
-export default function NewProductClient() {
+export default function NewProductClient({ inTab = false }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -134,13 +134,8 @@ export default function NewProductClient() {
     }
   }
 
-  return (
-    <AdminOnly>
-      <main style={{maxWidth:760,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <a href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</a>
-        <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Create product</h1>
-        <AdminTopBar active="products-new" />
-
+  const inner = (
+    <>
         {createdIds.length > 0 && (
           <div style={{marginBottom:12,display:'flex',flexWrap:'wrap',gap:8}}>
             {createdIds.map((pid, i) => (
@@ -311,6 +306,18 @@ export default function NewProductClient() {
             {saving ? 'Creating...' : colorCopies > 1 ? `Create ${colorCopies} color variants` : 'Create product'}
           </button>
         </form>
+    </>
+  )
+
+  if (inTab) return <div style={{maxWidth:760}}>{inner}</div>
+
+  return (
+    <AdminOnly>
+      <main style={{maxWidth:760,margin:'0 auto',padding:'40px 24px 72px'}}>
+        <a href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</a>
+        <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Create product</h1>
+        <AdminTopBar active="products-new" />
+        {inner}
       </main>
     </AdminOnly>
   )

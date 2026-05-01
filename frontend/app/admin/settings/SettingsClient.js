@@ -36,16 +36,9 @@ const FIELDS = [
     ],
   },
   {
-    section: 'Popup',
-    fields: [
-      { key: 'popup_promo_code', label: 'Discount code shown in popup', placeholder: 'WELCOME10', hint: 'Create this code in Promo Codes first, then paste it here.' },
-    ],
-  },
-  {
     section: 'Shipping',
     fields: [
       { key: 'shipping_free_threshold', label: 'Free shipping from (€)', placeholder: '120', hint: 'Orders at or above this amount get free shipping. Default: 120.' },
-      { key: 'shipping_cost',           label: 'Standard shipping cost (€)', placeholder: '30', hint: 'Shipping fee charged when order is below the free threshold. Default: 30.' },
     ],
   },
   {
@@ -167,7 +160,7 @@ export default function SettingsClient() {
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Email Settings</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Settings</h1>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => setPreview(p => p === 'customer' ? null : 'customer')}
               style={{ ...btnBase, background: preview === 'customer' ? '#f3f3f0' : '#fff', fontWeight: preview === 'customer' ? 600 : 400 }}>

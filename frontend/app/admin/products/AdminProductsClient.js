@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import AdminOnly from '../../components/AdminOnly'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import AdminTopBar from '../../components/AdminTopBar'
+import NewProductClient from './new/NewProductClient'
+import InventoryClient from '../inventory/InventoryClient'
 
 async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
   const controller = new AbortController()
@@ -18,6 +20,7 @@ async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
 
 export default function AdminProductsClient() {
   const ORDER_TAG_PREFIXES = ['order:fixed', 'order:random', 'order:priority:']
+  const [tab, setTab] = useState('products')
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -293,16 +296,25 @@ export default function AdminProductsClient() {
   return (
     <AdminOnly>
       <main style={{maxWidth:1200,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:18}}>
-          <h1 style={{fontSize:30,fontWeight:600,margin:0}}>Products</h1>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <p style={{fontSize:14,color:'#80807a',margin:0}}>{filtered.length} shown</p>
-            <a href="/admin/products/new" style={{background:'#111',color:'#fff',padding:'8px 12px',borderRadius:10,fontSize:13,textDecoration:'none'}}>
-              + New product
-            </a>
-          </div>
-        </div>
+        <h1 style={{fontSize:30,fontWeight:600,margin:'0 0 18px'}}>Products</h1>
         <AdminTopBar active="products" />
+
+        {/* Inner tabs */}
+        <div style={{display:'flex',gap:0,marginBottom:24,borderBottom:'2px solid #ecece8'}}>
+          {[['products','All Products'],['new','Add New'],['inventory','Inventory']].map(([id,label]) => (
+            <button key={id} onClick={() => setTab(id)} style={{
+              background:'none', border:'none', padding:'8px 18px', fontSize:14, cursor:'pointer',
+              fontWeight: tab === id ? 700 : 400,
+              color: tab === id ? '#111' : '#888',
+              borderBottom: tab === id ? '2px solid #111' : '2px solid transparent',
+              marginBottom: -2,
+            }}>{label}</button>
+          ))}
+        </div>
+
+        {tab === 'new' && <NewProductClient inTab />}
+        {tab === 'inventory' && <InventoryClient />}
+        {tab === 'products' && <>
 
         <input
           value={query}
@@ -605,6 +617,7 @@ export default function AdminProductsClient() {
             </div>
           </div>
         )}
+        </>}
       </main>
     </AdminOnly>
   )

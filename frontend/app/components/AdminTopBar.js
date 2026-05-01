@@ -15,14 +15,12 @@ export default function AdminTopBar({ active = 'orders' }) {
   return (
     <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap'}}>
       <a href="/admin/orders" style={linkStyle('orders')}>Orders</a>
-      <a href="/admin/products" style={linkStyle('products')}>Products CMS</a>
-      <a href="/admin/products/new" style={linkStyle('products-new')}>New Product</a>
-      <a href="/admin/inventory" style={linkStyle('inventory')}>Inventory</a>
+      <a href="/admin/products" style={linkStyle('products')}>Products</a>
       <a href="/admin/promos" style={linkStyle('promos')}>Promo Codes</a>
       <a href="/admin/subscribers" style={linkStyle('subscribers')}>Subscribers</a>
       <a href="/admin/homepage" style={linkStyle('homepage')}>Homepage</a>
       <a href="/admin/pages" style={linkStyle('pages')}>Static Pages</a>
-      <a href="/admin/settings" style={linkStyle('settings')}>Email Settings</a>
+      <a href="/admin/settings" style={linkStyle('settings')}>Settings</a>
       <a href="/admin/shipping" style={linkStyle('shipping')}>Shipping Rates</a>
       <a href="https://mail.zoho.eu" target="_blank" rel="noopener noreferrer" style={linkStyle('zoho')}>Zoho Mail ↗</a>
     </div>
