@@ -21,7 +21,7 @@ const cspHeader = [
   // Frames: Stripe payment iframe
   "frame-src https://js.stripe.com https://hooks.stripe.com",
   // Connect: self + backend API + Supabase + Stripe + Google Analytics + ipapi geo lookup
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://ipapi.co`,
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://ipapi.co`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
