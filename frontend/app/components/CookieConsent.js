@@ -4,6 +4,13 @@ import { useEffect, useState } from 'react'
 
 const STORAGE_KEY = 'cookie_consent'
 
+// EEA + UK country codes (ISO 3166-1 alpha-2)
+const EEA_COUNTRIES = new Set([
+  'AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI',
+  'FR','GR','HR','HU','IE','IS','IT','LI','LT','LU',
+  'LV','MT','NL','NO','PL','PT','RO','SE','SI','SK','GB'
+])
+
 function updateGAConsent(granted) {
   if (typeof window === 'undefined' || !window.gtag) return
   const state = granted ? 'granted' : 'denied'
@@ -15,17 +22,42 @@ function updateGAConsent(granted) {
   })
 }
 
+async function isEEAVisitor() {
+  try {
+    // Lightweight timezone-based heuristic (no external API needed)
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+    // European timezones all start with 'Europe/'
+    if (tz.startsWith('Europe/')) return true
+    // Fallback: check via a fast geo endpoint
+    const res = await fetch('https://ipapi.co/country/', { signal: AbortSignal.timeout(2000) })
+    if (!res.ok) return true // fail safe: show banner
+    const country = (await res.text()).trim().toUpperCase()
+    return EEA_COUNTRIES.has(country)
+  } catch {
+    return true // fail safe: show banner
+  }
+}
+
 export default function CookieConsent() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (!saved) {
-      setVisible(true)
-    } else {
+    if (saved) {
       // Re-apply saved consent on every page load so GA respects it
       updateGAConsent(saved === 'granted')
+      return
     }
+    // Only show banner to EEA visitors
+    isEEAVisitor().then(isEEA => {
+      if (isEEA) {
+        setVisible(true)
+      } else {
+        // Non-EEA: auto-grant analytics (already granted by default in layout.js)
+        // Just mark as granted so we don't re-check on every page
+        localStorage.setItem(STORAGE_KEY, 'granted')
+      }
+    })
   }, [])
 
   function handleAccept() {
