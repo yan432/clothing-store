@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { getAdminApiUrl as getApiUrl, getApiUrl as publicApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 export default function HomepageSlidesClient() {
   const [slides, setSlides] = useState([])
@@ -32,8 +32,7 @@ export default function HomepageSlidesClient() {
 
   async function loadTimer() {
     try {
-      // GET /settings is public — use direct backend URL, no proxy needed
-      const res = await fetch(publicApiUrl('/settings'), { cache: 'no-store' })
+      const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
       if (!res.ok) return
       const rows = await res.json()
       const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.key, r.value]))
