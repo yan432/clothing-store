@@ -10,18 +10,18 @@ const supabaseHost = (() => {
 
 const cspHeader = [
   "default-src 'self'",
-  // Scripts: self + Next.js inline chunks + Stripe
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics / Tag Manager
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com",
   // Styles: self + inline (Next.js injects inline styles)
   "style-src 'self' 'unsafe-inline'",
-  // Images: self + data URIs + Supabase storage + bigcartel CDN
-  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com`,
+  // Images: self + data URIs + Supabase storage + bigcartel CDN + GA beacon pixel
+  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com`,
   // Fonts: self
   "font-src 'self' data:",
   // Frames: Stripe payment iframe
   "frame-src https://js.stripe.com https://hooks.stripe.com",
-  // Connect: self + backend API + Supabase + Stripe
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com`,
+  // Connect: self + backend API + Supabase + Stripe + Google Analytics + ipapi geo lookup
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://ipapi.co`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
