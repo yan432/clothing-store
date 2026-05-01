@@ -33,25 +33,41 @@ export default function HomepageSlidesClient() {
   async function loadTimer() {
     try {
       const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
-      if (!res.ok) return
+      if (!res.ok) {
+        flash(`Failed to load timer settings (HTTP ${res.status})`, true)
+        return
+      }
       const raw = await res.json()
-      // API returns {key: value, ...} object (not an array)
       const map = Array.isArray(raw)
         ? Object.fromEntries(raw.map(r => [r.key, r.value]))
         : (raw && typeof raw === 'object' ? raw : {})
       setTimerEnabled(map.drop_timer_enabled === 'true')
       if (map.drop_timer_date) {
-        const local = new Date(map.drop_timer_date)
-        const pad = n => String(n).padStart(2, '0')
-        setTimerDate(
-          `${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
-        )
+        try {
+          const local = new Date(map.drop_timer_date)
+          if (!isNaN(local.getTime())) {
+            const pad = n => String(n).padStart(2, '0')
+            setTimerDate(
+              `${local.getFullYear()}-${pad(local.getMonth()+1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`
+            )
+          }
+        } catch {}
       }
       if (map.drop_timer_label) setTimerLabel(map.drop_timer_label)
-    } catch {}
+    } catch (e) {
+      flash(`Timer load error: ${e.message}`, true)
+    }
   }
 
   async function saveTimer() {
+    if (timerEnabled && !timerDate) {
+      flash('Set a drop date before enabling the timer', true)
+      return
+    }
+    if (timerEnabled && timerDate && new Date(timerDate).getTime() <= Date.now()) {
+      flash('Drop date must be in the future', true)
+      return
+    }
     setTimerSaving(true)
     try {
       const res = await fetch(getApiUrl('/settings'), {
@@ -242,10 +258,21 @@ export default function HomepageSlidesClient() {
           </label>
         </div>
 
-        <button onClick={saveTimer} disabled={timerSaving}
-          style={{ ...btn('#111'), opacity: timerSaving ? 0.6 : 1 }}>
-          {timerSaving ? 'Saving…' : 'Save timer'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <button onClick={saveTimer} disabled={timerSaving}
+            style={{ ...btn('#111'), opacity: timerSaving ? 0.6 : 1 }}>
+            {timerSaving ? 'Saving…' : 'Save timer'}
+          </button>
+          {/* Live status */}
+          {(() => {
+            const isLive = timerEnabled && timerDate && new Date(timerDate).getTime() > Date.now()
+            return (
+              <span style={{ fontSize: 12, fontWeight: 600, color: isLive ? '#16a34a' : '#aaa' }}>
+                {isLive ? '● Visible on site' : '○ Not showing'}
+              </span>
+            )
+          })()}
+        </div>
       </div>
 
       {/* Upload new slide */}
