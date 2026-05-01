@@ -55,11 +55,33 @@ const steps = [
   { n: 4, label: 'Payment', disabled: true },
 ]
 
+const AUTOCOMPLETE_MAP = {
+  firstName: 'given-name',
+  lastName:  'family-name',
+  email:     'email',
+  phone:     'tel',
+  address:   'street-address',
+  city:      'address-level2',
+  zip:       'postal-code',
+}
+
+const NAME_MAP = {
+  firstName: 'given-name',
+  lastName:  'family-name',
+  email:     'email',
+  phone:     'tel',
+  address:   'street-address',
+  city:      'city',
+  zip:       'postal-code',
+}
+
 function FormField({ placeholder, fieldKey, type = 'text', value, onChange, error, style }) {
   return (
     <div>
       <input
         type={type}
+        name={NAME_MAP[fieldKey] || fieldKey}
+        autoComplete={AUTOCOMPLETE_MAP[fieldKey] || 'on'}
         placeholder={placeholder}
         value={value}
         onChange={onChange}
@@ -511,6 +533,7 @@ export default function CheckoutPage() {
             </div>
           )}
 
+          <form autoComplete="on" onSubmit={e => { e.preventDefault(); handleContinue() }}>
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Contact</p>
             <div className="checkout-2col">
@@ -581,6 +604,7 @@ export default function CheckoutPage() {
             </div>
             <div style={{position:'relative'}}>
               <select value={form.country} onChange={e => set('country', e.target.value)}
+                name="country" autoComplete="country"
                 style={{display:'block',padding:'13px 40px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',height:50,appearance:'none',WebkitAppearance:'none',cursor:'pointer'}}>
                 {COUNTRIES.map(([code, name]) => (
                   <option key={code} value={code}>{name}</option>
@@ -605,18 +629,19 @@ export default function CheckoutPage() {
           </div>
 
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <button onClick={() => router.push('/cart')}
+            <button type="button" onClick={() => router.push('/cart')}
               style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
               ← Back
             </button>
             <button
-              onClick={handleContinue}
+              type="submit"
               disabled={cart.length === 0 || shippingResult?.zone === 'unavailable' || shippingLoading}
               title={shippingResult?.zone === 'unavailable' ? 'Delivery not available to this country' : undefined}
               style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 'not-allowed' : 'pointer',opacity: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 0.4 : 1}}>
               Continue to confirm
             </button>
           </div>
+          </form>
         </div>
 
         <div className="checkout-sidebar" style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>

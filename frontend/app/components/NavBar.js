@@ -23,7 +23,6 @@ const ACCOUNT_LINKS = [
   { href: '/account',            label: 'My account' },
   { href: '/account?tab=orders', label: 'Orders' },
   { href: '/wishlist',           label: 'Wishlist' },
-  { href: '/account?tab=sizes',  label: 'Size guide' },
 ]
 
 const ADMIN_LINKS = [
@@ -361,7 +360,7 @@ export default function NavBar() {
               <div style={{ marginBottom: 24 }}>
                 {user ? (
                   <>
-                    {ACCOUNT_LINKS.filter(item => item.label !== 'Size guide').map(item => (
+                    {ACCOUNT_LINKS.map(item => (
                       <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                         style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
                         {item.label}
