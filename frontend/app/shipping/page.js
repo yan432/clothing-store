@@ -1,4 +1,5 @@
 import { getApiUrl } from '../lib/api'
+import { Truck, Package, Gift, Globe } from 'lucide-react'
 
 export const revalidate = 60
 
@@ -27,13 +28,13 @@ export default async function ShippingPage() {
       {/* Quick summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 48 }}>
         {[
-          { icon: '🚚', label: '5–10 business days', sub: 'Standard delivery' },
-          { icon: '📦', label: '1–3 days processing', sub: 'Before dispatch' },
-          { icon: '🆓', label: 'Free from €120', sub: 'On all orders' },
-          { icon: '🌍', label: 'Worldwide', sub: 'International shipping' },
-        ].map(({ icon, label, sub }) => (
+          { Icon: Truck,   label: '5–10 business days', sub: 'Standard delivery' },
+          { Icon: Package, label: '1–3 days processing', sub: 'Before dispatch' },
+          { Icon: Gift,    label: 'Free from €120',      sub: 'On all orders' },
+          { Icon: Globe,   label: 'Worldwide',           sub: 'International shipping' },
+        ].map(({ Icon, label, sub }) => (
           <div key={label} style={{ background: '#f5f5f3', borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
-            <p style={{ fontSize: 24, margin: '0 0 8px' }}>{icon}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Icon size={24} strokeWidth={1.5} /></div>
             <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{label}</p>
             <p style={{ fontSize: 12, color: '#888', margin: 0 }}>{sub}</p>
           </div>

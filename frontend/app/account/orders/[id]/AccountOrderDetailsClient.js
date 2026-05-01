@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { getApiUrl } from '../../../lib/api'
+import { ThumbsUp, Package } from 'lucide-react'
 
 const FIT_OPTIONS = [
-  { value: 'perfect',   label: '👌 Fits perfect' },
-  { value: 'too_small', label: '↓ Too small' },
-  { value: 'too_big',   label: '↑ Too big' },
+  { value: 'perfect',   label: 'Fits perfect',  Icon: ThumbsUp },
+  { value: 'too_small', label: '↓ Too small',   Icon: null },
+  { value: 'too_big',   label: '↑ Too big',     Icon: null },
 ]
 
 function ItemFitFeedback({ orderId, itemIndex, userEmail, existing }) {
@@ -45,7 +46,9 @@ function ItemFitFeedback({ orderId, itemIndex, userEmail, existing }) {
                 padding: '4px 10px', fontSize: 12,
                 background: '#fff', cursor: 'pointer',
                 opacity: saving ? 0.6 : 1,
+                display: 'flex', alignItems: 'center', gap: 4,
               }}>
+              {opt.Icon && <opt.Icon size={11} strokeWidth={2} />}
               {opt.label}
             </button>
           ))}
@@ -182,7 +185,7 @@ export default function AccountOrderDetailsClient({ orderId }) {
         {/* Tracking info */}
         {(order.tracking_number || order.tracking_url) && (
           <div style={{marginTop:16,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'14px 18px'}}>
-            <p style={{margin:'0 0 6px',fontWeight:700,fontSize:14,color:'#166534'}}>📦 Tracking information</p>
+            <p style={{margin:'0 0 6px',fontWeight:700,fontSize:14,color:'#166534',display:'flex',alignItems:'center',gap:6}}><Package size={14} strokeWidth={1.8} /> Tracking information</p>
             {order.tracking_number && (
               <p style={{margin:'0 0 4px',fontSize:14,color:'#1a1a18'}}>
                 Tracking number: <strong>{order.tracking_number}</strong>

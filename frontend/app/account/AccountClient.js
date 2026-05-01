@@ -497,9 +497,9 @@ const SG_SIZES = [
   { size: 'XL', eu_m: '54–56', eu_w: '48–50', chest: '108–116', waist: '90–96', height: '190+ cm'    },
 ]
 const SG_FIT_OPTIONS = [
-  { value: 'perfect',  emoji: '👌', label: 'Fits perfect' },
-  { value: 'too_small', emoji: '↓', label: 'Too small' },
-  { value: 'too_big',   emoji: '↑', label: 'Too big' },
+  { value: 'perfect',   label: 'Fits perfect' },
+  { value: 'too_small', label: '↓ Too small' },
+  { value: 'too_big',   label: '↑ Too big' },
 ]
 function sgRecommend(height, weight, gender, knownSize) {
   let chest = Number(height) * 0.52 + Number(weight) * 0.18

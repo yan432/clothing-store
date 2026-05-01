@@ -2,6 +2,7 @@
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useEffect, useMemo, useState } from 'react'
+import { Bell, AlertTriangle } from 'lucide-react'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
 import NotifyMePopup from './NotifyMePopup'
 
@@ -135,12 +136,12 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           {/* FOMO warning under the select */}
           {showLastOne && (
             <p style={{ margin: 0, fontSize: 12, color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span>⚠</span> Only 1 unit left in size {selectedSize}!
+              <AlertTriangle size={13} strokeWidth={2} /> Only 1 unit left in size {selectedSize}!
             </p>
           )}
           {showFewLeft && (
             <p style={{ margin: 0, fontSize: 12, color: '#d97706', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <span>⚠</span> Only 2 units left in size {selectedSize}
+              <AlertTriangle size={13} strokeWidth={2} /> Only 2 units left in size {selectedSize}
             </p>
           )}
         </>
@@ -167,7 +168,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
             gap: 8,
           }}
         >
-          🔔 Notify me when available
+          <Bell size={15} strokeWidth={1.8} /> Notify me when available
         </button>
       ) : (
         <button

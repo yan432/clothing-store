@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
 export default function NotifyMePopup({ product, size, initialEmail = '', onClose }) {
@@ -62,7 +63,7 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
 
         {status === 'done' ? (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
-            <p style={{ fontSize: 32, margin: '0 0 12px' }}>✓</p>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><CheckCircle2 size={48} strokeWidth={1.5} color="#16a34a" /></div>
             <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>You're on the list!</p>
             <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px', lineHeight: 1.5 }}>
               We'll email you as soon as <strong>{product.name}</strong> in size <strong>{size}</strong> is back in stock.

@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminOnly from '../../../components/AdminOnly'
+import { Package, Mail } from 'lucide-react'
 
 function fmtDate(value) {
   if (!value) return '-'
@@ -418,7 +419,7 @@ export default function OrderDetailsClient({ id }) {
               <div style={{display:'flex',flexDirection:'column',gap:8}}>
                 <button onClick={notifyShipped} disabled={notifying}
                   style={{width:'100%',background:'#0f766e',color:'#fff',border:'none',padding:'10px',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',opacity:notifying?0.6:1}}>
-                  {notifying ? 'Sending…' : '📦 Send shipping notification'}
+                  {notifying ? 'Sending…' : <><Package size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />Send shipping notification</>}
                 </button>
                 <button onClick={async () => {
                   setResending(true); setResendMsg('')
@@ -430,7 +431,7 @@ export default function OrderDetailsClient({ id }) {
                   finally { setResending(false); setTimeout(() => setResendMsg(''), 5000) }
                 }} disabled={resending}
                   style={{width:'100%',background:'#fff',color:'#374151',border:'1px solid #e5e7eb',padding:'10px',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer',opacity:resending?0.6:1}}>
-                  {resending ? 'Sending…' : '📧 Resend order confirmation'}
+                  {resending ? 'Sending…' : <><Mail size={13} strokeWidth={2} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 5 }} />Resend order confirmation</>}
                 </button>
               </div>
               {notifyMsg && <p style={{fontSize:12,margin:'8px 0 0',color:notifyMsg.startsWith('Error')?'#b91c1c':'#16a34a'}}>{notifyMsg}</p>}

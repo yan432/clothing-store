@@ -1,4 +1,5 @@
 import { getApiUrl } from '../lib/api'
+import { Package, RefreshCw, CheckCircle2, Mail } from 'lucide-react'
 
 export const revalidate = 60
 
@@ -27,13 +28,13 @@ export default async function ReturnsPage() {
       {/* Quick summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 48 }}>
         {[
-          { icon: '📦', label: '14-day returns', sub: 'From date of receipt' },
-          { icon: '🔄', label: 'Free exchange', sub: 'On size or colour' },
-          { icon: '✅', label: 'Unworn items', sub: 'With original tags' },
-          { icon: '📧', label: 'Email to start', sub: 'sales@edmclothes.net' },
-        ].map(({ icon, label, sub }) => (
+          { Icon: Package,      label: '14-day returns', sub: 'From date of receipt' },
+          { Icon: RefreshCw,    label: 'Free exchange',  sub: 'On size or colour' },
+          { Icon: CheckCircle2, label: 'Unworn items',   sub: 'With original tags' },
+          { Icon: Mail,         label: 'Email to start', sub: 'sales@edmclothes.net' },
+        ].map(({ Icon, label, sub }) => (
           <div key={label} style={{ background: '#f5f5f3', borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
-            <p style={{ fontSize: 24, margin: '0 0 8px' }}>{icon}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Icon size={24} strokeWidth={1.5} /></div>
             <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{label}</p>
             <p style={{ fontSize: 12, color: '#888', margin: 0 }}>{sub}</p>
           </div>

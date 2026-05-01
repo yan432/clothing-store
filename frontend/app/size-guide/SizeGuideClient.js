@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Ruler, AlignCenter, RotateCcw } from 'lucide-react'
 
 // Our unisex/male size chart
 const OUR_SIZES = [
@@ -94,12 +95,12 @@ export default function SizeGuideClient() {
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>How to measure</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
           {[
-            { icon: '📏', label: 'Chest', desc: 'Measure around the fullest part of your chest, keeping the tape horizontal under your arms.' },
-            { icon: '〰️', label: 'Waist', desc: 'Measure around your natural waistline — the narrowest part of your torso.' },
-            { icon: '🔄', label: 'Hips', desc: 'Measure around the fullest part of your hips, about 20 cm below your waist.' },
-          ].map(({ icon, label, desc }) => (
+            { Icon: Ruler,       label: 'Chest', desc: 'Measure around the fullest part of your chest, keeping the tape horizontal under your arms.' },
+            { Icon: AlignCenter, label: 'Waist', desc: 'Measure around your natural waistline — the narrowest part of your torso.' },
+            { Icon: RotateCcw,   label: 'Hips',  desc: 'Measure around the fullest part of your hips, about 20 cm below your waist.' },
+          ].map(({ Icon, label, desc }) => (
             <div key={label} style={{ background: '#f7f7f5', borderRadius: 14, padding: '20px 18px' }}>
-              <p style={{ fontSize: 28, margin: '0 0 10px' }}>{icon}</p>
+              <div style={{ marginBottom: 10 }}><Icon size={28} strokeWidth={1.5} /></div>
               <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>{label}</p>
               <p style={{ fontSize: 13, color: '#666', margin: 0, lineHeight: 1.6 }}>{desc}</p>
             </div>

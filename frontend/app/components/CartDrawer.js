@@ -2,6 +2,7 @@
 import { useCart } from '../context/CartContext'
 import { getApiUrl } from '../lib/api'
 import { useEffect, useRef, useState } from 'react'
+import { Sparkles } from 'lucide-react'
 
 const DEFAULT_THRESHOLD = 120
 
@@ -35,7 +36,7 @@ function ShippingBar({ total, threshold }) {
         transition: 'color 0.3s ease, opacity 0.2s ease',
       }}>
         {textReached
-          ? '🎉 You\'ve unlocked free shipping!'
+          ? <><Sparkles size={13} strokeWidth={1.8} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> You've unlocked free shipping!</>
           : <>Add <strong>€{remaining.toFixed(2)}</strong> more for free shipping</>
         }
       </p>

@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { Mail, HelpCircle, Clock, CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
 export default function ContactPage() {
@@ -50,19 +51,19 @@ export default function ContactPage() {
       {/* Three options */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 56 }}>
         <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
-          <p style={{ fontSize: 28, margin: '0 0 10px' }}>✉️</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Mail size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>Email us</p>
           <a href="mailto:sales@edmclothes.net" style={{ fontSize: 13, color: '#666', textDecoration: 'none', borderBottom: '1px solid #ccc' }}>
             sales@edmclothes.net
           </a>
         </div>
         <a href="/faq" style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center', textDecoration: 'none', color: 'inherit', display: 'block' }}>
-          <p style={{ fontSize: 28, margin: '0 0 10px' }}>❓</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><HelpCircle size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>FAQ</p>
           <p style={{ fontSize: 13, color: '#666', margin: 0 }}>Find quick answers</p>
         </a>
         <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
-          <p style={{ fontSize: 28, margin: '0 0 10px' }}>🕐</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Clock size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>Working hours</p>
           <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>Mon–Fri, 8:00 am – 4:00 pm</p>
           <p style={{ fontSize: 13, color: '#aaa', margin: 0 }}>Reply within 1–2 business days</p>
@@ -76,7 +77,7 @@ export default function ContactPage() {
 
       {sent ? (
         <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '28px 24px', textAlign: 'center' }}>
-          <p style={{ fontSize: 24, margin: '0 0 8px' }}>✅</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><CheckCircle2 size={32} strokeWidth={1.5} color="#16a34a" /></div>
           <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 6px', color: '#15803d' }}>Message sent!</p>
           <p style={{ fontSize: 14, color: '#666', margin: 0 }}>We'll get back to you within 1–2 business days. Check your inbox for a confirmation.</p>
         </div>

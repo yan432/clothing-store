@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Mail, Sparkles } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 
@@ -110,7 +111,7 @@ export default function EmailCapturePopup() {
 
       {done ? (
         <div style={{ textAlign: 'center', padding: '8px 0' }}>
-          <p style={{ fontSize: 28, margin: '0 0 8px' }}>✉️</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Mail size={32} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Check your email</p>
           <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
             We sent your personal discount code to your inbox.
@@ -118,7 +119,7 @@ export default function EmailCapturePopup() {
         </div>
       ) : alreadySubscribed ? (
         <div style={{ textAlign: 'center', padding: '8px 0' }}>
-          <p style={{ fontSize: 28, margin: '0 0 8px' }}>👋</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Sparkles size={32} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Already subscribed</p>
           <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
             This email is already on the list — check your inbox for your discount code.
