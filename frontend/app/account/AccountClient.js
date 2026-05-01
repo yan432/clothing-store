@@ -490,11 +490,11 @@ function OrdersSection({ user }) {
 
 // ── Size Guide Tab ────────────────────────────────────────────────────────────
 const SG_SIZES = [
-  { size: 'XS', eu_m: '44',    eu_w: '32–34', chest: '84–88',  waist: '68–72' },
-  { size: 'S',  eu_m: '46',    eu_w: '36–38', chest: '88–92',  waist: '72–76' },
-  { size: 'M',  eu_m: '48–50', eu_w: '40–42', chest: '92–96',  waist: '76–80' },
-  { size: 'L',  eu_m: '52',    eu_w: '44–46', chest: '96–102', waist: '80–86' },
-  { size: 'XL', eu_m: '54–56', eu_w: '48–50', chest: '102–108','waist':'86–92'},
+  { size: 'XS', eu_m: '44',    eu_w: '32–34', chest: '84–88',   waist: '68–72', height: '150–160 cm' },
+  { size: 'S',  eu_m: '46',    eu_w: '36–38', chest: '88–94',   waist: '72–78', height: '160–170 cm' },
+  { size: 'M',  eu_m: '48–50', eu_w: '40–42', chest: '94–100',  waist: '78–84', height: '170–180 cm' },
+  { size: 'L',  eu_m: '52',    eu_w: '44–46', chest: '100–108', waist: '84–90', height: '180–190 cm' },
+  { size: 'XL', eu_m: '54–56', eu_w: '48–50', chest: '108–116', waist: '90–96', height: '190+ cm'    },
 ]
 const SG_FIT_OPTIONS = [
   { value: 'perfect',  emoji: '👌', label: 'Fits perfect' },
@@ -504,7 +504,7 @@ const SG_FIT_OPTIONS = [
 function sgRecommend(height, weight, gender, knownSize) {
   let chest = Number(height) * 0.52 + Number(weight) * 0.18
   if (gender === 'woman') chest += 4
-  let idx = chest < 88 ? 0 : chest < 92 ? 1 : chest < 97 ? 2 : chest < 103 ? 3 : 4
+  let idx = chest < 88 ? 0 : chest < 94 ? 1 : chest < 100 ? 2 : chest < 108 ? 3 : 4
   if (knownSize) {
     const declared = gender === 'woman'
       ? ({ XS: 0, S: 0, M: 1, L: 2, XL: 3 }[knownSize] ?? idx)
@@ -542,7 +542,7 @@ function SizeGuideSection() {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 400 }}>
           <thead>
             <tr style={{ background: '#fafaf8' }}>
-              {['Size', 'EU (men)', 'EU (women)', 'Chest (cm)', 'Waist (cm)'].map(h => (
+              {['Size', 'EU Men', 'EU Women', 'Chest, cm', 'Waist, cm', 'Height'].map(h => (
                 <th key={h} style={{ padding: '9px 12px', fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#888', textAlign: 'left', borderBottom: '2px solid #eee', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
@@ -555,6 +555,7 @@ function SizeGuideSection() {
                 <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.eu_w}</td>
                 <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.chest}</td>
                 <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.waist}</td>
+                <td style={{ padding: '10px 12px', fontSize: 13, color: '#444', borderBottom: '1px solid #f0f0ee' }}>{row.height}</td>
               </tr>
             ))}
           </tbody>
@@ -564,7 +565,7 @@ function SizeGuideSection() {
       {/* Women's tip */}
       <div style={{ padding: '11px 14px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', marginBottom: 24 }}>
         <p style={{ fontSize: 13, color: '#92400e', margin: 0 }}>
-          👗 <strong>Women:</strong> women's L → our M &nbsp;·&nbsp; women's M → our S &nbsp;·&nbsp; women's XL → our L
+          <strong>Women's sizing tip:</strong> Women usually size down 1–2 sizes depending on the desired fit.
         </p>
       </div>
 
@@ -615,7 +616,7 @@ function SizeGuideSection() {
           </div>
           <div style={{ width: 1, height: 48, background: '#bbf7d0' }} />
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            {[['EU (men)', result.eu_m], ['EU (women)', result.eu_w], ['Chest', result.chest + ' cm'], ['Waist', result.waist + ' cm']].map(([l, v]) => (
+            {[['EU Men', result.eu_m], ['EU Women', result.eu_w], ['Chest', result.chest + ' cm'], ['Waist', result.waist + ' cm'], ['Height', result.height]].map(([l, v]) => (
               <div key={l}>
                 <p style={{ fontSize: 11, color: '#888', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{l}</p>
                 <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{v}</p>
