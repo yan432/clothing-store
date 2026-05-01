@@ -28,8 +28,10 @@ async function getDropTimer() {
   try {
     const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
     if (!res.ok) return null
-    const rows = await res.json()
-    const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.key, r.value]))
+    const raw = await res.json()
+    const map = Array.isArray(raw)
+      ? Object.fromEntries(raw.map(r => [r.key, r.value]))
+      : (raw && typeof raw === 'object' ? raw : {})
     if (map.drop_timer_enabled !== 'true') return null
     if (!map.drop_timer_date) return null
     if (new Date(map.drop_timer_date).getTime() <= Date.now()) return null

@@ -34,8 +34,11 @@ export default function HomepageSlidesClient() {
     try {
       const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
       if (!res.ok) return
-      const rows = await res.json()
-      const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(r => [r.key, r.value]))
+      const raw = await res.json()
+      // API returns {key: value, ...} object (not an array)
+      const map = Array.isArray(raw)
+        ? Object.fromEntries(raw.map(r => [r.key, r.value]))
+        : (raw && typeof raw === 'object' ? raw : {})
       setTimerEnabled(map.drop_timer_enabled === 'true')
       if (map.drop_timer_date) {
         const local = new Date(map.drop_timer_date)
