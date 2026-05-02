@@ -18,7 +18,7 @@ ALTER TABLE IF EXISTS promo_codes            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS settings               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS user_profiles          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS homepage_slides        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE IF EXISTS pages                  ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE IF EXISTS pages               ENABLE ROW LEVEL SECURITY;  -- table does not exist yet
 ALTER TABLE IF EXISTS stripe_webhook_events  ENABLE ROW LEVEL SECURITY;
 
 
@@ -27,7 +27,7 @@ DROP POLICY IF EXISTS "Public read products"         ON products;
 DROP POLICY IF EXISTS "Public read size stock"       ON product_size_stock;
 DROP POLICY IF EXISTS "Public read settings"         ON settings;
 DROP POLICY IF EXISTS "Public read homepage slides"  ON homepage_slides;
-DROP POLICY IF EXISTS "Public read pages"            ON pages;
+-- DROP POLICY IF EXISTS "Public read pages"         ON pages;  -- table does not exist yet
 DROP POLICY IF EXISTS "Users read own profile"       ON user_profiles;
 DROP POLICY IF EXISTS "Users insert own profile"     ON user_profiles;
 DROP POLICY IF EXISTS "Users update own profile"     ON user_profiles;
@@ -60,10 +60,10 @@ CREATE POLICY "Public read homepage slides"
   USING (true);
 
 -- Static pages (shipping, returns): public read
-CREATE POLICY "Public read pages"
-  ON pages FOR SELECT
-  TO anon, authenticated
-  USING (true);
+-- CREATE POLICY "Public read pages"           -- table does not exist yet
+--   ON pages FOR SELECT
+--   TO anon, authenticated
+--   USING (true);
 
 
 -- ── 4. User profiles: each user sees/edits only their own row ─────────────────

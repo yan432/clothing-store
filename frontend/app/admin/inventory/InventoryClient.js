@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { getApiUrl } from '../../lib/api'
+import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../../lib/sizeOptions'
 
 const btn = (label, onClick, opts = {}) => (
@@ -35,8 +35,12 @@ export default function InventoryClient() {
         setDraft(d)
         setLoading(false)
       })
-      .catch(err => {
-        setSaveErr(`Failed to load inventory (${err}). Make sure the product_size_stock table exists in Supabase.`)
+      .catch((err) => {
+        const hint =
+          err === 403
+            ? 'Admin session or proxy auth failed. Refresh the page or sign in again.'
+            : 'If this persists, check that the product_size_stock table exists in Supabase.'
+        setSaveErr(`Failed to load inventory (${err}). ${hint}`)
         setLoading(false)
       })
   }, [])
@@ -66,7 +70,11 @@ export default function InventoryClient() {
       })
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}))
-        setSaveErr(`Save failed (${res.status}): ${detail?.detail || 'Check that product_size_stock table exists in Supabase.'}`)
+        const fallback =
+          res.status === 403
+            ? 'Admin session or proxy auth failed.'
+            : 'Check that product_size_stock exists in Supabase.'
+        setSaveErr(`Save failed (${res.status}): ${detail?.detail || detail?.error || fallback}`)
       } else {
         setSaved(true); setTimeout(() => setSaved(false), 2500)
       }
