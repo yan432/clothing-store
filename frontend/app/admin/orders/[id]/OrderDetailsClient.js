@@ -84,7 +84,7 @@ export default function OrderDetailsClient({ id }) {
     setLoading(true)
     setError('')
     setRetryCount(attempt - 1)
-    const url = getApiUrl('/orders/' + id)
+    const url = getApiUrl('/orders/admin/' + id)
     try {
       const res = await fetch(url, { cache: 'no-store' })
       if (!res.ok) {

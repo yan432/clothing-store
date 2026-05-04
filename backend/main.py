@@ -1092,20 +1092,41 @@ def find_order(client_reference_id: Optional[str], stripe_session_id: Optional[s
 
 
 def save_webhook_event_once(event: dict) -> bool:
+    """Insert the webhook event row exactly once, even under concurrent delivery.
+
+    Race-condition safety requires a UNIQUE constraint on stripe_webhook_events.event_id.
+    Run this migration in Supabase SQL editor if not already applied:
+
+        ALTER TABLE stripe_webhook_events
+            ADD CONSTRAINT stripe_webhook_events_event_id_key UNIQUE (event_id);
+
+    With the constraint in place, concurrent duplicate deliveries will get a
+    unique-violation exception on INSERT and return False, preventing double
+    stock decrements, double emails, and double promo-usage increments.
+    """
     event_id = event.get("id")
     if not event_id:
         return False
+    # Fast-path: avoid the INSERT round-trip for the common retry case
+    # (Stripe retries can arrive minutes later, well after the first succeeded).
     existing = supabase.table("stripe_webhook_events").select("event_id").eq("event_id", event_id).limit(1).execute()
     if existing.data:
         return False
-    supabase.table("stripe_webhook_events").insert({
-        "event_id": event_id,
-        "event_type": event.get("type"),
-        "stripe_created_at": event.get("created"),
-        "received_at": now_iso(),
-        "payload_json": event,
-    }).execute()
-    return True
+    # Atomic insert — if two requests race past the select above, only one
+    # INSERT will win once the UNIQUE constraint is in place; the loser raises
+    # an exception which we catch and treat as a duplicate.
+    try:
+        supabase.table("stripe_webhook_events").insert({
+            "event_id": event_id,
+            "event_type": event.get("type"),
+            "stripe_created_at": event.get("created"),
+            "received_at": now_iso(),
+            "payload_json": event,
+        }).execute()
+        return True
+    except Exception:
+        # Unique constraint violation → another request already processed this event
+        return False
 
 
 @app.get("/")
@@ -2422,7 +2443,14 @@ async def stripe_webhook(request: Request):
 
     current_status = order.get("status")
     target_status = None
-    if event_type in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+    if event_type == "checkout.session.completed":
+        # For synchronous methods (card) payment_status is "paid" immediately.
+        # For async methods (Klarna, PayPal) it arrives as "unpaid" — money has
+        # NOT cleared yet. In that case we wait for async_payment_succeeded.
+        if data_obj.get("payment_status") == "paid":
+            target_status = ORDER_PAID
+        # else: leave order as pending; async_payment_succeeded will fire later
+    elif event_type == "checkout.session.async_payment_succeeded":
         target_status = ORDER_PAID
     elif event_type == "checkout.session.async_payment_failed":
         target_status = ORDER_PAYMENT_FAILED
@@ -2566,8 +2594,13 @@ _UUID_RE = re.compile(
 
 @app.get("/orders/{id_or_session}")
 def get_order(id_or_session: str):
+    """Public endpoint: look up by Stripe session ID or UUID (client_reference_id).
+    Integer primary-key lookup is intentionally excluded — sequential IDs would
+    allow unauthenticated enumeration of all orders (IDOR). Admins use
+    GET /orders/admin/{id} instead.
+    """
     try:
-        # stripe_session_id is TEXT — always safe
+        # stripe_session_id is TEXT — always safe (cs_live_... format)
         result = supabase.table("orders").select("*").eq("stripe_session_id", id_or_session).limit(1).execute()
         if result.data:
             return result.data[0]
@@ -2575,12 +2608,6 @@ def get_order(id_or_session: str):
         # client_reference_id is UUID — only query if value is a valid UUID
         if _UUID_RE.match(id_or_session):
             result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
-            if result.data:
-                return result.data[0]
-
-        # integer primary key
-        if id_or_session.isdigit():
-            result = supabase.table("orders").select("*").eq("id", int(id_or_session)).limit(1).execute()
             if result.data:
                 return result.data[0]
 
@@ -2592,6 +2619,15 @@ def get_order(id_or_session: str):
 
 
 # ── Admin order management ────────────────────────────────────────────────────
+
+@app.get("/orders/admin/{order_id}", dependencies=[Depends(require_admin)])
+def get_order_admin(order_id: int):
+    """Admin-only: fetch a single order by integer primary key."""
+    result = supabase.table("orders").select("*").eq("id", order_id).limit(1).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return result.data[0]
+
 
 VALID_ORDER_STATUSES = {"pending", "paid", "shipped", "delivered", "cancelled", "payment_failed"}
 
