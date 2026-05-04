@@ -9,6 +9,13 @@
 --
 -- Run once in Supabase SQL editor.
 
-ALTER TABLE stripe_webhook_events
-    ADD CONSTRAINT IF NOT EXISTS stripe_webhook_events_event_id_key
-    UNIQUE (event_id);
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'stripe_webhook_events_event_id_key'
+    ) THEN
+        ALTER TABLE stripe_webhook_events
+            ADD CONSTRAINT stripe_webhook_events_event_id_key UNIQUE (event_id);
+    END IF;
+END$$;
