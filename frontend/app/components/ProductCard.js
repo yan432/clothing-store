@@ -26,7 +26,6 @@ export default function ProductCard({ product, colorSiblings = [] }) {
     : null
 
   const availableStock = product.available_stock ?? product.stock ?? 0
-  const description = (product.description || '').trim()
   const isLowStock = availableStock > 0 && availableStock <= 5
 
   const tags = Array.isArray(product.tags) ? product.tags : []
@@ -174,12 +173,6 @@ export default function ProductCard({ product, colorSiblings = [] }) {
             )}
           </div>
 
-          <p className="product-card-desc" style={{
-            fontSize:13,color:'#6d6d66',lineHeight:1.5,margin:0,
-            display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',
-          }}>
-            {description || 'Minimal everyday essential. Tap to view full details.'}
-          </p>
         </div>
       </a>
 
