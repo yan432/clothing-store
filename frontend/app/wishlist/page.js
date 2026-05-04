@@ -201,18 +201,39 @@ export default function WishlistPage() {
       .then(r => r.ok ? r.json() : [])
       .then(async data => {
         if (cancelled) return
-        const list = Array.isArray(data) ? data : []
-        setProducts(list)
-        // Fetch size-stock for all products in parallel
+        // 1. Drop hidden and archived products immediately
+        const raw = Array.isArray(data) ? data : []
+        const visible = raw.filter(p =>
+          !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]')
+        )
+
+        // 2. Fetch size-stock for all visible products in parallel
         const entries = await Promise.all(
-          list.map(p =>
+          visible.map(p =>
             fetch(getApiUrl(`/products/${p.id}/size-stock`))
               .then(r => r.ok ? r.json() : {})
               .then(stock => [p.id, stock])
               .catch(() => [p.id, {}])
           )
         )
-        if (!cancelled) setSizeStocks(Object.fromEntries(entries))
+        if (cancelled) return
+
+        const stocks = Object.fromEntries(entries)
+
+        // 3. Drop completely out-of-stock products
+        const inStock = visible.filter(p => {
+          const sizes = parseSizeOptionsFromTags(p.tags)
+          if (sizes.length === 0) {
+            // No-size product: check overall stock
+            return (p.available_stock ?? p.stock ?? 0) > 0
+          }
+          // Sized product: at least one size must have stock
+          const sizeStock = stocks[p.id] || {}
+          return sizes.some(s => (sizeStock[s] ?? 0) > 0)
+        })
+
+        setProducts(inStock)
+        setSizeStocks(stocks)
       })
       .catch(() => { if (!cancelled) setProducts([]) })
       .finally(() => { if (!cancelled) setLoading(false) })
