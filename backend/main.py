@@ -3040,7 +3040,7 @@ def reorder_homepage_slides(payload: HomepageSlidesReorder):
 
 @app.put("/homepage-slides/{slide_id}", dependencies=[Depends(require_admin)])
 def update_homepage_slide(slide_id: int, slide: HomepageSlideUpdate):
-    updates = {k: v for k, v in slide.dict().items() if v is not None}
+    updates = slide.dict(exclude_unset=True)  # preserves False values (e.g. is_active=False)
     data = supabase.table("homepage_slides").update(updates).eq("id", slide_id).execute()
     if not data.data:
         raise HTTPException(status_code=404, detail="Slide not found")
@@ -3551,7 +3551,7 @@ def _mark_abandoned_cart_completed(email: str) -> None:
 def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
     """Build and send the recovery email. Returns True on success."""
     email      = entry.get("email", "")
-    first_name = entry.get("first_name") or "there"
+    first_name = _html.escape(entry.get("first_name") or "there")
     items      = entry.get("items_json") or []
     total      = entry.get("total_eur")
 
@@ -3561,13 +3561,13 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
     # Build item rows for the email
     item_rows_html = ""
     for item in items[:6]:  # cap at 6 items to keep email short
-        name     = item.get("name", "")
+        name     = _html.escape(str(item.get("name") or ""))
         price    = float(item.get("price") or 0)
         qty      = int(item.get("quantity") or item.get("qty") or 1)
-        size     = item.get("size") or ""
-        img      = item.get("image_url") or ""
+        size     = _html.escape(str(item.get("size") or ""))
+        img      = _html.escape(str(item.get("image_url") or ""), quote=True)
         slug     = item.get("slug") or str(item.get("id") or "")
-        item_url = f"{site_url}/products/{slug}" if slug else site_url
+        item_url = _html.escape(f"{site_url}/products/{slug}" if slug else site_url, quote=True)
 
         img_block = (
             f'<a href="{item_url}"><img src="{img}" width="64" height="64" '
@@ -3728,7 +3728,12 @@ def get_wishlist(email: str = Query(...)):
 
 @app.get("/wishlist/products")
 def get_wishlist_products(email: str = Query(...)):
-    """Return full product details for all wishlisted items."""
+    """Return full product details for all wishlisted items.
+
+    Uses image_urls from the DB (kept in sync by upload/reorder endpoints) instead
+    of calling _decorate_product_with_images, which issues one Storage HTTP request
+    per product — an N+1 that caused 10+ second responses for large wishlists.
+    """
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
@@ -3737,7 +3742,21 @@ def get_wishlist_products(email: str = Query(...)):
         return []
     ids = [r["product_id"] for r in rows]
     products = supabase.table("products").select("*").in_("id", ids).execute().data or []
-    return [_decorate_product_with_images(p) for p in products]
+    # Ensure image_url (cover) is populated from image_urls array — no Storage calls needed
+    result = []
+    for p in products:
+        db_urls = p.get("image_urls") or []
+        if isinstance(db_urls, str):
+            try:
+                import json as _json
+                db_urls = _json.loads(db_urls)
+            except Exception:
+                db_urls = []
+        if db_urls and not p.get("image_url"):
+            p = {**p, "image_url": db_urls[0]}
+        p = {**p, "image_urls": db_urls}
+        result.append(p)
+    return result
 
 
 def _send_wishlist_email(email: str, subject: str, html: str, text: str) -> None:
@@ -3745,13 +3764,13 @@ def _send_wishlist_email(email: str, subject: str, html: str, text: str) -> None
 
 
 def _wishlist_product_row_html(p: dict, site_url: str, badge: str = "") -> str:
-    name  = p.get("name", "")
+    name  = _html.escape(str(p.get("name") or ""))
     price = float(p.get("price") or 0)
     cmp   = float(p.get("compare_price") or 0)
     slug  = p.get("slug") or str(p.get("id", ""))
     imgs  = p.get("image_urls") or []
-    img   = (imgs[0] if imgs else None) or p.get("image_url") or ""
-    url   = f"{site_url}/products/{slug}"
+    img   = _html.escape(str((imgs[0] if imgs else None) or p.get("image_url") or ""), quote=True)
+    url   = _html.escape(f"{site_url}/products/{slug}", quote=True)
 
     price_html = f"€{price:.2f}"
     if cmp and cmp > price:

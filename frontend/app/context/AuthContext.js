@@ -27,13 +27,13 @@ export function AuthProvider({ children }) {
   }, [])
 
   function setAdmCookie(session) {
-    if (typeof document === 'undefined') return
-    if (session?.access_token) {
-      const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-      document.cookie = `adm_tok=${session.access_token}; path=/; max-age=3600; SameSite=Lax${secure}`
-    } else {
-      document.cookie = 'adm_tok=; path=/; max-age=0; SameSite=Lax'
-    }
+    // Set/clear via a server-side route so the cookie gets HttpOnly flag —
+    // document.cookie cannot set HttpOnly, making the token readable by any JS.
+    fetch('/api/auth/set-admin-cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: session?.access_token ?? null }),
+    }).catch(() => {})
   }
 
   async function signUp(email, password) {
