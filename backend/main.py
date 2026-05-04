@@ -36,7 +36,7 @@ app.add_middleware(
         "https://www.edmclothes.net",
         "https://edmclothes.net",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origin_regex=r"https://clothing-store(-[a-z0-9-]+)?\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -572,9 +572,9 @@ def send_email_sync_debug(to_email: str, subject: str, html: str, text: str) -> 
 def order_items_html(items: list[dict]) -> str:
     lines = []
     for item in items:
-        name = str(item.get("name") or "Item")
-        qty = int(item.get("quantity") or 0)
-        size = str(item.get("size") or "").strip()
+        name = _html.escape(str(item.get("name") or "Item"))
+        qty = max(1, int(item.get("quantity") or 1))
+        size = _html.escape(str(item.get("size") or "").strip())
         price = to_float(item.get("price"))
         line_total = price * qty
         size_suffix = f" (size: {size})" if size else ""
@@ -608,14 +608,14 @@ def send_order_confirmation_emails(order: dict) -> None:
     total = to_float(order.get("amount_total"))
     order_id = 10000 + int(order.get("id") or 0)  # human-readable order number
     order_ref = order.get("client_reference_id")
-    customer_email = str(order.get("email") or "").strip()
-    customer_name = str(order.get("shipping_name") or "").strip() or "Customer"
-    shipping_address = ", ".join([
+    customer_email = _html.escape(str(order.get("email") or "").strip())
+    customer_name = _html.escape(str(order.get("shipping_name") or "").strip() or "Customer")
+    shipping_address = _html.escape(", ".join([
         str(order.get("shipping_line1") or "").strip(),
         str(order.get("shipping_city") or "").strip(),
         str(order.get("shipping_postal_code") or "").strip(),
         str(order.get("shipping_country") or "").strip(),
-    ]).strip(", ").strip()
+    ]).strip(", ").strip())
 
     # Загружаем настройки из БД
     cfg = get_settings_bulk([
@@ -2680,9 +2680,9 @@ def normalize_tracking_url(raw: str) -> str:
 
 def build_shipping_notification_email(order: dict) -> tuple[str, str]:
     """Returns (html, text) for the shipping notification email."""
-    first_name = (str(order.get("shipping_name") or "").split() or ["there"])[0]
+    first_name = _html.escape((str(order.get("shipping_name") or "").split() or ["there"])[0])
     order_id_val = 10000 + int(order.get("id") or 0)  # human-readable order number
-    tracking_number = str(order.get("tracking_number") or "").strip()
+    tracking_number = _html.escape(str(order.get("tracking_number") or "").strip())
     tracking_url = normalize_tracking_url(str(order.get("tracking_url") or ""))
     items = order.get("items_json") or []
     items_html_str = order_items_html(items)
@@ -2697,7 +2697,7 @@ def build_shipping_notification_email(order: dict) -> tuple[str, str]:
         if tracking_number:
             track_rows += f"<p style='margin:4px 0;font-size:14px;color:#1a1a18'>Tracking number: <strong>{tracking_number}</strong></p>"
         if tracking_url:
-            track_rows += f"<p style='margin:4px 0;font-size:14px'><a href='{tracking_url}' style='color:#2563eb;font-weight:600'>Track your package →</a></p>"
+            track_rows += f"<p style='margin:4px 0;font-size:14px'><a href='{_html.escape(tracking_url, quote=True)}' style='color:#2563eb;font-weight:600'>Track your package →</a></p>"
         tracking_block_html = f"""
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:20px 0">
           <p style="margin:0 0 8px;font-weight:700;font-size:15px;color:#166534">📦 Tracking information</p>

@@ -23,7 +23,8 @@ function getCookie(name) {
 
 function setCookie(name, value, maxAge) {
   if (typeof document === 'undefined') return
-  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAge}; path=/; SameSite=Lax`
+  const secure = location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAge}; path=/; SameSite=Lax${secure}`
 }
 
 export function getSessionId() {
