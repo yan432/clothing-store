@@ -1,6 +1,7 @@
 export const metadata = {
   title: 'Imprint — EDM Clothes',
   description: 'Legal information about EDM Clothes.',
+  alternates: { canonical: '/imprint' },
 }
 
 export default function ImprintPage() {

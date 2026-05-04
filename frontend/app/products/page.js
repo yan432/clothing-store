@@ -11,9 +11,10 @@ export async function generateMetadata() {
     return {
       title: s.seo_products_title || 'Shop',
       description: s.seo_products_description || 'Browse our full collection.',
+      alternates: { canonical: '/products' },
     }
   } catch {
-    return { title: 'Shop', description: 'Browse our full collection.' }
+    return { title: 'Shop', description: 'Browse our full collection.', alternates: { canonical: '/products' } }
   }
 }
 

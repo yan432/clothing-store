@@ -6,6 +6,7 @@ export const revalidate = 60
 export const metadata = {
   title: 'Shipping Info — EDM Clothes',
   description: 'Shipping rates, delivery times and tracking information.',
+  alternates: { canonical: '/shipping' },
 }
 
 async function getPage() {

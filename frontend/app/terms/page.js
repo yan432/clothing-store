@@ -1,6 +1,7 @@
 export const metadata = {
   title: 'Terms & Conditions — EDM Clothes',
   description: 'Terms and conditions for purchasing from EDM Clothes.',
+  alternates: { canonical: '/terms' },
 }
 
 export default function TermsPage() {

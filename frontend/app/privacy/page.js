@@ -1,6 +1,7 @@
 export const metadata = {
   title: 'Privacy Policy — EDM Clothes',
   description: 'How EDM Clothes collects, uses, and protects your personal data.',
+  alternates: { canonical: '/privacy' },
 }
 
 export default function PrivacyPage() {

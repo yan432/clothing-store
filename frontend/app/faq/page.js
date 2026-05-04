@@ -6,6 +6,7 @@ export const revalidate = 60
 export const metadata = {
   title: 'FAQ — EDM Clothes',
   description: 'Frequently asked questions about orders, shipping, returns and more.',
+  alternates: { canonical: '/faq' },
 }
 
 async function getFaqHtml() {

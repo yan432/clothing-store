@@ -2,6 +2,7 @@ import UnsubscribeClient from './UnsubscribeClient'
 
 export const metadata = {
   title: 'Unsubscribe — EDM Clothes',
+  robots: { index: false },
 }
 
 export default async function UnsubscribePage({ searchParams }) {

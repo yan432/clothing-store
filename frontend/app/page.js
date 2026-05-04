@@ -1,3 +1,7 @@
+export const metadata = {
+  alternates: { canonical: '/' },
+}
+
 import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
@@ -65,8 +69,31 @@ export default async function Home({ searchParams }) {
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
 
+  const organizationJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'edm.clothes',
+    url: 'https://edmclothes.net',
+    logo: 'https://edmclothes.net/icon.png',
+    sameAs: [],
+  }
+
+  const websiteJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'edm.clothes',
+    url: 'https://edmclothes.net',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://edmclothes.net/products?q={search_term_string}',
+      'query-input': 'required name=search_term_string',
+    },
+  }
+
   return (
     <main style={{ paddingBottom: 80 }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
 
       {/* ── 1. HERO BANNER ─────────────────────────────── */}
       <section style={{

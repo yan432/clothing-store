@@ -6,6 +6,7 @@ export const revalidate = 60
 export const metadata = {
   title: 'Returns & Exchanges — EDM Clothes',
   description: 'Our return and exchange policy.',
+  alternates: { canonical: '/returns' },
 }
 
 async function getPage() {

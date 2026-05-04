@@ -66,6 +66,7 @@ export async function generateMetadata({ params }) {
   return {
     title: product.name + ' — edm.clothes',
     description: product.description,
+    alternates: { canonical: `/products/${slug}` },
     openGraph: {
       title: product.name,
       description: product.description,
@@ -99,12 +100,15 @@ export default async function ProductPage({ params }) {
   }).format(Number(product.price || 0))
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
 
+  const productImages = Array.isArray(product.image_urls) && product.image_urls.length
+    ? product.image_urls
+    : product.image_url ? [product.image_url] : []
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     description: product.description,
-    image: product.image_url,
+    image: productImages,
     sku: String(product.id),
     category: product.category,
     offers: {
@@ -114,7 +118,7 @@ export default async function ProductPage({ params }) {
       availability: availableStock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      url: 'https://yourstore.com/products/' + product.id,
+      url: `https://edmclothes.net/products/${slug}`,
     },
   }
 
