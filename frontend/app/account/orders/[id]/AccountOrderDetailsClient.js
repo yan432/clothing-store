@@ -4,12 +4,12 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { getApiUrl } from '../../../lib/api'
-import { ThumbsUp, Package } from 'lucide-react'
+import { ThumbsUp, ArrowDown, ArrowUp, Package } from 'lucide-react'
 
 const FIT_OPTIONS = [
-  { value: 'perfect',   label: 'Fits perfect',  Icon: ThumbsUp },
-  { value: 'too_small', label: '↓ Too small',   Icon: null },
-  { value: 'too_big',   label: '↑ Too big',     Icon: null },
+  { value: 'perfect',   label: 'Fits perfect', Icon: ThumbsUp },
+  { value: 'too_small', label: 'Too small',    Icon: ArrowDown },
+  { value: 'too_big',   label: 'Too big',      Icon: ArrowUp },
 ]
 
 function ItemFitFeedback({ orderId, itemIndex, userEmail, existing }) {

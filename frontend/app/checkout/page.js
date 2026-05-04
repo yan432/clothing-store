@@ -65,22 +65,12 @@ const AUTOCOMPLETE_MAP = {
   zip:       'postal-code',
 }
 
-const NAME_MAP = {
-  firstName: 'given-name',
-  lastName:  'family-name',
-  email:     'email',
-  phone:     'tel',
-  address:   'street-address',
-  city:      'city',
-  zip:       'postal-code',
-}
-
 function FormField({ placeholder, fieldKey, type = 'text', value, onChange, error, style }) {
   return (
     <div>
       <input
         type={type}
-        name={NAME_MAP[fieldKey] || fieldKey}
+        name={AUTOCOMPLETE_MAP[fieldKey] || fieldKey}
         autoComplete={AUTOCOMPLETE_MAP[fieldKey] || 'on'}
         placeholder={placeholder}
         value={value}
