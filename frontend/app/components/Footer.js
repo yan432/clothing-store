@@ -82,8 +82,8 @@ export default function Footer() {
                 <circle cx="17.5" cy="6.5" r="1" fill="#fff" stroke="none"/>
               </svg>
             </a>
-            <a href="https://www.tiktok.com" target="_blank" rel="noopener noreferrer"
-              style={{width:36,height:36,borderRadius:'50%',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',textDecoration:'none'}}>
+            <a href="https://www.tiktok.com/@edm.clothes" target="_blank" rel="noopener noreferrer" aria-hidden="true"
+              style={{width:36,height:36,borderRadius:'50%',border:'1px solid #333',display:'none',alignItems:'center',justifyContent:'center',textDecoration:'none'}}>
               <svg width="14" height="16" viewBox="0 0 24 24" fill="#fff">
                 <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
               </svg>
@@ -150,13 +150,13 @@ export default function Footer() {
           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
             <span style={{fontSize:12,color:'#555',marginRight:4,whiteSpace:'nowrap'}}>We accept</span>
             {[
-              { file: 'visa.png',       alt: 'Visa' },
-              { file: 'mastercard.png', alt: 'Mastercard' },
+              { file: 'Visa.png',       alt: 'Visa' },
+              { file: 'Mastercard.png', alt: 'Mastercard' },
               { file: 'Maestro.png',    alt: 'Maestro' },
-              { file: 'paypal.png',     alt: 'PayPal' },
-              { file: 'klarna.png',     alt: 'Klarna' },
-              { file: 'applepay.png',   alt: 'Apple Pay' },
-              { file: 'googlepay.png',  alt: 'Google Pay' },
+              { file: 'PayPal.png',     alt: 'PayPal' },
+              { file: 'Klarna.png',     alt: 'Klarna' },
+              { file: 'ApplePay.png',   alt: 'Apple Pay' },
+              { file: 'GooglePay.png',  alt: 'Google Pay' },
               { file: 'Stripe.png',     alt: 'Stripe' },
             ].map(({ file, alt }) => (
               <img key={file} src={`/payment-icons/${file}`} alt={alt} width={38} height={26} style={{display:'block',flexShrink:0}} />

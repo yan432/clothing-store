@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { getApiUrl } from '../lib/api'
 
 export default function UnsubscribeClient({ email: initialEmail }) {
   const [email, setEmail]   = useState(initialEmail || '')
@@ -12,7 +11,7 @@ export default function UnsubscribeClient({ email: initialEmail }) {
     if (!email.trim()) return
     setStatus('loading')
     try {
-      const res = await fetch(getApiUrl('/email-subscribers/unsubscribe'), {
+      const res = await fetch('/api/unsubscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
@@ -54,7 +53,7 @@ export default function UnsubscribeClient({ email: initialEmail }) {
             <input
               type="email"
               required
-              placeholder="your@email.com"
+              placeholder="sales@edmclothes.net"
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={{

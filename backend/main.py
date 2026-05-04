@@ -1,4 +1,6 @@
 from datetime import datetime, timezone, timedelta
+import hashlib
+import hmac
 import html as _html
 import json
 import math as _math
@@ -61,16 +63,27 @@ ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
 # The Next.js proxy reads the same value as BACKEND_ADMIN_SECRET and forwards
 # it in X-Admin-Secret for every request coming from an authenticated admin session.
 ADMIN_SECRET = os.getenv("ADMIN_SECRET", "")
+if not ADMIN_SECRET:
+    raise RuntimeError("ADMIN_SECRET must be set in the environment. Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\"")
 
 def require_admin(request: Request):
     """FastAPI dependency: reject non-admin requests."""
-    if not ADMIN_SECRET:
-        # In production this must be set — log a loud warning so it's never missed
-        import sys
-        print("WARNING: ADMIN_SECRET is not set — all admin endpoints are OPEN. Set it in your environment!", file=sys.stderr, flush=True)
-        return
     header = request.headers.get("X-Admin-Secret", "")
     if header != ADMIN_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+def _hmac_hex(message: str) -> str:
+    return hmac.new(ADMIN_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()
+
+def make_unsub_token(email: str) -> str:
+    return _hmac_hex(f"unsub:{email}")
+
+def make_user_token(email: str) -> str:
+    return _hmac_hex(f"user-profile:{email}")
+
+def verify_user_token(email: str, request: Request) -> None:
+    token = request.headers.get("X-User-Token", "")
+    if not hmac.compare_digest(make_user_token(email), token):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 # Zoho SMTP (приоритет над Resend если настроен)
@@ -138,8 +151,6 @@ class CheckoutItem(BaseModel):
 
 class CheckoutRequest(BaseModel):
     items: list[CheckoutItem]
-    success_url: str = f"{FRONTEND_URL}/success"
-    cancel_url: str = f"{FRONTEND_URL}/cart"
     customer_email: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -1498,7 +1509,7 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
             © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
           </p>
           <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
-            You requested this notification. <a href="{site_url}/unsubscribe?email={email}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+            You requested this notification. <a href="{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
           </p>
         </td></tr>
       </table>
@@ -1509,7 +1520,7 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
             f"Good news! {product_name} — size {size} is back in stock.\n\n"
             f"Shop now: {shop_url}\n\n"
             f"---\nYou requested this notification from EDM Clothes.\n"
-            f"Unsubscribe: {site_url}/unsubscribe?email={email}"
+            f"Unsubscribe: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
         )
         bg.add_task(send_email, email, f"Back in stock: {product_name} — size {size}", html, text)
         ids_to_fulfill.append(entry["id"])
@@ -2128,28 +2139,6 @@ def get_shipping_settings() -> tuple[float, float]:
         return 120.0, 30.0
 
 
-def extract_origin_url(value: Any) -> Optional[str]:
-    parsed = urlparse(str(value or "").strip())
-    if parsed.scheme in ("http", "https") and parsed.netloc:
-        return f"{parsed.scheme}://{parsed.netloc}"
-    return None
-
-
-def resolve_checkout_origin(http_request: Request, payload: CheckoutRequest) -> str:
-    candidates: list[Any] = [
-        http_request.headers.get("origin"),
-        http_request.headers.get("referer"),
-        payload.success_url,
-        payload.cancel_url,
-        FRONTEND_URL,
-    ]
-    for candidate in candidates:
-        base = extract_origin_url(candidate)
-        if base:
-            return base.rstrip("/")
-    return "http://localhost:3000"
-
-
 @app.post("/checkout")
 def create_checkout(payload: CheckoutRequest, http_request: Request):
     if not payload.items:
@@ -2219,8 +2208,6 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         promo_discount = promo_discount_amount(subtotal, promo, shipping_cost_cfg)
         if promo_discount <= 0:
             raise HTTPException(status_code=400, detail="Promo code does not apply")
-
-    checkout_origin = resolve_checkout_origin(http_request, payload)
 
     # Per-email usage check (e.g. WELCOME10 — one use per customer account)
     if promo and promo.get("one_per_email") and payload.customer_email:
@@ -2340,8 +2327,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 "promo_code": str(promo.get("code")) if promo else "",
                 **({"order_note": payload.comment[:500]} if payload.comment else {}),
             },
-            success_url=f"{checkout_origin}/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{checkout_origin}/cart",
+            success_url=f"{FRONTEND_URL.rstrip('/')}/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{FRONTEND_URL.rstrip('/')}/cart",
         )
         if payload.quick:
             stripe_session_params["shipping_address_collection"] = {
@@ -2920,7 +2907,7 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
             </p>
             <p style="margin:8px 0 0;font-size:11px;color:#c8c8c0;">
               Don't want to hear from us?
-              <a href="{site_url}/unsubscribe?email={email}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+              <a href="{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
             </p>
           </td>
         </tr>
@@ -2929,7 +2916,7 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest):
   </table>
 </body>
 </html>"""
-            text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products\n\n---\nTo unsubscribe: {site_url}/unsubscribe?email={email}"
+            text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products\n\n---\nTo unsubscribe: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
             send_email(email, "Welcome — here's your discount code", html, text)
 
     return {"ok": True, "already_subscribed": False}
@@ -3335,8 +3322,11 @@ def get_subscriber_status(email: str):
 @app.post("/email-subscribers/unsubscribe")
 def unsubscribe_email(payload: dict):
     email = normalize_email(str(payload.get("email") or ""))
+    token = str(payload.get("token") or "")
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
+    if not token or not hmac.compare_digest(make_unsub_token(email), token):
+        raise HTTPException(status_code=403, detail="Invalid unsubscribe token")
     supabase.table("email_subscribers").update({"is_active": False}).eq("email", email).execute()
     return {"ok": True}
 
@@ -3355,10 +3345,11 @@ class UserProfileUpdate(BaseModel):
 
 
 @app.get("/user-profile")
-def get_user_profile(email: str):
+def get_user_profile(email: str, request: Request):
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
+    verify_user_token(email, request)
     result = (
         supabase.table("user_profiles")
         .select("*")
@@ -3372,10 +3363,11 @@ def get_user_profile(email: str):
 
 
 @app.put("/user-profile")
-def update_user_profile(payload: UserProfileUpdate):
+def update_user_profile(payload: UserProfileUpdate, request: Request):
     email = normalize_email(payload.email)
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
+    verify_user_token(email, request)
     data = {k: v for k, v in payload.dict().items() if k != "email" and v is not None}
     data["updated_at"] = now_iso()
     result = (
@@ -3565,7 +3557,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
 
     total_line = f"<p style='margin:12px 0 0;font-size:15px;font-weight:700;color:#0a0a0a;'>Total: €{total:.2f}</p>" if total else ""
     cart_url   = f"{site_url}/cart"
-    unsub_url  = f"{site_url}/unsubscribe?email={email}"
+    unsub_url  = f"{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -3764,7 +3756,7 @@ def _build_wishlist_email(
     products: list, site_url: str, badge: str = "",
 ) -> tuple[str, str]:
     rows_html = "".join(_wishlist_product_row_html(p, site_url, badge) for p in products[:5])
-    unsub_url = f"{site_url}/unsubscribe?email={email}"
+    unsub_url = f"{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
     wishlist_url = f"{site_url}/account?tab=wishlist"
 
     html = f"""<!DOCTYPE html>

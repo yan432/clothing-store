@@ -95,7 +95,7 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
               <input
                 type="email"
                 required
-                placeholder="your@email.com"
+                placeholder="sales@edmclothes.net"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 autoFocus

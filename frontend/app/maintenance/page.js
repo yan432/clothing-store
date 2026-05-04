@@ -1,6 +1,6 @@
 export const metadata = {
   title: 'Coming Soon — EDM Clothes',
-  robots: { index: false },
+  robots: { index: true, follow: true },
 }
 
 export default function MaintenancePage() {

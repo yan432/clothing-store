@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { getApiUrl, getAdminApiUrl } from '../lib/api'
+import { getApiUrl } from '../lib/api'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -194,7 +194,7 @@ export default function CheckoutPage() {
 
     if (user?.email) {
       // Fresh visit while logged in → always load from profile (ignore stale sessionStorage)
-      fetch(getAdminApiUrl('/user-profile') + '?email=' + encodeURIComponent(user.email))
+      fetch('/api/user-profile')
         .then(r => r.ok ? r.json() : null)
         .then(profile => {
           setForm(f => ({

@@ -78,7 +78,7 @@ function InfoSection({ user }) {
     async function load() {
       // 1. Try saved profile first
       try {
-        const r = await fetch(`${getApiUrl('/user-profile')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
+        const r = await fetch('/api/user-profile', { cache: 'no-store' })
         const d = await r.json()
         if (d?.first_name || d?.address) {
           const merged = { ...EMPTY_FORM, ...d }
@@ -118,10 +118,10 @@ function InfoSection({ user }) {
   async function save() {
     setSaving(true); setMsg(null)
     try {
-      const res = await fetch(getApiUrl('/user-profile'), {
+      const res = await fetch('/api/user-profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user.email, ...form }),
+        body: JSON.stringify(form),
       })
       if (!res.ok) throw new Error()
       setSnapshot({ ...form })
@@ -328,7 +328,7 @@ function NewsletterSection({ user }) {
   async function unsubscribe() {
     setLoading(true); setMsg(null)
     try {
-      const res = await fetch(getApiUrl('/email-subscribers/unsubscribe'), {
+      const res = await fetch('/api/unsubscribe', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: user.email }),
       })

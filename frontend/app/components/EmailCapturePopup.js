@@ -135,7 +135,7 @@ export default function EmailCapturePopup() {
             <input
               type="email"
               required
-              placeholder="your@email.com"
+              placeholder="sales@edmclothes.net"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ border: '1px solid #ddd', borderRadius: 10, padding: '10px 12px', fontSize: 14, minWidth: 0 }}
