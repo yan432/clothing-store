@@ -90,7 +90,7 @@ export default function ContactPage() {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>Email *</label>
-              <input type="email" value={form.email} onChange={set('email')} required placeholder="sales@edmclothes.net" style={input} />
+              <input type="email" value={form.email} onChange={set('email')} required placeholder="Your email" style={input} />
             </div>
           </div>
 

@@ -53,7 +53,7 @@ export default function UnsubscribeClient({ email: initialEmail }) {
             <input
               type="email"
               required
-              placeholder="sales@edmclothes.net"
+              placeholder="Your email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={{

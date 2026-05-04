@@ -114,7 +114,7 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
             <input
               type="email"
               required
-              placeholder="sales@edmclothes.net"
+              placeholder="Your email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={{
