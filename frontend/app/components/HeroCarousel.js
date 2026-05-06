@@ -2,23 +2,42 @@
 import { useEffect, useRef, useState } from 'react'
 
 export default function HeroCarousel({ slides, fullWidth = false }) {
-  const [idx, setIdx] = useState(0)
+  const total = slides?.length || 0
+  // idx is 1-based: 0 = clone of last, 1..total = real slides, total+1 = clone of first
+  const [idx, setIdx] = useState(1)
+  const [transitioning, setTransitioning] = useState(true)
   const [drag, setDrag] = useState(0)
   const [dragging, setDragging] = useState(false)
   const touchStartX = useRef(null)
   const autoRef = useRef(null)
 
-  const total = slides.length
+  const realIdx = idx === 0 ? total - 1 : idx === total + 1 ? 0 : idx - 1
 
   function go(next) {
-    setIdx((next + total) % total)
+    setTransitioning(true)
+    setIdx(next)
   }
 
-  // Auto-advance every 5s
+  function resetAuto() {
+    clearInterval(autoRef.current)
+    autoRef.current = setInterval(() => go(idx + 1), 5000)
+  }
+
   useEffect(() => {
     autoRef.current = setInterval(() => go(idx + 1), 5000)
     return () => clearInterval(autoRef.current)
   }, [idx])
+
+  function onTransitionEnd() {
+    // Silent jump after landing on a clone
+    if (idx === 0) {
+      setTransitioning(false)
+      setIdx(total)
+    } else if (idx === total + 1) {
+      setTransitioning(false)
+      setIdx(1)
+    }
+  }
 
   function onTouchStart(e) {
     touchStartX.current = e.touches[0].clientX
@@ -40,6 +59,48 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
 
   if (!slides || total === 0) return null
 
+  // Build extended list: [last, ...slides, first]
+  const extended = [slides[total - 1], ...slides, slides[0]]
+
+  function renderSlide(s, key) {
+    const inner = (
+      <div style={{
+        position: 'relative',
+        minHeight: 420,
+        maxHeight: '82vh',
+        background: '#1a1a18',
+        overflow: 'hidden',
+      }}>
+        <img
+          src={s.image}
+          alt={s.title}
+          draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center', display: 'block', aspectRatio: '21/9', minHeight: 420 }}
+        />
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
+          display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+          padding: '32px 36px',
+        }}>
+          {s.label && <p style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 8px' }}>{s.label}</p>}
+          {s.title && <h3 style={{ fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 600, color: '#fff', margin: s.link_label ? '0 0 16px' : 0, lineHeight: 1.15 }}>{s.title}</h3>}
+          {s.link_label && (
+            <span style={{
+              display: 'inline-block', alignSelf: 'flex-start',
+              border: '1.5px solid rgba(255,255,255,0.8)', borderRadius: 6,
+              padding: '8px 22px', fontSize: 11, fontWeight: 600,
+              letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff',
+            }}>{s.link_label}</span>
+          )}
+        </div>
+      </div>
+    )
+    return s.href
+      ? <a key={key} href={s.href} style={{ flex: '0 0 100%', display: 'block', textDecoration: 'none' }}>{inner}</a>
+      : <div key={key} style={{ flex: '0 0 100%' }}>{inner}</div>
+  }
+
   return (
     <div
       style={{ position: 'relative', width: '100%', overflow: 'hidden', userSelect: 'none', touchAction: 'pan-y' }}
@@ -49,57 +110,21 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
       onTouchCancel={onTouchEnd}
     >
       {/* Track */}
-      <div style={{
-        display: 'flex',
-        transform: `translateX(calc(${-idx * 100}% + ${drag}px))`,
-        transition: dragging ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
-        willChange: 'transform',
-      }}>
-        {slides.map((s, i) => {
-          const inner = (
-            <div style={{
-              position: 'relative',
-              minHeight: 420,
-              maxHeight: '82vh',
-              background: '#1a1a18',
-              overflow: 'hidden',
-            }}>
-              <img
-                src={s.image}
-                alt={s.title}
-                draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center', display: 'block', aspectRatio: '21/9', minHeight: 420 }}
-              />
-              {/* Gradient + caption */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
-                display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-                padding: '32px 36px',
-              }}>
-                {s.label && <p style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 8px' }}>{s.label}</p>}
-                {s.title && <h3 style={{ fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 600, color: '#fff', margin: s.link_label ? '0 0 16px' : 0, lineHeight: 1.15 }}>{s.title}</h3>}
-                {s.link_label && (
-                  <span style={{
-                    display: 'inline-block', alignSelf: 'flex-start',
-                    border: '1.5px solid rgba(255,255,255,0.8)', borderRadius: 6,
-                    padding: '8px 22px', fontSize: 11, fontWeight: 600,
-                    letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff',
-                  }}>{s.link_label}</span>
-                )}
-              </div>
-            </div>
-          )
-          return s.href
-            ? <a key={i} href={s.href} style={{ flex: '0 0 100%', display: 'block', textDecoration: 'none' }}>{inner}</a>
-            : <div key={i} style={{ flex: '0 0 100%' }}>{inner}</div>
-        })}
+      <div
+        onTransitionEnd={onTransitionEnd}
+        style={{
+          display: 'flex',
+          transform: `translateX(calc(${-idx * 100}% + ${drag}px))`,
+          transition: (dragging || !transitioning) ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
+          willChange: 'transform',
+        }}>
+        {extended.map((s, i) => renderSlide(s, i))}
       </div>
 
       {/* Arrow buttons */}
       {total > 1 && (
         <>
-          <button onClick={() => { clearInterval(autoRef.current); go(idx - 1) }} aria-label="Previous"
+          <button onClick={() => { resetAuto(); go(idx - 1) }} aria-label="Previous"
             style={{
               position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
               width: 40, height: 40, borderRadius: '50%',
@@ -107,7 +132,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
               fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}>‹</button>
-          <button onClick={() => { clearInterval(autoRef.current); go(idx + 1) }} aria-label="Next"
+          <button onClick={() => { resetAuto(); go(idx + 1) }} aria-label="Next"
             style={{
               position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
               width: 40, height: 40, borderRadius: '50%',
@@ -122,11 +147,11 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
       {total > 1 && (
         <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
           {slides.map((_, i) => (
-            <button key={i} onClick={() => { clearInterval(autoRef.current); setIdx(i) }}
+            <button key={i} onClick={() => { resetAuto(); setTransitioning(true); setIdx(i + 1) }}
               aria-label={`Slide ${i + 1}`}
               style={{
-                width: i === idx ? 20 : 6, height: 6, borderRadius: 3,
-                background: i === idx ? '#fff' : 'rgba(255,255,255,0.45)',
+                width: i === realIdx ? 20 : 6, height: 6, borderRadius: 3,
+                background: i === realIdx ? '#fff' : 'rgba(255,255,255,0.45)',
                 border: 'none', cursor: 'pointer', padding: 0,
                 transition: 'all 300ms ease',
               }} />
