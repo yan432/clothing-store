@@ -1,4 +1,5 @@
 from datetime import datetime, timezone, timedelta
+import bleach
 import hashlib
 import hmac
 import html as _html
@@ -75,6 +76,37 @@ def require_admin(request: Request):
 def _hmac_hex(message: str) -> str:
     return hmac.new(ADMIN_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()
 
+# ── Admin-supplied HTML sanitization ─────────────────────────────────────────
+# Used for FAQ and page bodies (shipping/returns) which an admin edits and which
+# are rendered server-side via dangerouslySetInnerHTML. A compromised admin
+# session could otherwise inject arbitrary script tags executed for every visitor.
+_ALLOWED_TAGS = {
+    'p', 'br', 'strong', 'em', 'b', 'i', 'u',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'ul', 'ol', 'li',
+    'a', 'span', 'div',
+    'details', 'summary',
+    'blockquote', 'hr',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+}
+_ALLOWED_ATTRS = {
+    '*': ['class'],
+    'a': ['href', 'target', 'rel', 'class'],
+}
+_ALLOWED_PROTOCOLS = {'http', 'https', 'mailto'}
+
+def sanitize_admin_html(html_str: str) -> str:
+    """Strip tags/attrs/protocols not in allowlist. Strips javascript:, on*= handlers, etc."""
+    if not html_str:
+        return ""
+    return bleach.clean(
+        str(html_str),
+        tags=_ALLOWED_TAGS,
+        attributes=_ALLOWED_ATTRS,
+        protocols=_ALLOWED_PROTOCOLS,
+        strip=True,
+    )
+
 def make_unsub_token(email: str) -> str:
     return _hmac_hex(f"unsub:{email}")
 
@@ -85,6 +117,40 @@ def verify_user_token(email: str, request: Request) -> None:
     token = request.headers.get("X-User-Token", "")
     if not hmac.compare_digest(make_user_token(email), token):
         raise HTTPException(status_code=403, detail="Forbidden")
+
+
+# ── Rate limiting (in-memory, per-IP) ─────────────────────────────────────────
+# Single-instance only — sufficient for Render free/starter tier deployments.
+# For multi-instance scaling, switch to Redis-backed limiter.
+from collections import defaultdict
+from time import time as _epoch_now
+from threading import Lock as _Lock
+
+_rl_store: dict[str, list[float]] = defaultdict(list)
+_rl_lock = _Lock()
+
+def _client_ip(request: Request) -> str:
+    """Render and most reverse proxies set X-Forwarded-For with the real client IP first."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+def rate_limit(request: Request, key_prefix: str, max_requests: int, window_seconds: int) -> None:
+    """Raise HTTPException 429 if the caller exceeded max_requests in the window."""
+    ip = _client_ip(request)
+    bucket = f"{key_prefix}:{ip}"
+    now = _epoch_now()
+    cutoff = now - window_seconds
+    with _rl_lock:
+        hits = _rl_store[bucket]
+        # Drop expired
+        while hits and hits[0] < cutoff:
+            hits.pop(0)
+        if len(hits) >= max_requests:
+            raise HTTPException(status_code=429, detail="Too many requests. Please try again later.")
+        hits.append(now)
+
 
 # Zoho SMTP (приоритет над Resend если настроен)
 ZOHO_SMTP_HOST = os.getenv("ZOHO_SMTP_HOST", "smtp.zoho.eu")
@@ -2547,11 +2613,13 @@ class OrderTrackRequest(BaseModel):
     email: str
 
 @app.post("/orders/track")
-def track_orders(payload: OrderTrackRequest):
+def track_orders(payload: OrderTrackRequest, request: Request):
     """POST so email stays out of URL / server logs / analytics."""
+    rate_limit(request, "orders-track", max_requests=30, window_seconds=600)
     normalized = str(payload.email or "").strip().lower()
     if not normalized:
         raise HTTPException(status_code=400, detail="email is required")
+    verify_user_token(normalized, request)
     data = (
         supabase.table("orders")
         .select("*")
@@ -2567,11 +2635,12 @@ def track_orders(payload: OrderTrackRequest):
 
 
 @app.post("/orders/track/{order_id}")
-def track_order_details(order_id: int, payload: OrderTrackRequest):
+def track_order_details(order_id: int, payload: OrderTrackRequest, request: Request):
     """POST so email stays out of URL / server logs / analytics."""
     normalized = str(payload.email or "").strip().lower()
     if not normalized:
         raise HTTPException(status_code=400, detail="email is required")
+    verify_user_token(normalized, request)
     data = (
         supabase.table("orders")
         .select("*")
@@ -2804,12 +2873,12 @@ def resend_order_confirmation(order_id: int):
 
 
 @app.post("/orders/{order_id}/fit-feedback")
-def order_fit_feedback(order_id: int, payload: dict = Body(...)):
+def order_fit_feedback(order_id: int, request: Request, payload: dict = Body(...)):
     """
     Let a customer submit per-item size fit feedback for a delivered order.
-    fit must be one of: perfect | too_small | too_big
-    item_index (int) identifies which item in items_json is being rated.
-    Request must include the order's customer email for ownership check.
+    Email comes from authenticated session (X-User-Token HMAC), not the body —
+    this prevents the previous IDOR where an attacker who knew an order's
+    email (e.g. via /orders/track) could mutate any order's metadata.
     """
     fit        = str(payload.get("fit") or "").strip()
     email      = normalize_email(str(payload.get("email") or ""))
@@ -2821,6 +2890,7 @@ def order_fit_feedback(order_id: int, payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="email required")
     if item_index is None:
         raise HTTPException(status_code=400, detail="item_index required")
+    verify_user_token(email, request)
 
     result = supabase.table("orders").select("id,status,email,metadata_json").eq("id", order_id).limit(1).execute()
     if not result.data:
@@ -2857,7 +2927,10 @@ def notify_order_shipped(order_id: int):
 
 
 @app.post("/email-subscribers/capture")
-def capture_email_subscriber(payload: SubscriberCaptureRequest):
+def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request):
+    # Cap at 5 captures/IP/hour — prevents WELCOME promo-code minting and
+    # email-bombing victims with branded "welcome" messages.
+    rate_limit(request, "subscribe", max_requests=5, window_seconds=3600)
     email = normalize_email(payload.email)
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
@@ -3062,7 +3135,10 @@ class ContactMessagePayload(BaseModel):
     message: str
 
 @app.post("/contact")
-def send_contact_message(payload: ContactMessagePayload, background_tasks: BackgroundTasks):
+def send_contact_message(payload: ContactMessagePayload, background_tasks: BackgroundTasks, request: Request):
+    # Cap at 5 contact submissions/IP/hour — prevents email-bombing the admin
+    # inbox and spamming arbitrary victims via the confirmation reply.
+    rate_limit(request, "contact", max_requests=5, window_seconds=3600)
     name    = str(payload.name or "").strip()
     email   = normalize_email(payload.email)
     subject = str(payload.subject or "").strip() or "Contact form message"
@@ -3258,10 +3334,13 @@ def _get_faq_html() -> str:
 
 @app.get("/faq")
 def get_faq():
-    return {"html": _get_faq_html()}
+    # Sanitize on read too — protects against existing unsafe HTML written before
+    # the write-time sanitization was added, plus belt-and-braces defense.
+    return {"html": sanitize_admin_html(_get_faq_html())}
 
 @app.get("/faq/admin", dependencies=[Depends(require_admin)])
 def get_faq_admin():
+    # Admin sees raw HTML to edit it (already sanitized at write, but show as-is).
     return {"html": _get_faq_html()}
 
 @app.put("/faq/admin", dependencies=[Depends(require_admin)])
@@ -3274,6 +3353,9 @@ async def update_faq(request: Request):
         html = body
     else:
         html = ""
+    # Sanitize at write time — defends against XSS via compromised admin session
+    # AND eliminates the FaqAccordion SSR-before-DOMPurify rendering window.
+    html = sanitize_admin_html(html)
     supabase.table("settings").upsert(
         {"key": "faq_html", "value": html, "updated_at": now_iso()},
         on_conflict="key"
@@ -3339,10 +3421,11 @@ def export_email_subscribers_csv():
 # ── Newsletter subscription status / toggle ──────────────────────────────────
 
 @app.get("/email-subscribers/status")
-def get_subscriber_status(email: str):
+def get_subscriber_status(email: str, request: Request):
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="Email required")
+    verify_user_token(email, request)
     result = (
         supabase.table("email_subscribers")
         .select("is_active")
@@ -3720,17 +3803,18 @@ def _send_and_mark_cart(entry: dict, site_url: str, now: str) -> None:
 # otherwise FastAPI matches them as product_id and returns 422.
 
 @app.get("/wishlist")
-def get_wishlist(email: str = Query(...)):
+def get_wishlist(request: Request, email: str = Query(...)):
     """Return all wishlisted product_ids for an email."""
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
+    verify_user_token(email, request)
     rows = supabase.table("wishlists").select("product_id").eq("email", email).execute().data or []
     return [r["product_id"] for r in rows]
 
 
 @app.get("/wishlist/products")
-def get_wishlist_products(email: str = Query(...)):
+def get_wishlist_products(request: Request, email: str = Query(...)):
     """Return full product details for all wishlisted items.
 
     Uses image_urls from the DB (kept in sync by upload/reorder endpoints) instead
@@ -3740,6 +3824,7 @@ def get_wishlist_products(email: str = Query(...)):
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
+    verify_user_token(email, request)
     rows = supabase.table("wishlists").select("product_id").eq("email", email).execute().data or []
     if not rows:
         return []
@@ -3999,11 +4084,12 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
 
 # Dynamic wishlist routes — registered LAST so static paths above take priority
 @app.post("/wishlist/{product_id}")
-def add_to_wishlist(product_id: int, email: str = Query(...)):
+def add_to_wishlist(product_id: int, request: Request, email: str = Query(...)):
     """Add a product to the wishlist. Idempotent (upsert)."""
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
+    verify_user_token(email, request)
     supabase.table("wishlists").upsert(
         {"email": email, "product_id": product_id},
         on_conflict="email,product_id",
@@ -4012,11 +4098,12 @@ def add_to_wishlist(product_id: int, email: str = Query(...)):
 
 
 @app.delete("/wishlist/{product_id}")
-def remove_from_wishlist(product_id: int, email: str = Query(...)):
+def remove_from_wishlist(product_id: int, request: Request, email: str = Query(...)):
     """Remove a product from the wishlist."""
     email = normalize_email(email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
+    verify_user_token(email, request)
     supabase.table("wishlists").delete().eq("email", email).eq("product_id", product_id).execute()
     return {"ok": True}
 

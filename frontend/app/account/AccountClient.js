@@ -88,7 +88,7 @@ function InfoSection({ user }) {
       } catch {}
       // 2. Pre-fill from most recent order if profile is empty
       try {
-        const r = await fetch(getApiUrl('/orders/track'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }), cache: 'no-store' })
+        const r = await fetch('/api/user/orders/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}), cache: 'no-store' })
         if (r.ok) {
           const orders = await r.json()
           if (orders.length > 0) {
@@ -304,7 +304,7 @@ function NewsletterSection({ user }) {
 
   useEffect(() => {
     if (!user?.email) return
-    fetch(`${getApiUrl('/email-subscribers/status')}?email=${encodeURIComponent(user.email)}`, { cache: 'no-store' })
+    fetch('/api/user/email-subscribers/status', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => setSubscribed(d.subscribed))
       .catch(() => setSubscribed(false))
@@ -401,7 +401,7 @@ function OrdersSection({ user }) {
 
   useEffect(() => {
     if (!user?.email) return
-    fetch(getApiUrl('/orders/track'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }) })
+    fetch('/api/user/orders/track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
       .then(r => { if (!r.ok) throw new Error('Failed'); return r.json() })
       .then(d => { setOrders(Array.isArray(d) ? d : []); setLoading(false) })
       .catch(e => { setErr(e.message); setLoading(false) })

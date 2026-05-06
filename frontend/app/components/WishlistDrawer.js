@@ -136,7 +136,7 @@ export default function WishlistDrawer() {
   useEffect(() => {
     if (!drawerOpen || !user?.email) return
     setLoading(true)
-    fetch(getApiUrl(`/wishlist/products?email=${encodeURIComponent(user.email)}`))
+    fetch('/api/user/wishlist/products')
       .then(r => r.ok ? r.json() : [])
       .then(data => setProducts(Array.isArray(data) ? data : []))
       .catch(() => setProducts([]))

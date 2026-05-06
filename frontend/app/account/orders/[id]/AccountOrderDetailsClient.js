@@ -19,10 +19,10 @@ function ItemFitFeedback({ orderId, itemIndex, userEmail, existing }) {
   async function submit(value) {
     setSaving(true)
     try {
-      const res = await fetch(getApiUrl(`/orders/${orderId}/fit-feedback`), {
+      const res = await fetch(`/api/user/orders/${orderId}/fit-feedback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fit: value, email: userEmail, item_index: itemIndex }),
+        body: JSON.stringify({ fit: value, item_index: itemIndex }),
       })
       if (res.ok) setFit(value)
     } finally { setSaving(false) }
@@ -89,8 +89,8 @@ export default function AccountOrderDetailsClient({ orderId }) {
         setLoading(true)
         setError('')
         const res = await fetch(
-          getApiUrl(`/orders/track/${orderId}`),
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user.email }), cache: 'no-store' }
+          `/api/user/orders/track/${orderId}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}), cache: 'no-store' }
         )
         if (!res.ok) throw new Error('Order not found')
         const data = await res.json()

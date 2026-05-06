@@ -197,7 +197,7 @@ export default function WishlistPage() {
     if (!user?.email) { setLoading(false); return }
     let cancelled = false
     setLoading(true)
-    fetch(getApiUrl(`/wishlist/products?email=${encodeURIComponent(user.email)}`))
+    fetch('/api/user/wishlist/products')
       .then(r => r.ok ? r.json() : [])
       .then(async data => {
         if (cancelled) return

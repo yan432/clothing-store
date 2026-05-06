@@ -12,7 +12,7 @@ export function WishlistProvider({ children }) {
   const load = useCallback(async () => {
     if (!user?.email) return
     try {
-      const res = await fetch(getApiUrl(`/wishlist?email=${encodeURIComponent(user.email)}`))
+      const res = await fetch('/api/user/wishlist')
       if (!res.ok) return
       const data = await res.json()
       setIds(new Set(data))
@@ -42,7 +42,7 @@ export function WishlistProvider({ children }) {
 
     try {
       const res = await fetch(
-        getApiUrl(`/wishlist/${numId}?email=${encodeURIComponent(user.email)}`),
+        `/api/user/wishlist/${numId}`,
         { method: wasIn ? 'DELETE' : 'POST' }
       )
       if (!res.ok) throw new Error()
