@@ -2978,8 +2978,9 @@ def update_settings(payload: dict):
 
 class HomepageSlide(BaseModel):
     image_url: str
-    href: str = '/products'
+    href: Optional[str] = None
     title: Optional[str] = None
+    link_label: Optional[str] = None
     sort_order: int = 0
     is_active: bool = True
 
@@ -2987,6 +2988,7 @@ class HomepageSlideUpdate(BaseModel):
     image_url: Optional[str] = None
     href: Optional[str] = None
     title: Optional[str] = None
+    link_label: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
 
@@ -3008,8 +3010,9 @@ def get_homepage_slides_admin():
 @app.post("/homepage-slides/upload", dependencies=[Depends(require_admin)])
 async def upload_and_create_homepage_slide(
     file: UploadFile = File(...),
-    href: str = Form("/products"),
+    href: str = Form(""),
     title: str = Form(""),
+    link_label: str = Form(""),
 ):
     """Upload a photo and create a slide in one shot."""
     ext = _safe_image_ext(file.filename or "file.jpg")
@@ -3019,7 +3022,7 @@ async def upload_and_create_homepage_slide(
     url = supabase.storage.from_("product-images").get_public_url(path)
     existing = supabase.table("homepage_slides").select("sort_order").order("sort_order", desc=True).limit(1).execute()
     next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
-    slide_data = {"image_url": url, "href": href or "/products", "title": title or None, "sort_order": next_order, "is_active": True}
+    slide_data = {"image_url": url, "href": href or None, "title": title or None, "link_label": link_label or None, "sort_order": next_order, "is_active": True}
     data = supabase.table("homepage_slides").insert(slide_data).execute()
     if not data.data:
         raise HTTPException(status_code=500, detail="Failed to create slide")

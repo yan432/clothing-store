@@ -55,8 +55,8 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
         transition: dragging ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
         willChange: 'transform',
       }}>
-        {slides.map((s, i) => (
-          <a key={i} href={s.href} style={{ flex: '0 0 100%', display: 'block', textDecoration: 'none' }}>
+        {slides.map((s, i) => {
+          const inner = (
             <div style={{
               position: 'relative',
               minHeight: 420,
@@ -78,17 +78,22 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
                 padding: '32px 36px',
               }}>
                 {s.label && <p style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 8px' }}>{s.label}</p>}
-                <h3 style={{ fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 600, color: '#fff', margin: '0 0 16px', lineHeight: 1.15 }}>{s.title}</h3>
-                <span style={{
-                  display: 'inline-block', alignSelf: 'flex-start',
-                  border: '1.5px solid rgba(255,255,255,0.8)', borderRadius: 6,
-                  padding: '8px 22px', fontSize: 11, fontWeight: 600,
-                  letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff',
-                }}>Shop now</span>
+                {s.title && <h3 style={{ fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 600, color: '#fff', margin: s.link_label ? '0 0 16px' : 0, lineHeight: 1.15 }}>{s.title}</h3>}
+                {s.link_label && (
+                  <span style={{
+                    display: 'inline-block', alignSelf: 'flex-start',
+                    border: '1.5px solid rgba(255,255,255,0.8)', borderRadius: 6,
+                    padding: '8px 22px', fontSize: 11, fontWeight: 600,
+                    letterSpacing: '0.14em', textTransform: 'uppercase', color: '#fff',
+                  }}>{s.link_label}</span>
+                )}
               </div>
             </div>
-          </a>
-        ))}
+          )
+          return s.href
+            ? <a key={i} href={s.href} style={{ flex: '0 0 100%', display: 'block', textDecoration: 'none' }}>{inner}</a>
+            : <div key={i} style={{ flex: '0 0 100%' }}>{inner}</div>
+        })}
       </div>
 
       {/* Arrow buttons */}

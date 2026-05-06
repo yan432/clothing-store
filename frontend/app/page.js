@@ -150,7 +150,7 @@ export default async function Home({ searchParams }) {
       {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
         <section style={{ marginTop: 72 }}>
-          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, label: '' }))} fullWidth />
+          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, link_label: s.link_label, label: '' }))} fullWidth />
         </section>
       )}
 

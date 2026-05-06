@@ -9,10 +9,11 @@ export default function HomepageSlidesClient() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [editId, setEditId] = useState(null) // slide being edited
-  const [editForm, setEditForm] = useState({ href: '', title: '' })
+  const [editForm, setEditForm] = useState({ href: '', title: '', link_label: '' })
   const fileRef = useRef(null)
   const newHrefRef = useRef(null)
   const newTitleRef = useRef(null)
+  const newLinkLabelRef = useRef(null)
 
   // Drop timer state
   const [timerEnabled, setTimerEnabled] = useState(false)
@@ -129,17 +130,20 @@ export default function HomepageSlidesClient() {
     setError('')
     try {
       const file = await compressImage(raw)
-      const href = newHrefRef.current?.value.trim() || '/products'
+      const href = newHrefRef.current?.value.trim() || ''
       const title = newTitleRef.current?.value.trim() || ''
+      const link_label = newLinkLabelRef.current?.value.trim() || ''
       const fd = new FormData()
       fd.append('file', file)
       fd.append('href', href)
       fd.append('title', title)
+      fd.append('link_label', link_label)
       const res = await fetch(getApiUrl('/homepage-slides/upload'), { method: 'POST', body: fd })
       if (!res.ok) throw new Error(await res.text())
       flash('Slide added')
-      if (newHrefRef.current) newHrefRef.current.value = '/products'
+      if (newHrefRef.current) newHrefRef.current.value = ''
       if (newTitleRef.current) newTitleRef.current.value = ''
+      if (newLinkLabelRef.current) newLinkLabelRef.current.value = ''
       e.target.value = ''
       await load()
     } catch (err) { flash(err.message || 'Upload failed', true) }
@@ -171,7 +175,11 @@ export default function HomepageSlidesClient() {
       const res = await fetch(getApiUrl('/homepage-slides/' + id), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ href: editForm.href, title: editForm.title || null }),
+        body: JSON.stringify({
+          href: editForm.href || null,
+          title: editForm.title || null,
+          link_label: editForm.link_label || null,
+        }),
       })
       if (!res.ok) throw new Error()
       flash('Saved')
@@ -278,12 +286,15 @@ export default function HomepageSlidesClient() {
       {/* Upload new slide */}
       <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 24 }}>
         <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 14px' }}>Add slide</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-          <label style={{ fontSize: 12, color: '#555' }}>Link (where it opens)
-            <input ref={newHrefRef} defaultValue="/products" style={{ ...inp, marginTop: 4 }} placeholder="/products" />
-          </label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
           <label style={{ fontSize: 12, color: '#555' }}>Caption (optional)
             <input ref={newTitleRef} style={{ ...inp, marginTop: 4 }} placeholder="New Collection" />
+          </label>
+          <label style={{ fontSize: 12, color: '#555' }}>Link URL (optional)
+            <input ref={newHrefRef} style={{ ...inp, marginTop: 4 }} placeholder="/products" />
+          </label>
+          <label style={{ fontSize: 12, color: '#555' }}>Button text (optional)
+            <input ref={newLinkLabelRef} style={{ ...inp, marginTop: 4 }} placeholder="Shop now" />
           </label>
         </div>
         <label style={{
@@ -318,10 +329,12 @@ export default function HomepageSlidesClient() {
               <div>
                 {editId === slide.id ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <input value={editForm.href} onChange={e => setEditForm(f => ({ ...f, href: e.target.value }))}
-                      style={inp} placeholder="Link, e.g. /products" />
                     <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
                       style={inp} placeholder="Caption (optional)" />
+                    <input value={editForm.href} onChange={e => setEditForm(f => ({ ...f, href: e.target.value }))}
+                      style={inp} placeholder="Link URL (optional), e.g. /products" />
+                    <input value={editForm.link_label} onChange={e => setEditForm(f => ({ ...f, link_label: e.target.value }))}
+                      style={inp} placeholder="Button text (optional), e.g. Shop now" />
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button style={btn('#111')} onClick={() => handleSaveEdit(slide.id)}>Save</button>
                       <button style={btn('#f5f5f3', '#444')} onClick={() => setEditId(null)}>Cancel</button>
@@ -332,7 +345,12 @@ export default function HomepageSlidesClient() {
                     <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 3px', color: '#111' }}>
                       {slide.title || <span style={{ color: '#aaa' }}>No caption</span>}
                     </p>
-                    <p style={{ fontSize: 12, color: '#888', margin: 0, fontFamily: 'monospace' }}>{slide.href}</p>
+                    <p style={{ fontSize: 12, color: '#888', margin: '0 0 2px', fontFamily: 'monospace' }}>
+                      {slide.href || <span style={{ color: '#ccc' }}>No link</span>}
+                    </p>
+                    {slide.link_label && (
+                      <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>Button: "{slide.link_label}"</p>
+                    )}
                   </>
                 )}
               </div>
@@ -345,7 +363,7 @@ export default function HomepageSlidesClient() {
                   <button title="Move down" onClick={() => handleReorder(idx, 1)} disabled={idx === slides.length - 1}
                     style={{ ...btn('#f5f5f3', '#444'), padding: '5px 10px', opacity: idx === slides.length - 1 ? 0.3 : 1 }}>↓</button>
                 </div>
-                <button onClick={() => { setEditId(slide.id); setEditForm({ href: slide.href, title: slide.title || '' }) }}
+                <button onClick={() => { setEditId(slide.id); setEditForm({ href: slide.href || '', title: slide.title || '', link_label: slide.link_label || '' }) }}
                   style={btn('#f5f5f3', '#444')}>Edit</button>
                 <button onClick={() => handleToggle(slide)}
                   style={btn(slide.is_active ? '#fef9e7' : '#ecfdf3', slide.is_active ? '#92400e' : '#166534')}>
