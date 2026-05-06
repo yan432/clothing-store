@@ -68,7 +68,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
                 src={s.image}
                 alt={s.title}
                 draggable={false}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block', aspectRatio: '21/9', minHeight: 420 }}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center', display: 'block', aspectRatio: '21/9', minHeight: 420 }}
               />
               {/* Gradient + caption */}
               <div style={{
