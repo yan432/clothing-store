@@ -1,40 +1,50 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 export default function HeroCarousel({ slides, fullWidth = false }) {
   const total = slides?.length || 0
-  // idx is 1-based: 0 = clone of last, 1..total = real slides, total+1 = clone of first
+  // 1-based: 0 = clone of last, 1..total = real, total+1 = clone of first
   const [idx, setIdx] = useState(1)
-  const [transitioning, setTransitioning] = useState(true)
   const [drag, setDrag] = useState(0)
   const [dragging, setDragging] = useState(false)
   const touchStartX = useRef(null)
+  const trackRef = useRef(null)
   const autoRef = useRef(null)
+  const silentJump = useRef(false)
 
   const realIdx = idx === 0 ? total - 1 : idx === total + 1 ? 0 : idx - 1
 
-  function go(next) {
-    setTransitioning(true)
-    setIdx(next)
-  }
-
-  function resetAuto() {
+  function startAuto() {
     clearInterval(autoRef.current)
-    autoRef.current = setInterval(() => go(idx + 1), 5000)
+    autoRef.current = setInterval(() => setIdx(i => i + 1), 5000)
   }
 
   useEffect(() => {
-    autoRef.current = setInterval(() => go(idx + 1), 5000)
+    startAuto()
     return () => clearInterval(autoRef.current)
+  }, [])
+
+  // Runs synchronously after DOM update, before browser paint —
+  // disables transition so the position reset is invisible
+  useLayoutEffect(() => {
+    const el = trackRef.current
+    if (!el || !silentJump.current) return
+    silentJump.current = false
+    el.style.transition = 'none'
+    el.getBoundingClientRect() // force reflow so the new transform is committed
+    requestAnimationFrame(() => {
+      if (trackRef.current) trackRef.current.style.transition = ''
+    })
   }, [idx])
 
-  function onTransitionEnd() {
-    // Silent jump after landing on a clone
+  function onTransitionEnd(e) {
+    // Ignore events bubbling from child elements or non-transform properties
+    if (e.target !== trackRef.current || e.propertyName !== 'transform') return
     if (idx === 0) {
-      setTransitioning(false)
+      silentJump.current = true
       setIdx(total)
     } else if (idx === total + 1) {
-      setTransitioning(false)
+      silentJump.current = true
       setIdx(1)
     }
   }
@@ -54,12 +64,14 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
     touchStartX.current = null
     setDragging(false)
     setDrag(0)
-    if (Math.abs(diff) > 48) go(idx + (diff > 0 ? -1 : 1))
+    if (Math.abs(diff) > 48) {
+      setIdx(i => i + (diff > 0 ? -1 : 1))
+      startAuto()
+    }
   }
 
   if (!slides || total === 0) return null
 
-  // Build extended list: [last, ...slides, first]
   const extended = [slides[total - 1], ...slides, slides[0]]
 
   function renderSlide(s, key) {
@@ -109,22 +121,22 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      {/* Track */}
       <div
+        ref={trackRef}
         onTransitionEnd={onTransitionEnd}
         style={{
           display: 'flex',
           transform: `translateX(calc(${-idx * 100}% + ${drag}px))`,
-          transition: (dragging || !transitioning) ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
+          transition: dragging ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
           willChange: 'transform',
-        }}>
+        }}
+      >
         {extended.map((s, i) => renderSlide(s, i))}
       </div>
 
-      {/* Arrow buttons */}
       {total > 1 && (
         <>
-          <button onClick={() => { resetAuto(); go(idx - 1) }} aria-label="Previous"
+          <button onClick={() => { setIdx(i => i - 1); startAuto() }} aria-label="Previous"
             style={{
               position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
               width: 40, height: 40, borderRadius: '50%',
@@ -132,7 +144,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
               fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             }}>‹</button>
-          <button onClick={() => { resetAuto(); go(idx + 1) }} aria-label="Next"
+          <button onClick={() => { setIdx(i => i + 1); startAuto() }} aria-label="Next"
             style={{
               position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
               width: 40, height: 40, borderRadius: '50%',
@@ -143,11 +155,10 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
         </>
       )}
 
-      {/* Dots */}
       {total > 1 && (
         <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6 }}>
           {slides.map((_, i) => (
-            <button key={i} onClick={() => { resetAuto(); setTransitioning(true); setIdx(i + 1) }}
+            <button key={i} onClick={() => { setIdx(i + 1); startAuto() }}
               aria-label={`Slide ${i + 1}`}
               style={{
                 width: i === realIdx ? 20 : 6, height: 6, borderRadius: 3,
