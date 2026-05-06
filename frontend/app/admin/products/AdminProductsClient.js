@@ -506,7 +506,7 @@ export default function AdminProductsClient() {
                         {p.is_hidden ? 'Hidden' : 'Visible'}
                       </span>
                     </td>
-                    <td style={{padding:'12px 14px',fontSize:13}}>${Number(p.price || 0).toFixed(2)}</td>
+                    <td style={{padding:'12px 14px',fontSize:13}}>€{Number(p.price || 0).toFixed(2)}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.available_stock ?? p.stock ?? 0}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.reserved_stock ?? 0}</td>
                     <td style={{padding:'12px 14px'}}>

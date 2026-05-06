@@ -13,7 +13,7 @@ function fmtDate(value) {
 }
 
 function fmtMoney(value, currency = 'EUR') {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('de-DE', {
     style: 'currency',
     currency: (currency || 'eur').toUpperCase(),
   }).format(Number(value || 0))

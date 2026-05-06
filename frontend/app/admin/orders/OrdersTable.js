@@ -14,11 +14,11 @@ function formatDate(value) {
   return `${month} ${day}, ${year}, ${hours}:${minutes} UTC`
 }
 
-function formatMoney(value, currency = 'USD') {
+function formatMoney(value, currency = 'EUR') {
   const amount = Number(value || 0)
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('de-DE', {
     style: 'currency',
-    currency: (currency || 'usd').toUpperCase(),
+    currency: (currency || 'eur').toUpperCase(),
   }).format(amount)
 }
 
