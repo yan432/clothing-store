@@ -95,6 +95,16 @@ _ALLOWED_ATTRS = {
 }
 _ALLOWED_PROTOCOLS = {'http', 'https', 'mailto'}
 
+def _mask_email(email: Any) -> str:
+    """Mask email for log lines: 'jo***@gmail.com'. Prevents PII leaks to log retention."""
+    s = str(email or "").strip()
+    if not s or "@" not in s:
+        return "***"
+    local, _, domain = s.partition("@")
+    if len(local) <= 2:
+        return f"{local[:1]}***@{domain}"
+    return f"{local[:2]}***@{domain}"
+
 def sanitize_admin_html(html_str: str) -> str:
     """Strip tags/attrs/protocols not in allowlist. Strips javascript:, on*= handlers, etc."""
     if not html_str:
@@ -518,7 +528,7 @@ def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name
         with smtplib.SMTP_SSL(ZOHO_SMTP_HOST, 465, timeout=8) as server:
             server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
             server.sendmail(ZOHO_SMTP_USER, to_email, msg.as_string())
-        print(f"Zoho SMTP SSL(465): sent to={to_email!r}")
+        print(f"Zoho SMTP SSL(465): sent to={_mask_email(to_email)}")
         return True
     except Exception as exc_ssl:
         print(f"Zoho SMTP SSL(465) failed: {exc_ssl} — trying STARTTLS({ZOHO_SMTP_PORT})")
@@ -530,7 +540,7 @@ def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name
             server.starttls()
             server.login(ZOHO_SMTP_USER, ZOHO_SMTP_PASSWORD)
             server.sendmail(ZOHO_SMTP_USER, to_email, msg.as_string())
-        print(f"Zoho SMTP STARTTLS({ZOHO_SMTP_PORT}): sent to={to_email!r}")
+        print(f"Zoho SMTP STARTTLS({ZOHO_SMTP_PORT}): sent to={_mask_email(to_email)}")
         return True
     except Exception as exc_tls:
         print(f"Zoho SMTP STARTTLS({ZOHO_SMTP_PORT}) failed: {exc_tls}")
@@ -565,11 +575,11 @@ def send_email(to_email: str, subject: str, html: str, text: str) -> None:
     """Отправляет через Zoho SMTP (приоритет) или Resend как fallback."""
     target = str(to_email or "").strip()
     if not target:
-        print(f"send_email: skipped — empty recipient (subject={subject!r})")
+        print("send_email: skipped — empty recipient")
         return
-    print(f"send_email: sending to={target!r} subject={subject!r}")
+    print(f"send_email: sending to={_mask_email(target)}")
     if send_email_zoho(target, subject, html, text):
-        print(f"send_email: sent via Zoho SMTP to={target!r}")
+        print(f"send_email: sent via Zoho SMTP to={_mask_email(target)}")
         return
     send_resend_email(target, subject, html, text)
 
@@ -3159,7 +3169,7 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
         or "sales@edmclothes.net"
     )
     site_url = get_setting("site_url", "https://edmclothes.net")
-    print(f"contact form: admin_email={admin_email!r} ORDER_ALERT_EMAIL={ORDER_ALERT_EMAIL!r} db_admin={_db_admin!r}")
+    # No PII in logs — recipient email omitted intentionally
 
     # HTML-escape all user-supplied fields before embedding in email
     e_name    = _html.escape(name)
@@ -3603,16 +3613,40 @@ def save_abandoned_cart(payload: AbandonedCartPayload):
     Called by the frontend when the user moves from /checkout → /confirm.
     Upserts a row per email — if the user goes back and changes the cart
     we get the latest snapshot, and the 2-hour countdown resets.
+
+    Endpoint is unauthenticated (used during guest checkout). To prevent
+    cart-poisoning attacks where an attacker injects phishing content into a
+    victim's recovery email, we DROP all client-supplied product metadata
+    (name, image_url, slug). Only the product id, size, and quantity are
+    accepted; the recovery email looks up name/image/slug from the products
+    table at send time.
     """
     email = normalize_email(payload.email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
 
+    safe_items = []
+    for raw in (payload.items or [])[:20]:  # cap stored items
+        if not isinstance(raw, dict):
+            continue
+        try:
+            pid = int(raw.get("id") or 0)
+        except (TypeError, ValueError):
+            continue
+        if pid <= 0:
+            continue
+        try:
+            qty = max(1, int(raw.get("quantity") or raw.get("qty") or 1))
+        except (TypeError, ValueError):
+            qty = 1
+        size = str(raw.get("size") or "")[:32]  # bound length
+        safe_items.append({"id": pid, "quantity": qty, "size": size})
+
     now = now_iso()
     supabase.table("abandoned_carts").upsert({
         "email":      email,
-        "first_name": (payload.first_name or "").strip() or None,
-        "items_json": payload.items,
+        "first_name": (payload.first_name or "").strip()[:64] or None,
+        "items_json": safe_items,
         "total_eur":  payload.total_eur,
         "status":     "pending",
         "updated_at": now,
@@ -3635,25 +3669,52 @@ def _mark_abandoned_cart_completed(email: str) -> None:
 
 
 def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
-    """Build and send the recovery email. Returns True on success."""
+    """Build and send the recovery email. Returns True on success.
+
+    Product name/image/slug/price are looked up FRESH from the products table
+    by id — never trusted from the stored cart snapshot. This prevents
+    phishing-by-proxy where an attacker poisons a victim's abandoned_carts
+    row with malicious content (see /abandoned-cart endpoint comment).
+    """
     email      = entry.get("email", "")
     first_name = _html.escape(entry.get("first_name") or "there")
-    items      = entry.get("items_json") or []
+    items      = (entry.get("items_json") or [])[:6]  # cap at 6 items
     total      = entry.get("total_eur")
 
     if not items or not email:
         return False
 
-    # Build item rows for the email
+    # Batch-fetch authoritative product data by id
+    item_ids = [int(it.get("id") or 0) for it in items if isinstance(it, dict)]
+    item_ids = [i for i in item_ids if i > 0]
+    db_products: dict[int, dict] = {}
+    if item_ids:
+        rows = supabase.table("products").select("id,name,price,slug,image_url,image_urls").in_("id", item_ids).execute().data or []
+        db_products = {int(r["id"]): r for r in rows}
+
+    # Build item rows for the email — DB is the source of truth
     item_rows_html = ""
-    for item in items[:6]:  # cap at 6 items to keep email short
-        name     = _html.escape(str(item.get("name") or ""))
-        price    = float(item.get("price") or 0)
-        qty      = int(item.get("quantity") or item.get("qty") or 1)
+    for item in items:
+        try:
+            pid = int(item.get("id") or 0)
+        except (TypeError, ValueError):
+            continue
+        product = db_products.get(pid)
+        if not product:
+            continue  # product was deleted; skip silently
+        qty      = max(1, int(item.get("quantity") or item.get("qty") or 1))
+        name     = _html.escape(str(product.get("name") or ""))
+        price    = float(product.get("price") or 0)
         size     = _html.escape(str(item.get("size") or ""))
-        img      = _html.escape(str(item.get("image_url") or ""), quote=True)
-        slug     = item.get("slug") or str(item.get("id") or "")
-        item_url = _html.escape(f"{site_url}/products/{slug}" if slug else site_url, quote=True)
+        # Cover image preference: image_url, then first of image_urls
+        cover    = product.get("image_url") or ""
+        if not cover:
+            arr = product.get("image_urls") or []
+            if isinstance(arr, list) and arr:
+                cover = arr[0]
+        img      = _html.escape(str(cover or ""), quote=True)
+        slug     = product.get("slug") or str(pid)
+        item_url = _html.escape(f"{site_url}/products/{slug}", quote=True)
 
         img_block = (
             f'<a href="{item_url}"><img src="{img}" width="64" height="64" '
