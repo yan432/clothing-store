@@ -5,12 +5,12 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
   const total = slides?.length || 0
   // 1-based: 0 = clone of last, 1..total = real, total+1 = clone of first
   const [idx, setIdx] = useState(1)
+  const [skipTransition, setSkipTransition] = useState(false)
   const [drag, setDrag] = useState(0)
   const [dragging, setDragging] = useState(false)
   const touchStartX = useRef(null)
   const trackRef = useRef(null)
   const autoRef = useRef(null)
-  const silentJump = useRef(false)
 
   const realIdx = idx === 0 ? total - 1 : idx === total + 1 ? 0 : idx - 1
 
@@ -24,27 +24,21 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
     return () => clearInterval(autoRef.current)
   }, [])
 
-  // Runs synchronously after DOM update, before browser paint —
-  // disables transition so the position reset is invisible
+  // Runs synchronously before browser paint — resets skipTransition so React
+  // re-applies the transition style correctly in the very next render
   useLayoutEffect(() => {
-    const el = trackRef.current
-    if (!el || !silentJump.current) return
-    silentJump.current = false
-    el.style.transition = 'none'
-    el.getBoundingClientRect() // force reflow so the new transform is committed
-    requestAnimationFrame(() => {
-      if (trackRef.current) trackRef.current.style.transition = ''
-    })
-  }, [idx])
+    if (!skipTransition) return
+    trackRef.current?.getBoundingClientRect() // force reflow at new position
+    setSkipTransition(false)
+  }, [skipTransition])
 
   function onTransitionEnd(e) {
-    // Ignore events bubbling from child elements or non-transform properties
     if (e.target !== trackRef.current || e.propertyName !== 'transform') return
     if (idx === 0) {
-      silentJump.current = true
+      setSkipTransition(true)
       setIdx(total)
     } else if (idx === total + 1) {
-      silentJump.current = true
+      setSkipTransition(true)
       setIdx(1)
     }
   }
@@ -127,7 +121,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
         style={{
           display: 'flex',
           transform: `translateX(calc(${-idx * 100}% + ${drag}px))`,
-          transition: dragging ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
+          transition: (dragging || skipTransition) ? 'none' : 'transform 420ms cubic-bezier(0.22, 1, 0.36, 1)',
           willChange: 'transform',
         }}
       >
