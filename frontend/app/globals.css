@@ -691,14 +691,14 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 }
 /* ── Homepage Photo Tiles ───────────────────────────── */
 .photo-tiles-section {
-  padding: 8px 8px;
+  padding: 18px 18px;
   margin-top: 0;
 }
 
 .photo-tiles-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 18px;
 }
 
 .photo-tile {
@@ -746,12 +746,12 @@ a.photo-tile:hover .photo-tile-img {
 
 @media (max-width: 680px) {
   .photo-tiles-section {
-    padding: 6px 6px;
+    padding: 10px 10px;
   }
 
   .photo-tiles-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 6px;
+    gap: 10px;
   }
 
   .photo-tile-cart-btn {

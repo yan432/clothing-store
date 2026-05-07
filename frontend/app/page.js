@@ -144,7 +144,7 @@ export default async function Home({ searchParams }) {
 
       {/* ── 5. NEW ARRIVALS ────────────────────────────── */}
       {newArrivals.length > 0 && (
-        <section style={{ maxWidth: W, margin: '0 auto', padding: '8px 24px 0' }}>
+        <section style={{ maxWidth: W, margin: '0 auto', padding: '18px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>New Arrivals</h2>
             <a href="/products?special=new" style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
