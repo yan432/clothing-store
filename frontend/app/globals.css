@@ -691,7 +691,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 }
 /* ── Homepage Photo Tiles ───────────────────────────── */
 .photo-tiles-section {
-  padding: 0 24px;
+  padding: 8px 8px;
   margin-top: 0;
 }
 
@@ -706,7 +706,6 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   overflow: hidden;
   text-decoration: none;
   background: #1a1a18;
-  border-radius: 10px;
 }
 
 .photo-tile-inner {
@@ -714,7 +713,6 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   width: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
-  border-radius: 10px;
 }
 
 .photo-tile-img {
@@ -748,7 +746,7 @@ a.photo-tile:hover .photo-tile-img {
 
 @media (max-width: 680px) {
   .photo-tiles-section {
-    padding: 0 12px;
+    padding: 6px 6px;
   }
 
   .photo-tiles-grid {
