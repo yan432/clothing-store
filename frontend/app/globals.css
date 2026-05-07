@@ -697,7 +697,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 .photo-tiles-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  gap: 3px;
 }
 
 .photo-tile {
@@ -727,10 +727,34 @@ a.photo-tile:hover .photo-tile-img {
   transform: scale(1.03);
 }
 
+.photo-tile-cart-btn {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  pointer-events: none;
+}
+
 @media (max-width: 680px) {
   .photo-tiles-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 3px;
+  }
+
+  .photo-tile-cart-btn {
+    width: 32px;
+    height: 32px;
+    bottom: 10px;
+    right: 10px;
   }
 }
 
