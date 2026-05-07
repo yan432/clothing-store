@@ -60,7 +60,8 @@ export default function HomeArrivalsCarousel({ products }) {
         {products.map(p => (
           <div
             key={p.id}
-            style={{ flex: '0 0 calc(33.333% - 14px)', scrollSnapAlign: 'start', minWidth: 0 }}
+            className="home-arrivals-carousel-item"
+            style={{ scrollSnapAlign: 'start', minWidth: 0 }}
           >
             <ProductCard product={p} />
           </div>

@@ -226,25 +226,31 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 
 /* ── Home page grids ────────────────────────────────── */
 
-/* Carousel: hidden by default, shown only at tablet widths */
-.home-arrivals-carousel { display: none; }
+/* Carousel: visible on mobile + tablet, hidden on desktop */
+.home-arrivals-carousel { display: block; }
 
-/* Grid: shown on mobile and desktop, hidden at tablet */
+/* Grid: hidden on mobile + tablet, shown only on desktop */
 .home-arrivals-grid {
-  display: grid;
+  display: none;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px 12px;
 }
 
-/* Tablet: hide grid, show carousel */
-@media (min-width: 640px) and (max-width: 1099px) {
-  .home-arrivals-grid { display: none; }
-  .home-arrivals-carousel { display: block; }
+/* Carousel item width: 2-up on mobile, 3-up on tablet */
+.home-arrivals-carousel-item {
+  flex: 0 0 calc(50% - 10px);
+}
+@media (min-width: 640px) {
+  .home-arrivals-carousel-item {
+    flex: 0 0 calc(33.333% - 14px);
+  }
 }
 
 /* Desktop: show grid with auto columns */
 @media (min-width: 1100px) {
+  .home-arrivals-carousel { display: none; }
   .home-arrivals-grid {
+    display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 32px 20px;
   }
