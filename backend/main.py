@@ -3138,6 +3138,65 @@ def delete_homepage_slide(slide_id: int):
     return {"ok": True}
 
 
+# ── Homepage Photo Tiles ──────────────────────────────────────────────────────
+
+class HomepagePhotoTileUpdate(BaseModel):
+    href: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class HomepagePhotoTilesReorder(BaseModel):
+    ids: list[int]
+
+@app.get("/homepage-photo-tiles")
+def get_homepage_photo_tiles():
+    """Public: active tiles ordered by sort_order."""
+    data = supabase.table("homepage_photo_tiles").select("*").eq("is_active", True).order("sort_order").execute()
+    return data.data or []
+
+@app.get("/homepage-photo-tiles/admin", dependencies=[Depends(require_admin)])
+def get_homepage_photo_tiles_admin():
+    data = supabase.table("homepage_photo_tiles").select("*").order("sort_order").execute()
+    return data.data or []
+
+@app.post("/homepage-photo-tiles/upload", dependencies=[Depends(require_admin)])
+async def upload_homepage_photo_tile(
+    file: UploadFile = File(...),
+    href: str = Form(""),
+):
+    ext = _safe_image_ext(file.filename or "file.jpg")
+    path = f"homepage/tiles/{uuid.uuid4()}.{ext}"
+    content = await file.read()
+    supabase.storage.from_("product-images").upload(path, content, {"content-type": _EXT_CONTENT_TYPE[ext]})
+    url = supabase.storage.from_("product-images").get_public_url(path)
+    existing = supabase.table("homepage_photo_tiles").select("sort_order").order("sort_order", desc=True).limit(1).execute()
+    next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
+    tile_data = {"image_url": url, "href": href or None, "sort_order": next_order, "is_active": True}
+    data = supabase.table("homepage_photo_tiles").insert(tile_data).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create tile")
+    return data.data[0]
+
+@app.put("/homepage-photo-tiles/reorder", dependencies=[Depends(require_admin)])
+def reorder_homepage_photo_tiles(payload: HomepagePhotoTilesReorder):
+    for order, tile_id in enumerate(payload.ids):
+        supabase.table("homepage_photo_tiles").update({"sort_order": order}).eq("id", tile_id).execute()
+    return {"ok": True}
+
+@app.put("/homepage-photo-tiles/{tile_id}", dependencies=[Depends(require_admin)])
+def update_homepage_photo_tile(tile_id: int, tile: HomepagePhotoTileUpdate):
+    updates = tile.dict(exclude_unset=True)
+    data = supabase.table("homepage_photo_tiles").update(updates).eq("id", tile_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Tile not found")
+    return data.data[0]
+
+@app.delete("/homepage-photo-tiles/{tile_id}", dependencies=[Depends(require_admin)])
+def delete_homepage_photo_tile(tile_id: int):
+    supabase.table("homepage_photo_tiles").delete().eq("id", tile_id).execute()
+    return {"ok": True}
+
+
 class ContactMessagePayload(BaseModel):
     name: str
     email: str
