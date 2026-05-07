@@ -137,14 +137,14 @@ export default async function Home({ searchParams }) {
 
       {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
-        <section style={{ marginTop: 24 }}>
+        <section style={{ marginTop: 0 }}>
           <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, link_label: s.link_label, label: '' }))} fullWidth />
         </section>
       )}
 
       {/* ── 5. NEW ARRIVALS ────────────────────────────── */}
       {newArrivals.length > 0 && (
-        <section style={{ maxWidth: W, margin: '0 auto', padding: '40px 24px 0' }}>
+        <section style={{ maxWidth: W, margin: '0 auto', padding: '8px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>New Arrivals</h2>
             <a href="/products?special=new" style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
