@@ -691,13 +691,14 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 }
 /* ── Homepage Photo Tiles ───────────────────────────── */
 .photo-tiles-section {
+  padding: 0 24px;
   margin-top: 0;
 }
 
 .photo-tiles-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
+  gap: 8px;
 }
 
 .photo-tile {
@@ -705,6 +706,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   overflow: hidden;
   text-decoration: none;
   background: #1a1a18;
+  border-radius: 10px;
 }
 
 .photo-tile-inner {
@@ -712,6 +714,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   width: 100%;
   aspect-ratio: 2 / 3;
   overflow: hidden;
+  border-radius: 10px;
 }
 
 .photo-tile-img {
@@ -729,30 +732,33 @@ a.photo-tile:hover .photo-tile-img {
 
 .photo-tile-cart-btn {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
+  bottom: 14px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(4px);
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #111;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
   pointer-events: none;
 }
 
 @media (max-width: 680px) {
+  .photo-tiles-section {
+    padding: 0 12px;
+  }
+
   .photo-tiles-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 3px;
+    gap: 6px;
   }
 
   .photo-tile-cart-btn {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     bottom: 10px;
     right: 10px;
   }
