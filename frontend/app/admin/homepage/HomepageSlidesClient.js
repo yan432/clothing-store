@@ -15,6 +15,15 @@ export default function HomepageSlidesClient() {
   const newTitleRef = useRef(null)
   const newLinkLabelRef = useRef(null)
 
+  // Photo tiles state
+  const [tiles, setTiles] = useState([])
+  const [tilesLoading, setTilesLoading] = useState(true)
+  const [tileUploading, setTileUploading] = useState(false)
+  const [tileEditId, setTileEditId] = useState(null)
+  const [tileEditHref, setTileEditHref] = useState('')
+  const tileFileRef = useRef(null)
+  const tileHrefRef = useRef(null)
+
   // Drop timer state
   const [timerEnabled, setTimerEnabled] = useState(false)
   const [timerDate, setTimerDate]       = useState('')
@@ -89,7 +98,95 @@ export default function HomepageSlidesClient() {
     finally { setTimerSaving(false) }
   }
 
-  useEffect(() => { load(); loadTimer() }, [])
+  async function loadTiles() {
+    try {
+      const res = await fetch(getApiUrl('/homepage-photo-tiles/admin'), { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setTiles(Array.isArray(data) ? data : [])
+    } catch (e) { flash(e?.message || 'Failed to load tiles', true) }
+    finally { setTilesLoading(false) }
+  }
+
+  async function handleTileUpload(e) {
+    const raw = e.target.files?.[0]
+    if (!raw) return
+    setTileUploading(true)
+    try {
+      const file = await compressImage(raw)
+      const href = tileHrefRef.current?.value.trim() || ''
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('href', href)
+      const res = await fetch(getApiUrl('/homepage-photo-tiles/upload'), { method: 'POST', body: fd })
+      if (!res.ok) throw new Error(await res.text())
+      flash('Photo added')
+      if (tileHrefRef.current) tileHrefRef.current.value = ''
+      e.target.value = ''
+      await loadTilesRefresh()
+    } catch (err) { flash(err.message || 'Upload failed', true) }
+    finally { setTileUploading(false) }
+  }
+
+  async function loadTilesRefresh() {
+    try {
+      const res = await fetch(getApiUrl('/homepage-photo-tiles/admin'), { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setTiles(Array.isArray(data) ? data : [])
+    } catch {}
+  }
+
+  async function handleTileDelete(id) {
+    if (!confirm('Delete this photo?')) return
+    try {
+      await fetch(getApiUrl('/homepage-photo-tiles/' + id), { method: 'DELETE' })
+      flash('Deleted')
+      await loadTilesRefresh()
+    } catch { flash('Delete failed', true) }
+  }
+
+  async function handleTileToggle(tile) {
+    try {
+      await fetch(getApiUrl('/homepage-photo-tiles/' + tile.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !tile.is_active }),
+      })
+      await loadTilesRefresh()
+    } catch { flash('Failed', true) }
+  }
+
+  async function handleTileSaveEdit(id) {
+    try {
+      const res = await fetch(getApiUrl('/homepage-photo-tiles/' + id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ href: tileEditHref || null }),
+      })
+      if (!res.ok) throw new Error()
+      flash('Saved')
+      setTileEditId(null)
+      await loadTilesRefresh()
+    } catch { flash('Save failed', true) }
+  }
+
+  async function handleTileReorder(idx, dir) {
+    const next = [...tiles]
+    const to = idx + dir
+    if (to < 0 || to >= next.length) return
+    ;[next[idx], next[to]] = [next[to], next[idx]]
+    setTiles(next)
+    try {
+      await fetch(getApiUrl('/homepage-photo-tiles/reorder'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: next.map(t => t.id) }),
+      })
+    } catch { flash('Reorder failed', true) }
+  }
+
+  useEffect(() => { load(); loadTimer(); loadTiles() }, [])
 
   function flash(msg, isErr = false) {
     if (isErr) { setError(msg); setTimeout(() => setError(''), 4000) }
@@ -376,6 +473,87 @@ export default function HomepageSlidesClient() {
           ))}
         </div>
       )}
+
+      {/* ── Photo Tiles ───────────────────────────────── */}
+      <div style={{ borderTop: '1px solid #ecece8', marginTop: 32, paddingTop: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Photo Tiles</h2>
+          <span style={{ fontSize: 12, color: '#888' }}>4-up grid shown between countdown and carousel</span>
+        </div>
+
+        {/* Add tile */}
+        <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 20 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 12px' }}>Add photo</p>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#555' }}>Link URL (optional)
+              <input ref={tileHrefRef} style={{ ...inp, marginTop: 4 }} placeholder="/products" />
+            </label>
+          </div>
+          <label style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            minHeight: 80, border: '1.5px dashed #cfcfc8', borderRadius: 10,
+            cursor: 'pointer', fontSize: 13, color: '#888', background: '#fafaf8',
+          }}>
+            <input type="file" accept="image/*" style={{ display: 'none' }} ref={tileFileRef} onChange={handleTileUpload} />
+            {tileUploading ? 'Uploading...' : '+ Click to upload photo'}
+          </label>
+        </div>
+
+        {/* Tiles list */}
+        {tilesLoading ? <p style={{ color: '#aaa' }}>Loading...</p> : tiles.length === 0 ? (
+          <p style={{ color: '#aaa', textAlign: 'center', padding: 40 }}>No photos yet. Add one above.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {tiles.map((tile, idx) => (
+              <div key={tile.id} style={{
+                border: '1px solid #ecece8', borderRadius: 14, background: '#fff',
+                display: 'grid', gridTemplateColumns: '90px 1fr auto', gap: 14,
+                padding: 12, alignItems: 'center',
+                opacity: tile.is_active ? 1 : 0.5,
+              }}>
+                <div style={{ width: 90, height: 112, borderRadius: 8, overflow: 'hidden', background: '#f5f5f3', flexShrink: 0 }}>
+                  <img src={tile.image_url} alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
+                </div>
+
+                <div>
+                  {tileEditId === tile.id ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input value={tileEditHref} onChange={e => setTileEditHref(e.target.value)}
+                        style={inp} placeholder="Link URL (optional), e.g. /products" />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button style={btn('#111')} onClick={() => handleTileSaveEdit(tile.id)}>Save</button>
+                        <button style={btn('#f5f5f3', '#444')} onClick={() => setTileEditId(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 12, color: '#888', margin: 0, fontFamily: 'monospace' }}>
+                      {tile.href || <span style={{ color: '#ccc' }}>No link</span>}
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button title="Move up" onClick={() => handleTileReorder(idx, -1)} disabled={idx === 0}
+                      style={{ ...btn('#f5f5f3', '#444'), padding: '5px 10px', opacity: idx === 0 ? 0.3 : 1 }}>↑</button>
+                    <button title="Move down" onClick={() => handleTileReorder(idx, 1)} disabled={idx === tiles.length - 1}
+                      style={{ ...btn('#f5f5f3', '#444'), padding: '5px 10px', opacity: idx === tiles.length - 1 ? 0.3 : 1 }}>↓</button>
+                  </div>
+                  <button onClick={() => { setTileEditId(tile.id); setTileEditHref(tile.href || '') }}
+                    style={btn('#f5f5f3', '#444')}>Edit link</button>
+                  <button onClick={() => handleTileToggle(tile)}
+                    style={btn(tile.is_active ? '#fef9e7' : '#ecfdf3', tile.is_active ? '#92400e' : '#166534')}>
+                    {tile.is_active ? 'Hide' : 'Show'}
+                  </button>
+                  <button onClick={() => handleTileDelete(tile.id)}
+                    style={btn('#fef2f2', '#b91c1c')}>Delete</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   )
 }
