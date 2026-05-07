@@ -691,7 +691,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 }
 /* ── Homepage Photo Tiles ───────────────────────────── */
 .photo-tiles-section {
-  padding: 18px 18px;
+  padding: 6px 18px 18px;
   margin-top: 0;
 }
 
@@ -711,7 +711,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 .photo-tile-inner {
   position: relative;
   width: 100%;
-  aspect-ratio: 2 / 3;
+  aspect-ratio: 3 / 4;
   overflow: hidden;
 }
 
@@ -746,7 +746,7 @@ a.photo-tile:hover .photo-tile-img {
 
 @media (max-width: 680px) {
   .photo-tiles-section {
-    padding: 10px 10px;
+    padding: 4px 10px 10px;
   }
 
   .photo-tiles-grid {
