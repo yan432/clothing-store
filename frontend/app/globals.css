@@ -691,7 +691,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 }
 /* ── Homepage Photo Tiles ───────────────────────────── */
 .photo-tiles-section {
-  padding: 6px 18px 18px;
+  padding: 18px;
   margin-top: 0;
 }
 
@@ -746,7 +746,7 @@ a.photo-tile:hover .photo-tile-img {
 
 @media (max-width: 680px) {
   .photo-tiles-section {
-    padding: 4px 10px 10px;
+    padding: 10px;
   }
 
   .photo-tiles-grid {
