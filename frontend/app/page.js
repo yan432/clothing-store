@@ -106,7 +106,7 @@ export default async function Home({ searchParams }) {
 
       {/* ── 1. HERO BANNER ─────────────────────────────── */}
       <section style={{
-        position: 'relative', minHeight: '92vh', overflow: 'hidden',
+        position: 'relative', minHeight: '100vh', overflow: 'hidden',
         background: '#1a1a18',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
