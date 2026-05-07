@@ -127,9 +127,9 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
       style={{
         position: 'relative',
         width: '100%',
-        minHeight: 560,
-        maxHeight: '90vh',
-        aspectRatio: '16/9',
+        minHeight: 490,
+        maxHeight: '85vh',
+        aspectRatio: '19/9',
         overflow: 'hidden',
         userSelect: 'none',
         touchAction: 'pan-y',
