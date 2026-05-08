@@ -28,8 +28,14 @@ function LookItem({ product }) {
   const [added, setAdded] = useState(false)
   const [error, setError] = useState('')
 
+  const sizeStock = product.size_stock || {}
+  const isSizeAvailable = (s) => sizeStock[s] === undefined ? true : sizeStock[s] > 0
+  const allSizesUnavailable = sizes.length > 0 && sizes.every(s => !isSizeAvailable(s))
+  const totalStock = product.available_stock ?? product.stock ?? 0
+  const isOutOfStock = totalStock <= 0 || allSizesUnavailable
+
   const mustSelectSize = sizes.length > 1
-  const canAdd = (!mustSelectSize || Boolean(size)) && (product.available_stock ?? product.stock ?? 0) > 0
+  const canAdd = !isOutOfStock && (!mustSelectSize || Boolean(size)) && (size === '' || isSizeAvailable(size))
 
   function handleAdd() {
     setError('')
@@ -71,7 +77,7 @@ function LookItem({ product }) {
 
         {!added && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-            {sizes.length > 1 && (
+            {sizes.length > 1 && !isOutOfStock && (
               <select
                 value={size}
                 onChange={e => setSize(e.target.value)}
@@ -83,21 +89,25 @@ function LookItem({ product }) {
                 }}
               >
                 <option value="" disabled>Size</option>
-                {sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                {sizes.map(s => (
+                  <option key={s} value={s} disabled={!isSizeAvailable(s)}>
+                    {isSizeAvailable(s) ? s : `${s} · sold out`}
+                  </option>
+                ))}
               </select>
             )}
             <button
               onClick={handleAdd}
-              disabled={!canAdd}
+              disabled={isOutOfStock || !canAdd}
               style={{
-                background: canAdd ? '#111' : '#bbb',
+                background: isOutOfStock ? '#bbb' : canAdd ? '#111' : '#bbb',
                 color: '#fff', border: 'none',
                 padding: '10px 16px', fontSize: 12, fontWeight: 700,
                 letterSpacing: '0.06em', textTransform: 'uppercase',
-                cursor: canAdd ? 'pointer' : 'not-allowed',
+                cursor: (isOutOfStock || !canAdd) ? 'not-allowed' : 'pointer',
                 flex: '2 1 auto', whiteSpace: 'nowrap',
               }}>
-              {canAdd ? 'Add to cart' : (mustSelectSize && !size ? 'Select size' : 'Sold out')}
+              {isOutOfStock ? 'Sold out' : canAdd ? 'Add to cart' : 'Select size'}
             </button>
           </div>
         )}
@@ -169,7 +179,7 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '20px 24px', borderBottom: '1px solid #eee',
         }}>
-          <h2 style={{ fontSize: 22, fontWeight: 500, margin: 0, fontFamily: 'serif' }}>
+          <h2 style={{ fontSize: 22, fontWeight: 400, margin: 0 }}>
             Shop the Look
           </h2>
           <button onClick={onClose} aria-label="Close"
@@ -190,20 +200,18 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
         </div>
 
         {/* Footer */}
-        {shopHref && (
-          <div style={{ padding: 24, borderTop: '1px solid #eee' }}>
-            <a href={shopHref}
-              style={{
-                display: 'block', textAlign: 'center',
-                border: '1.5px solid #111', color: '#111',
-                padding: '14px 16px', fontSize: 13, fontWeight: 700,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                textDecoration: 'none',
-              }}>
-              Shop all
-            </a>
-          </div>
-        )}
+        <div style={{ padding: 24, borderTop: '1px solid #eee' }}>
+          <a href={shopHref || '/products'}
+            style={{
+              display: 'block', textAlign: 'center',
+              border: '1.5px solid #111', color: '#111',
+              padding: '14px 16px', fontSize: 13, fontWeight: 700,
+              letterSpacing: '0.08em', textTransform: 'uppercase',
+              textDecoration: 'none',
+            }}>
+            Continue shopping
+          </a>
+        </div>
       </aside>
     </div>
   )
