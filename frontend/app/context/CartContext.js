@@ -1,6 +1,7 @@
 'use client'
 import { createContext, useContext, useState, useEffect } from 'react'
 import { trackCartAdd } from '../lib/track'
+import { getApiUrl } from '../lib/api'
 
 const CartContext = createContext()
 
@@ -9,12 +10,35 @@ export function CartProvider({ children }) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
+    let initial = []
     try {
       const saved = localStorage.getItem('cart')
-      if (saved) setCart(JSON.parse(saved))
+      if (saved) initial = JSON.parse(saved) || []
     } catch {
       localStorage.removeItem('cart') // corrupted — reset silently
     }
+    setCart(initial)
+
+    // Sync against server: remove items whose products are now hidden/archived.
+    if (initial.length === 0) return
+    ;(async () => {
+      try {
+        const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+        if (!res.ok) return
+        const products = await res.json()
+        if (!Array.isArray(products)) return
+        const visible = new Set(
+          products
+            .filter(p => !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]'))
+            .map(p => p.id)
+        )
+        const filtered = initial.filter(item => visible.has(item.id))
+        if (filtered.length !== initial.length) {
+          setCart(filtered)
+          localStorage.setItem('cart', JSON.stringify(filtered))
+        }
+      } catch {} // network error: keep existing cart
+    })()
   }, [])
 
   function save(items) {
