@@ -225,7 +225,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 }
 
 /* Home page bottom spacing — smaller on mobile */
-.home-main { padding-bottom: 80px; }
+.home-main { padding-bottom: 40px; }
 @media (max-width: 680px) {
   .home-main { padding-bottom: 16px; }
 }
