@@ -224,6 +224,12 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   to   { transform: translateX(0); }
 }
 
+/* Hide product description in homepage New Arrivals (only) */
+.home-arrivals-grid .product-card-desc,
+.home-arrivals-carousel .product-card-desc {
+  display: none !important;
+}
+
 /* ── Home page grids ────────────────────────────────── */
 
 /* Carousel: visible on mobile + tablet, hidden on desktop */
