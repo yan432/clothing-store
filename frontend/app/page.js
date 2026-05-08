@@ -100,7 +100,7 @@ export default async function Home({ searchParams }) {
   }
 
   return (
-    <main style={{ paddingBottom: 80 }}>
+    <main className="home-main">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }} />
 
