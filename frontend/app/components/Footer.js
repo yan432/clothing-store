@@ -143,9 +143,6 @@ export default function Footer() {
           <p style={{fontSize:12,color:'#888',margin:'8px 0 0',minHeight:16}}>
             {newsletterMessage || '\u00A0'}
           </p>
-          <p style={{fontSize:11,color:'#555',lineHeight:1.55,margin:'10px 0 0'}}>
-            By entering your email address, you agree to receive offers, promotions and other commercial messages from edm.clothes. You can view our privacy policy <a href="/privacy" style={{color:'#aaa',textDecoration:'underline'}}>here</a>. You can unsubscribe at any time.
-          </p>
         </div>
       </div>
 
