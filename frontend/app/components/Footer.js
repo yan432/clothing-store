@@ -118,13 +118,16 @@ export default function Footer() {
         {/* Newsletter */}
         <div>
           <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Newsletter</p>
+          <p style={{fontSize:13,color:'#bbb',lineHeight:1.5,margin:'0 0 10px',fontWeight:600}}>
+            Melde dich für unseren E-Mail Newsletter an & sichere dir <span style={{color:'#fff'}}>-15% RABATT</span> auf deine erste Bestellung
+          </p>
           <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:'0 0 16px'}}>
-            New releases and special offers — straight to your inbox.
+            Erhalte frühzeitigen Zugang zu Neuheiten, Sales, exklusiven Inhalten, Events und mehr!
           </p>
           <form onSubmit={handleNewsletterSubmit} className="footer-newsletter-form">
             <input
               type="email"
-              placeholder="Your email"
+              placeholder="E-Mail-Adresse"
               value={newsletterEmail}
               onChange={(e) => setNewsletterEmail(e.target.value)}
               required
@@ -134,11 +137,14 @@ export default function Footer() {
               disabled={newsletterLoading}
               style={{opacity: newsletterLoading ? 0.7 : 1}}
             >
-              {newsletterLoading ? '...' : 'Subscribe'}
+              {newsletterLoading ? '...' : 'Anmelden'}
             </button>
           </form>
           <p style={{fontSize:12,color:'#888',margin:'8px 0 0',minHeight:16}}>
             {newsletterMessage || '\u00A0'}
+          </p>
+          <p style={{fontSize:11,color:'#555',lineHeight:1.55,margin:'10px 0 0'}}>
+            Durch Eingabe deiner E-Mail-Adresse erkl\u00E4rst du dich bereit, Angebote, Werbeaktionen und andere kommerzielle Nachrichten von edm.clothes zu empfangen. Unsere Datenschutzrichtlinien kannst du <a href="/privacy" style={{color:'#aaa',textDecoration:'underline'}}>hier</a> ansehen. Du kannst dich jederzeit abmelden.
           </p>
         </div>
       </div>
