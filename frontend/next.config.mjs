@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clothing-store-2e9s.onrender.com'
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'https://clothing-store-api-935987805883.europe-west3.run.app'
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tlaagtvplzitmqwqbluq.supabase.co'
 
 // Derive the hostname for Supabase storage images
