@@ -677,11 +677,16 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   }
 }
 
-/* Mobile: single column footer */
+/* Mobile: two-column footer (Shop + Care side by side) */
 @media (max-width: 560px) {
   .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 28px;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 16px;
+  }
+
+  .footer-brand,
+  .footer-newsletter {
+    grid-column: 1 / -1;
   }
 
   .footer-newsletter-form {

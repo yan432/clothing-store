@@ -68,7 +68,7 @@ export default function Footer() {
       <div style={{maxWidth:1200,margin:'0 auto',padding:'60px 24px 40px'}} className="footer-grid">
 
         {/* Brand */}
-        <div>
+        <div className="footer-brand">
           <p style={{fontSize:20,fontWeight:700,letterSpacing:'0.06em',margin:'0 0 16px'}}>edm.clothes</p>
           <p style={{fontSize:13,color:'#666',lineHeight:1.7,margin:'0 0 20px'}}>
             Minimal essentials designed for everyday wear. Made in Ukraine.
@@ -116,7 +116,7 @@ export default function Footer() {
         </div>
 
         {/* Newsletter */}
-        <div>
+        <div className="footer-newsletter">
           <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Newsletter</p>
           <p style={{fontSize:13,color:'#bbb',lineHeight:1.5,margin:'0 0 10px',fontWeight:600}}>
             Sign up for our email newsletter & get <span style={{color:'#fff'}}>-10% OFF</span> your first order
