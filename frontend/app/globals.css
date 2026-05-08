@@ -224,6 +224,11 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   to   { transform: translateX(0); }
 }
 
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
 /* Home page bottom spacing — smaller on mobile */
 .home-main { padding-bottom: 40px; }
 @media (max-width: 680px) {
@@ -754,12 +759,20 @@ a.photo-tile:hover .photo-tile-img {
   height: 40px;
   border-radius: 50%;
   background: #fff;
+  border: none;
+  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #111;
   box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-  pointer-events: none;
+  transition: transform 200ms ease;
+}
+.photo-tile-cart-btn:not(:disabled):hover {
+  transform: scale(1.08);
+}
+.photo-tile-cart-btn:disabled {
+  opacity: 0.7;
 }
 
 @media (max-width: 680px) {
