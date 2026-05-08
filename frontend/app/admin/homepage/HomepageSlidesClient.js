@@ -1,6 +1,75 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
+
+function ProductPicker({ products, selectedIds, onChange }) {
+  const [query, setQuery] = useState('')
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return products.slice(0, 30)
+    return products
+      .filter(p => (p.name || '').toLowerCase().includes(q))
+      .slice(0, 30)
+  }, [products, query])
+
+  function toggle(id) {
+    if (selectedIds.includes(id)) onChange(selectedIds.filter(x => x !== id))
+    else onChange([...selectedIds, id])
+  }
+
+  const selectedProducts = products.filter(p => selectedIds.includes(p.id))
+
+  return (
+    <div>
+      {selectedProducts.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {selectedProducts.map(p => (
+            <span key={p.id} style={{
+              fontSize: 11, padding: '4px 8px', borderRadius: 999,
+              background: '#111', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}>
+              {p.name}
+              <button type="button" onClick={() => toggle(p.id)} style={{
+                background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1,
+              }}>×</button>
+            </span>
+          ))}
+        </div>
+      )}
+      <input
+        type="search"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="Search products to add..."
+        style={{ border: '1px solid #ddd', borderRadius: 8, padding: '7px 10px', fontSize: 12, width: '100%', marginBottom: 6 }}
+      />
+      <div style={{ maxHeight: 180, overflowY: 'auto', border: '1px solid #ecece8', borderRadius: 8, background: '#fafaf8' }}>
+        {filtered.length === 0 ? (
+          <p style={{ fontSize: 12, color: '#aaa', padding: 10, margin: 0 }}>No products match.</p>
+        ) : filtered.map(p => {
+          const isSel = selectedIds.includes(p.id)
+          return (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => toggle(p.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                width: '100%', padding: '6px 10px', textAlign: 'left',
+                background: isSel ? '#ecfdf3' : 'transparent', border: 'none',
+                borderBottom: '1px solid #f0f0ee', cursor: 'pointer', fontSize: 12,
+              }}>
+              <input type="checkbox" checked={isSel} readOnly style={{ pointerEvents: 'none' }} />
+              {p.image_url && <img src={p.image_url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4 }} />}
+              <span style={{ flex: 1 }}>{p.name}</span>
+              <span style={{ color: '#888' }}>€{p.price}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
 
 export default function HomepageSlidesClient() {
   const [slides, setSlides] = useState([])
@@ -21,6 +90,9 @@ export default function HomepageSlidesClient() {
   const [tileUploading, setTileUploading] = useState(false)
   const [tileEditId, setTileEditId] = useState(null)
   const [tileEditHref, setTileEditHref] = useState('')
+  const [tileEditProductIds, setTileEditProductIds] = useState([])
+  const [allProducts, setAllProducts] = useState([])
+  const [newTileProductIds, setNewTileProductIds] = useState([])
   const tileFileRef = useRef(null)
   const tileHrefRef = useRef(null)
 
@@ -108,6 +180,15 @@ export default function HomepageSlidesClient() {
     finally { setTilesLoading(false) }
   }
 
+  async function loadAllProducts() {
+    try {
+      const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      setAllProducts(Array.isArray(data) ? data : [])
+    } catch {}
+  }
+
   async function handleTileUpload(e) {
     const raw = e.target.files?.[0]
     if (!raw) return
@@ -118,10 +199,12 @@ export default function HomepageSlidesClient() {
       const fd = new FormData()
       fd.append('file', file)
       fd.append('href', href)
+      fd.append('product_ids', newTileProductIds.join(','))
       const res = await fetch(getApiUrl('/homepage-photo-tiles/upload'), { method: 'POST', body: fd })
       if (!res.ok) throw new Error(await res.text())
       flash('Photo added')
       if (tileHrefRef.current) tileHrefRef.current.value = ''
+      setNewTileProductIds([])
       e.target.value = ''
       await loadTilesRefresh()
     } catch (err) { flash(err.message || 'Upload failed', true) }
@@ -162,7 +245,10 @@ export default function HomepageSlidesClient() {
       const res = await fetch(getApiUrl('/homepage-photo-tiles/' + id), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ href: tileEditHref || null }),
+        body: JSON.stringify({
+          href: tileEditHref || null,
+          product_ids: tileEditProductIds,
+        }),
       })
       if (!res.ok) throw new Error()
       flash('Saved')
@@ -186,7 +272,7 @@ export default function HomepageSlidesClient() {
     } catch { flash('Reorder failed', true) }
   }
 
-  useEffect(() => { load(); loadTimer(); loadTiles() }, [])
+  useEffect(() => { load(); loadTimer(); loadTiles(); loadAllProducts() }, [])
 
   function flash(msg, isErr = false) {
     if (isErr) { setError(msg); setTimeout(() => setError(''), 4000) }
@@ -485,9 +571,19 @@ export default function HomepageSlidesClient() {
         <div style={{ border: '1px solid #ecece8', borderRadius: 14, padding: 20, background: '#fff', marginBottom: 20 }}>
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 12px' }}>Add photo</p>
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: '#555' }}>Link URL (optional)
-              <input ref={tileHrefRef} style={{ ...inp, marginTop: 4 }} placeholder="/products" />
+            <label style={{ fontSize: 12, color: '#555' }}>"Shop all" link URL (optional)
+              <input ref={tileHrefRef} style={{ ...inp, marginTop: 4 }} placeholder="/products?special=new" />
             </label>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 12, color: '#555', margin: '0 0 6px' }}>
+              Products on this look ({newTileProductIds.length} selected)
+            </p>
+            <ProductPicker
+              products={allProducts}
+              selectedIds={newTileProductIds}
+              onChange={setNewTileProductIds}
+            />
           </div>
           <label style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -520,16 +616,29 @@ export default function HomepageSlidesClient() {
                   {tileEditId === tile.id ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <input value={tileEditHref} onChange={e => setTileEditHref(e.target.value)}
-                        style={inp} placeholder="Link URL (optional), e.g. /products" />
+                        style={inp} placeholder='"Shop all" link URL (optional)' />
+                      <p style={{ fontSize: 11, color: '#888', margin: 0 }}>
+                        Products in look ({tileEditProductIds.length})
+                      </p>
+                      <ProductPicker
+                        products={allProducts}
+                        selectedIds={tileEditProductIds}
+                        onChange={setTileEditProductIds}
+                      />
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button style={btn('#111')} onClick={() => handleTileSaveEdit(tile.id)}>Save</button>
                         <button style={btn('#f5f5f3', '#444')} onClick={() => setTileEditId(null)}>Cancel</button>
                       </div>
                     </div>
                   ) : (
-                    <p style={{ fontSize: 12, color: '#888', margin: 0, fontFamily: 'monospace' }}>
-                      {tile.href || <span style={{ color: '#ccc' }}>No link</span>}
-                    </p>
+                    <div>
+                      <p style={{ fontSize: 12, color: '#888', margin: '0 0 4px', fontFamily: 'monospace' }}>
+                        {tile.href || <span style={{ color: '#ccc' }}>No "Shop all" link</span>}
+                      </p>
+                      <p style={{ fontSize: 11, color: '#888', margin: 0 }}>
+                        {(tile.product_ids?.length || 0)} product{(tile.product_ids?.length || 0) === 1 ? '' : 's'} in look
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -540,8 +649,11 @@ export default function HomepageSlidesClient() {
                     <button title="Move down" onClick={() => handleTileReorder(idx, 1)} disabled={idx === tiles.length - 1}
                       style={{ ...btn('#f5f5f3', '#444'), padding: '5px 10px', opacity: idx === tiles.length - 1 ? 0.3 : 1 }}>↓</button>
                   </div>
-                  <button onClick={() => { setTileEditId(tile.id); setTileEditHref(tile.href || '') }}
-                    style={btn('#f5f5f3', '#444')}>Edit link</button>
+                  <button onClick={() => {
+                    setTileEditId(tile.id)
+                    setTileEditHref(tile.href || '')
+                    setTileEditProductIds(Array.isArray(tile.product_ids) ? tile.product_ids : [])
+                  }} style={btn('#f5f5f3', '#444')}>Edit</button>
                   <button onClick={() => handleTileToggle(tile)}
                     style={btn(tile.is_active ? '#fef9e7' : '#ecfdf3', tile.is_active ? '#92400e' : '#166534')}>
                     {tile.is_active ? 'Hide' : 'Show'}

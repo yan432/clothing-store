@@ -1,3 +1,7 @@
+'use client'
+import { useState } from 'react'
+import ShopTheLookDrawer from './ShopTheLookDrawer'
+
 function CartIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -9,12 +13,21 @@ function CartIcon() {
 }
 
 export default function HomepagePhotoTiles({ tiles }) {
+  const [activeTile, setActiveTile] = useState(null)
+
   if (!tiles || tiles.length === 0) return null
+
+  function openDrawer(tile, e) {
+    e.preventDefault()
+    e.stopPropagation()
+    setActiveTile(tile)
+  }
 
   return (
     <section className="photo-tiles-section">
       <div className="photo-tiles-grid">
         {tiles.map(tile => {
+          const hasProducts = Array.isArray(tile.product_ids) && tile.product_ids.length > 0
           const inner = (
             <div className="photo-tile-inner">
               <img
@@ -23,22 +36,32 @@ export default function HomepagePhotoTiles({ tiles }) {
                 className="photo-tile-img"
                 loading="lazy"
               />
-              <div className="photo-tile-cart-btn" aria-hidden="true">
+              <button
+                type="button"
+                className="photo-tile-cart-btn"
+                aria-label="Shop this look"
+                onClick={hasProducts ? (e) => openDrawer(tile, e) : undefined}
+                disabled={!hasProducts}
+                style={{ cursor: hasProducts ? 'pointer' : 'default' }}
+              >
                 <CartIcon />
-              </div>
+              </button>
             </div>
           )
-          return tile.href ? (
-            <a key={tile.id} href={tile.href} className="photo-tile">
-              {inner}
-            </a>
-          ) : (
-            <div key={tile.id} className="photo-tile">
-              {inner}
-            </div>
-          )
+          // If no products linked, fall back to full-tile link (or static tile)
+          if (!hasProducts && tile.href) {
+            return <a key={tile.id} href={tile.href} className="photo-tile">{inner}</a>
+          }
+          return <div key={tile.id} className="photo-tile">{inner}</div>
         })}
       </div>
+
+      <ShopTheLookDrawer
+        open={Boolean(activeTile)}
+        productIds={activeTile?.product_ids || []}
+        shopHref={activeTile?.href || ''}
+        onClose={() => setActiveTile(null)}
+      />
     </section>
   )
 }

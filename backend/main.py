@@ -3144,6 +3144,7 @@ class HomepagePhotoTileUpdate(BaseModel):
     href: Optional[str] = None
     sort_order: Optional[int] = None
     is_active: Optional[bool] = None
+    product_ids: Optional[list[int]] = None
 
 class HomepagePhotoTilesReorder(BaseModel):
     ids: list[int]
@@ -3163,6 +3164,7 @@ def get_homepage_photo_tiles_admin():
 async def upload_homepage_photo_tile(
     file: UploadFile = File(...),
     href: str = Form(""),
+    product_ids: str = Form(""),
 ):
     ext = _safe_image_ext(file.filename or "file.jpg")
     path = f"homepage/tiles/{uuid.uuid4()}.{ext}"
@@ -3171,7 +3173,19 @@ async def upload_homepage_photo_tile(
     url = supabase.storage.from_("product-images").get_public_url(path)
     existing = supabase.table("homepage_photo_tiles").select("sort_order").order("sort_order", desc=True).limit(1).execute()
     next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
-    tile_data = {"image_url": url, "href": href or None, "sort_order": next_order, "is_active": True}
+    parsed_pids: list[int] = []
+    if product_ids:
+        try:
+            parsed_pids = [int(x) for x in product_ids.split(",") if str(x).strip()]
+        except Exception:
+            parsed_pids = []
+    tile_data = {
+        "image_url": url,
+        "href": href or None,
+        "sort_order": next_order,
+        "is_active": True,
+        "product_ids": parsed_pids,
+    }
     data = supabase.table("homepage_photo_tiles").insert(tile_data).execute()
     if not data.data:
         raise HTTPException(status_code=500, detail="Failed to create tile")
