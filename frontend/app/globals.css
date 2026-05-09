@@ -677,12 +677,28 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   }
 }
 
-/* Mobile: single column footer */
+/* Mobile footer */
 @media (max-width: 560px) {
   .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 28px;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px 20px;
   }
+
+  /* brand: full width, first */
+  .footer-brand {
+    grid-column: 1 / -1;
+    order: 1;
+  }
+
+  /* newsletter: full width, right after brand */
+  .footer-newsletter {
+    grid-column: 1 / -1;
+    order: 2;
+  }
+
+  /* shop + care: two columns */
+  .footer-shop { order: 3; }
+  .footer-care { order: 4; }
 
   .footer-newsletter-form {
     flex-direction: column;
