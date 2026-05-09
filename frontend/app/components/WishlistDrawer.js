@@ -9,7 +9,10 @@ import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
 function WishlistItem({ product, onRemove }) {
   const { addToCart, setDrawerOpen: openCart } = useCart()
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
-  const [selectedSize, setSelectedSize] = useState(sizeOptions[0] || '')
+  const sizeStock = product.size_stock || {}
+  const isSizeAvailable = (s) => sizeStock[s] === undefined ? true : sizeStock[s] > 0
+  const firstAvailable = sizeOptions.find(s => isSizeAvailable(s)) || sizeOptions[0] || ''
+  const [selectedSize, setSelectedSize] = useState(firstAvailable)
   const [added, setAdded] = useState(false)
 
   const imgs  = Array.isArray(product.image_urls) && product.image_urls.length
@@ -18,9 +21,14 @@ function WishlistItem({ product, onRemove }) {
   const price = Number(product.price || 0)
   const cmp   = Number(product.compare_price || 0)
   const disc  = cmp > price ? Math.round((1 - price / cmp) * 100) : null
-  const inStock = (product.available_stock ?? product.stock ?? 0) > 0
+  const totalStock = product.available_stock ?? product.stock ?? 0
+  const allSizesUnavailable = sizeOptions.length > 0 && sizeOptions.every(s => !isSizeAvailable(s))
+  const isOutOfStock = totalStock <= 0 || allSizesUnavailable
+  const selectedSizeAvailable = !selectedSize || isSizeAvailable(selectedSize)
+  const canAdd = !isOutOfStock && (sizeOptions.length === 0 || Boolean(selectedSize)) && selectedSizeAvailable
 
   function handleAddToCart() {
+    if (!canAdd) return
     const result = addToCart({
       id:              product.id,
       name:            product.name,
@@ -76,32 +84,39 @@ function WishlistItem({ product, onRemove }) {
         {/* Size selector */}
         {sizeOptions.length > 0 && (
           <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 2 }}>
-            {sizeOptions.map(s => (
-              <button key={s} onClick={() => setSelectedSize(s)}
-                style={{
-                  padding: '3px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6, cursor: 'pointer',
-                  border: selectedSize === s ? '1.5px solid #111' : '1px solid #ddd',
-                  background: selectedSize === s ? '#111' : '#fff',
-                  color: selectedSize === s ? '#fff' : '#444',
-                }}>
-                {s}
-              </button>
-            ))}
+            {sizeOptions.map(s => {
+              const avail = isSizeAvailable(s)
+              const active = selectedSize === s
+              return (
+                <button key={s} onClick={() => avail && setSelectedSize(s)}
+                  style={{
+                    padding: '3px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6,
+                    cursor: avail ? 'pointer' : 'not-allowed',
+                    border: active ? '1.5px solid #111' : '1px solid #ddd',
+                    background: active ? '#111' : '#fff',
+                    color: active ? '#fff' : avail ? '#444' : '#ccc',
+                    textDecoration: avail ? 'none' : 'line-through',
+                    opacity: avail ? 1 : 0.5,
+                  }}>
+                  {s}
+                </button>
+              )
+            })}
           </div>
         )}
 
         {/* Add to cart */}
         <button
           onClick={handleAddToCart}
-          disabled={!inStock || (sizeOptions.length > 0 && !selectedSize)}
+          disabled={!canAdd}
           style={{
             marginTop: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-            border: 'none', cursor: (!inStock || (sizeOptions.length > 0 && !selectedSize)) ? 'default' : 'pointer',
-            background: added ? '#16a34a' : !inStock ? '#e5e5e3' : '#111',
-            color: !inStock ? '#999' : '#fff',
+            border: 'none', cursor: canAdd ? 'pointer' : 'default',
+            background: added ? '#16a34a' : isOutOfStock ? '#e5e5e3' : !selectedSizeAvailable ? '#e5e5e3' : '#111',
+            color: (isOutOfStock || !selectedSizeAvailable) ? '#999' : '#fff',
             transition: 'background 0.2s',
           }}>
-          {added ? '✓ Added' : !inStock ? 'Out of stock' : 'Add to cart'}
+          {added ? '✓ Added' : isOutOfStock ? 'Out of stock' : !selectedSizeAvailable ? 'Out of stock' : 'Add to cart'}
         </button>
       </div>
     </div>
