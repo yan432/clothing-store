@@ -74,7 +74,7 @@ function WishlistCard({ product, sizeStock, onRemove }) {
     }}>
       {/* Image */}
       <div style={{ position: 'relative' }}>
-        <a href={`/products/${product.slug || product.id}`} style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden' }}>
+        <a href={`/products/${product.slug || product.id}`} className="wishlist-card-img" style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden', borderRadius: 16 }}>
           {img
             ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 12 }}>No image</div>
@@ -101,7 +101,7 @@ function WishlistCard({ product, sizeStock, onRemove }) {
       </div>
 
       {/* Info */}
-      <div style={{ padding: '14px 14px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+      <div className="wishlist-card-info" style={{ padding: '14px 14px 16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
         <a href={`/products/${product.slug || product.id}`}
           style={{ fontSize: 14, fontWeight: 600, color: '#111', textDecoration: 'none', lineHeight: 1.3 }}>
           {product.name}
@@ -248,8 +248,8 @@ export default function WishlistPage() {
   )
 
   return (
-    <main style={{ maxWidth: 1220, margin: '0 auto', padding: '40px 24px 80px' }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
+    <main className="wishlist-main" style={{ maxWidth: 1220, margin: '0 auto', padding: '40px 24px 80px' }}>
+      <div className="wishlist-header" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
           Wishlist
           {products.length > 0 && (
@@ -278,7 +278,7 @@ export default function WishlistPage() {
           </a>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+        <div className="wishlist-grid">
           {products.map(p => (
             <WishlistCard
               key={p.id}

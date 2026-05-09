@@ -92,7 +92,7 @@ export default function Footer() {
         </div>
 
         {/* Shop */}
-        <div>
+        <div className="footer-shop">
           <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Shop</p>
           <ul style={{listStyle:'none',margin:0,padding:0,display:'flex',flexDirection:'column',gap:12}}>
             {shopLinks.map(([label, href]) => (
@@ -104,7 +104,7 @@ export default function Footer() {
         </div>
 
         {/* Customer care */}
-        <div>
+        <div className="footer-care">
           <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Customer care</p>
           <ul style={{listStyle:'none',margin:0,padding:0,display:'flex',flexDirection:'column',gap:12}}>
             {careLinks.map(([label, href]) => (
