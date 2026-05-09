@@ -52,6 +52,7 @@ async function getLandingContent() {
         subtitle: map.landing_hero_subtitle || null,
         cta:      map.landing_hero_cta      || null,
         image:    map.landing_hero_image    || null,
+        overlay:  map.landing_hero_overlay != null ? Number(map.landing_hero_overlay) : null,
       },
       promoTiles: map.landing_promo_tiles ? (() => { try { return JSON.parse(map.landing_promo_tiles) } catch { return null } })() : null,
     }
@@ -99,6 +100,8 @@ export default async function Home({ searchParams }) {
     ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
   }
   const promoTiles = landingContent?.promoTiles || homepageContent.promoTiles
+  const overlayPct = landingContent?.hero?.overlay ?? 72
+  const ov = overlayPct / 100
   const newArrivals = allProducts
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
@@ -137,7 +140,7 @@ export default async function Home({ searchParams }) {
       }}>
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: `linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.2), rgba(0,0,0,.3)), url(${hero.image})`,
+          backgroundImage: `linear-gradient(to top, rgba(0,0,0,${ov.toFixed(2)}), rgba(0,0,0,${(ov*0.28).toFixed(2)}), rgba(0,0,0,${(ov*0.42).toFixed(2)})), url(${hero.image})`,
           backgroundSize: 'cover', backgroundPosition: 'center',
         }} aria-hidden="true" />
         <div style={{ position: 'relative', textAlign: 'center', color: '#fff', padding: '0 24px', maxWidth: 640, width: '100%' }}>
