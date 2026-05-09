@@ -684,14 +684,14 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
     gap: 28px 20px;
   }
 
-  /* brand: full width, first */
-  .footer-brand {
+  /* newsletter: full width, first */
+  .footer-newsletter {
     grid-column: 1 / -1;
     order: 1;
   }
 
-  /* newsletter: full width, right after brand */
-  .footer-newsletter {
+  /* brand: full width, after newsletter */
+  .footer-brand {
     grid-column: 1 / -1;
     order: 2;
   }
