@@ -141,7 +141,20 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
         const all = await res.json()
         const map = new Map((all || []).map(p => [p.id, p]))
         const ordered = productIds.map(id => map.get(id)).filter(Boolean)
-        setProducts(ordered)
+
+        // Fetch per-size stock for each product in parallel
+        const sizeStocks = await Promise.all(
+          ordered.map(p =>
+            fetch(getApiUrl(`/products/${p.id}/size-stock`), { cache: 'no-store' })
+              .then(r => r.ok ? r.json() : {})
+              .catch(() => ({}))
+          )
+        )
+        const withStock = ordered.map((p, i) => ({
+          ...p,
+          size_stock: sizeStocks[i] || p.size_stock || {},
+        }))
+        setProducts(withStock)
       } catch { setProducts([]) }
       finally { setLoading(false) }
     })()
