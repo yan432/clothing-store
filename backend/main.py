@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone, timedelta
 import bleach
 import hashlib
@@ -23,6 +24,7 @@ from pydantic import BaseModel
 import requests
 import stripe
 from supabase import Client, create_client
+from notion_sync import sync_products_to_notion
 
 load_dotenv()
 app = FastAPI(title="Clothing Store API")
@@ -3896,7 +3898,7 @@ def process_abandoned_carts(bg: BackgroundTasks):
     Call this endpoint hourly via a cron service (cron-job.org or Render Cron Jobs).
 
     Example cron-job.org setup:
-      URL: https://your-backend.onrender.com/abandoned-cart/process
+      URL: https://clothing-store-api-935987805883.europe-west3.run.app/abandoned-cart/process
       Method: POST
       Header: X-Admin-Secret: <your ADMIN_SECRET>
       Schedule: every hour
@@ -4272,7 +4274,7 @@ async def resend_webhook(request: Request):
 
     Set RESEND_WEBHOOK_SECRET in env vars, then register this URL in
     Resend dashboard → Webhooks → Add endpoint:
-      https://your-backend.onrender.com/webhooks/resend
+      https://clothing-store-api-935987805883.europe-west3.run.app/webhooks/resend
     Select events: email.sent, email.delivered, email.opened, email.clicked,
                    email.bounced, email.complained
     """
@@ -4340,3 +4342,62 @@ async def resend_webhook(request: Request):
         metadata=metadata,
     )
     return {"ok": True}
+
+
+# ── Notion sync ───────────────────────────────────────────────────────────────
+
+NOTION_PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID", "")
+NOTION_SYNC_INTERVAL_HOURS = int(os.getenv("NOTION_SYNC_INTERVAL_HOURS", "24"))
+
+
+def _notion_sync_once() -> dict:
+    """Run one full sync cycle. Shared by the manual endpoint and the auto-scheduler."""
+    existing_db_id = get_setting("notion_database_id") or None
+    result = sync_products_to_notion(
+        supabase_client=supabase,
+        parent_page_id=NOTION_PARENT_PAGE_ID,
+        existing_database_id=existing_db_id,
+    )
+    if result["database_id"] and result["database_id"] != existing_db_id:
+        supabase.table("settings").upsert(
+            {"key": "notion_database_id", "value": result["database_id"]},
+            on_conflict="key",
+        ).execute()
+    return result
+
+
+async def _notion_sync_loop():
+    """Daily background task: syncs products to Notion every NOTION_SYNC_INTERVAL_HOURS hours."""
+    interval = NOTION_SYNC_INTERVAL_HOURS * 3600
+    while True:
+        await asyncio.sleep(interval)
+        if not os.getenv("NOTION_API_KEY") or not NOTION_PARENT_PAGE_ID:
+            continue
+        try:
+            result = await asyncio.to_thread(_notion_sync_once)
+            print(
+                f"[Notion auto-sync] ✓ created={result['created']} "
+                f"updated={result['updated']} errors={len(result['errors'])}"
+            )
+        except Exception as e:
+            print(f"[Notion auto-sync] ✗ {e}")
+
+
+@app.on_event("startup")
+async def _start_notion_sync():
+    if os.getenv("NOTION_API_KEY") and NOTION_PARENT_PAGE_ID:
+        asyncio.create_task(_notion_sync_loop())
+
+
+@app.post("/admin/notion/sync", dependencies=[Depends(require_admin)])
+def notion_sync():
+    """Manually trigger a Notion sync. Also creates the DB on first call."""
+    if not os.getenv("NOTION_API_KEY"):
+        raise HTTPException(status_code=400, detail="NOTION_API_KEY is not configured")
+    if not NOTION_PARENT_PAGE_ID:
+        raise HTTPException(status_code=400, detail="NOTION_PARENT_PAGE_ID is not configured")
+
+    result = _notion_sync_once()
+    if result["errors"]:
+        return {**result, "warning": f"{len(result['errors'])} product(s) failed to sync"}
+    return result

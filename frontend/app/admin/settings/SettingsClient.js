@@ -109,6 +109,8 @@ export default function SettingsClient() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(null) // 'customer' | 'admin' | null
+  const [notionSyncing, setNotionSyncing] = useState(false)
+  const [notionResult, setNotionResult] = useState(null)
 
   useEffect(() => {
     fetch(getApiUrl('/settings'), { cache: 'no-store' })
@@ -119,6 +121,21 @@ export default function SettingsClient() {
 
   function set(key, val) {
     setValues(prev => ({ ...prev, [key]: val }))
+  }
+
+  async function syncNotion() {
+    setNotionSyncing(true)
+    setNotionResult(null)
+    try {
+      const res = await fetch(getApiUrl('/admin/notion/sync'), { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || 'Sync failed')
+      setNotionResult({ ok: true, ...data })
+    } catch (e) {
+      setNotionResult({ ok: false, error: e.message })
+    } finally {
+      setNotionSyncing(false)
+    }
   }
 
   async function save() {
@@ -224,6 +241,40 @@ export default function SettingsClient() {
               <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>
                 Set on Render: <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ZOHO_SMTP_USER</code> · <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ZOHO_SMTP_PASSWORD</code>
               </p>
+            </div>
+
+            {/* Notion sync */}
+            <div style={{ background: '#fafaf8', border: '1px solid #ecece8', borderRadius: 12, padding: 20 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 10px' }}>Notion — Наличие товаров</p>
+              <p style={{ fontSize: 13, color: '#555', margin: '0 0 12px', lineHeight: 1.6 }}>
+                Синхронизирует все товары и их остатки (по размерам) в таблицу Notion.<br />
+                При первом запуске создаёт базу данных <strong>«Наличие товаров»</strong> внутри указанной страницы.
+              </p>
+              <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 14px' }}>
+                Нужно на Render:{' '}
+                <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>NOTION_API_KEY</code>
+                {' '}·{' '}
+                <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>NOTION_PARENT_PAGE_ID</code>
+                {' '}(<a href="https://www.notion.so/my-integrations" target="_blank" rel="noopener noreferrer" style={{ color: '#555' }}>создать интеграцию</a>)
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <button
+                  onClick={syncNotion}
+                  disabled={notionSyncing}
+                  style={{ ...btnBase, background: '#111', color: '#fff', border: 'none', opacity: notionSyncing ? 0.7 : 1 }}
+                >
+                  {notionSyncing ? 'Синхронизация...' : 'Синхронизировать в Notion'}
+                </button>
+                {notionResult && notionResult.ok && (
+                  <span style={{ fontSize: 13, color: '#166534' }}>
+                    ✓ Готово — создано: {notionResult.created}, обновлено: {notionResult.updated}, всего: {notionResult.total}
+                    {notionResult.warning && <span style={{ color: '#92400e' }}>{' '}({notionResult.warning})</span>}
+                  </span>
+                )}
+                {notionResult && !notionResult.ok && (
+                  <span style={{ fontSize: 13, color: '#b91c1c' }}>✕ Ошибка: {notionResult.error}</span>
+                )}
+              </div>
             </div>
           </div>
         )}
