@@ -18,7 +18,7 @@ import { createHmac } from 'crypto'
 const BACKEND = (
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.BACKEND_URL ||
-  'https://clothing-store-2e9s.onrender.com'
+  'https://clothing-store-api-935987805883.europe-west3.run.app'
 ).replace(/\/$/, '')
 
 const ADMIN_SECRET = process.env.BACKEND_ADMIN_SECRET || ''
