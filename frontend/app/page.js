@@ -37,6 +37,27 @@ async function getPhotoTiles() {
   } catch { return [] }
 }
 
+async function getLandingContent() {
+  try {
+    const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
+    if (!res.ok) return null
+    const raw = await res.json()
+    const map = Array.isArray(raw)
+      ? Object.fromEntries(raw.map(r => [r.key, r.value]))
+      : (raw && typeof raw === 'object' ? raw : {})
+    return {
+      hero: {
+        season:   map.landing_hero_season   || null,
+        title:    map.landing_hero_title    || null,
+        subtitle: map.landing_hero_subtitle || null,
+        cta:      map.landing_hero_cta      || null,
+        image:    map.landing_hero_image    || null,
+      },
+      promoTiles: map.landing_promo_tiles ? (() => { try { return JSON.parse(map.landing_promo_tiles) } catch { return null } })() : null,
+    }
+  } catch { return null }
+}
+
 async function getDropTimer() {
   try {
     const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
@@ -72,8 +93,12 @@ export default async function Home({ searchParams }) {
     redirect(query ? `/auth/reset?${query}` : '/auth/reset')
   }
 
-  const { hero, promoTiles } = homepageContent
-  const [allProducts, slides, dropTimer, photoTiles] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles()])
+  const [allProducts, slides, dropTimer, photoTiles, landingContent] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent()])
+  const hero = {
+    ...homepageContent.hero,
+    ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
+  }
+  const promoTiles = landingContent?.promoTiles || homepageContent.promoTiles
   const newArrivals = allProducts
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
