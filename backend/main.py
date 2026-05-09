@@ -1214,6 +1214,16 @@ def root():
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
     products = data.data or []
+    try:
+        size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+    except Exception:
+        size_stocks_raw = type("R", (), {"data": []})()
+    stock_by_product: dict = {}
+    for row in (size_stocks_raw.data or []):
+        pid = row["product_id"]
+        if pid not in stock_by_product:
+            stock_by_product[pid] = {}
+        stock_by_product[pid][row["size"]] = row["stock"]
     result = []
     for p in products:
         db_urls = p.get("image_urls") or []
@@ -1234,6 +1244,7 @@ def get_products():
             "tags": compute_auto_tags(p),
             "compare_price": p.get("compare_price"),
             "discount_percent": compute_discount_percent(p.get("price"), p.get("compare_price")),
+            "size_stock": stock_by_product.get(p["id"], {}),
         })
     return result
 
