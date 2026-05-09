@@ -27,7 +27,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
   function startAuto() {
     clearInterval(autoRef.current)
     if (total <= 1) return
-    autoRef.current = setInterval(() => setStep(s => s + 1), 5000)
+    autoRef.current = setInterval(() => setStep(s => s + 1), 8000)
   }
 
   useEffect(() => {

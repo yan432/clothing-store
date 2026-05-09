@@ -3105,7 +3105,7 @@ async def upload_and_create_homepage_slide(
     url = supabase.storage.from_("product-images").get_public_url(path)
     existing = supabase.table("homepage_slides").select("sort_order").order("sort_order", desc=True).limit(1).execute()
     next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
-    slide_data = {"image_url": url, "href": href or None, "title": title or None, "link_label": link_label or None, "sort_order": next_order, "is_active": True}
+    slide_data = {"image_url": url, "href": href or "/products", "title": title or None, "link_label": link_label or None, "sort_order": next_order, "is_active": True}
     data = supabase.table("homepage_slides").insert(slide_data).execute()
     if not data.data:
         raise HTTPException(status_code=500, detail="Failed to create slide")
