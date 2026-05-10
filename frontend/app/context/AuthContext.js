@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { createClient } from '../lib/supabase'
 import { isAdminEmail } from '../lib/admin'
 import { trackLogin } from '../lib/track'
@@ -9,7 +9,17 @@ const AuthContext = createContext()
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [supabase] = useState(() => createClient())
+
+  const setAdmCookie = useCallback((session) => {
+    // Set/clear via a server-side route so the cookie gets HttpOnly flag —
+    // document.cookie cannot set HttpOnly, making the token readable by any JS.
+    fetch('/api/auth/set-admin-cookie', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: session?.access_token ?? null }),
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -24,17 +34,7 @@ export function AuthProvider({ children }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  function setAdmCookie(session) {
-    // Set/clear via a server-side route so the cookie gets HttpOnly flag —
-    // document.cookie cannot set HttpOnly, making the token readable by any JS.
-    fetch('/api/auth/set-admin-cookie', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: session?.access_token ?? null }),
-    }).catch(() => {})
-  }
+  }, [setAdmCookie, supabase.auth])
 
   async function signUp(email, password) {
     const { data, error } = await supabase.auth.signUp({ email, password })

@@ -135,27 +135,41 @@ export default function WishlistDrawer() {
 
   // Mount/unmount with animation
   useEffect(() => {
+    let frameOne
+    let frameTwo
+    let closeTimer
     if (drawerOpen) {
-      setMounted(true)
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
       document.body.style.overflow = 'hidden'
+      frameOne = requestAnimationFrame(() => {
+        setMounted(true)
+        frameTwo = requestAnimationFrame(() => setVisible(true))
+      })
     } else {
-      setVisible(false)
-      const t = setTimeout(() => setMounted(false), 320)
       document.body.style.overflow = ''
-      return () => clearTimeout(t)
+      frameOne = requestAnimationFrame(() => setVisible(false))
+      closeTimer = setTimeout(() => setMounted(false), 320)
+    }
+    return () => {
+      if (frameOne) cancelAnimationFrame(frameOne)
+      if (frameTwo) cancelAnimationFrame(frameTwo)
+      clearTimeout(closeTimer)
     }
   }, [drawerOpen])
 
   // Load products whenever drawer opens or ids change
   useEffect(() => {
     if (!drawerOpen || !user?.email) return
-    setLoading(true)
-    fetch('/api/user/wishlist/products')
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setProducts(Array.isArray(data) ? data : []))
-      .catch(() => setProducts([]))
-      .finally(() => setLoading(false))
+    let cancelled = false
+    Promise.resolve().then(() => {
+      if (cancelled) return null
+      setLoading(true)
+      return fetch('/api/user/wishlist/products')
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { if (!cancelled) setProducts(Array.isArray(data) ? data : []) })
+        .catch(() => { if (!cancelled) setProducts([]) })
+        .finally(() => { if (!cancelled) setLoading(false) })
+    })
+    return () => { cancelled = true }
   }, [drawerOpen, user?.email, ids.size])
 
   async function handleRemove(productId) {

@@ -18,11 +18,7 @@ function ShippingBar({ total, threshold }) {
 
   useEffect(() => {
     clearTimeout(timerRef.current)
-    if (reached) {
-      timerRef.current = setTimeout(() => setTextReached(true), 500)
-    } else {
-      setTextReached(false)
-    }
+    timerRef.current = setTimeout(() => setTextReached(reached), reached ? 500 : 0)
     return () => clearTimeout(timerRef.current)
   }, [reached])
 
@@ -69,15 +65,24 @@ export default function CartDrawer({ open, onClose }) {
   }, [])
 
   useEffect(() => {
+    let frameOne
+    let frameTwo
+    let closeTimer
     if (open) {
-      setMounted(true)
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
       document.body.style.overflow = 'hidden'
+      frameOne = requestAnimationFrame(() => {
+        setMounted(true)
+        frameTwo = requestAnimationFrame(() => setVisible(true))
+      })
     } else {
-      setVisible(false)
-      const t = setTimeout(() => setMounted(false), 350)
       document.body.style.overflow = ''
-      return () => clearTimeout(t)
+      frameOne = requestAnimationFrame(() => setVisible(false))
+      closeTimer = setTimeout(() => setMounted(false), 350)
+    }
+    return () => {
+      if (frameOne) cancelAnimationFrame(frameOne)
+      if (frameTwo) cancelAnimationFrame(frameTwo)
+      clearTimeout(closeTimer)
     }
   }, [open])
 

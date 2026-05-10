@@ -181,6 +181,12 @@ export default function CheckoutPage() {
   // - Otherwise (fresh visit) → always fetch profile for logged-in users
   // - Guests with no flag → try sessionStorage
   useEffect(() => {
+    let cancelled = false
+    const restoreForm = (details) => {
+      Promise.resolve().then(() => {
+        if (!cancelled) setForm(f => ({ ...f, ...details }))
+      })
+    }
     const fromConfirm = sessionStorage.getItem('_from_confirm') === '1'
 
     if (fromConfirm) {
@@ -188,7 +194,10 @@ export default function CheckoutPage() {
       sessionStorage.removeItem('_from_confirm')
       try {
         const parsed = JSON.parse(sessionStorage.getItem('checkout_details') || '{}')
-        if (Object.keys(parsed).length) { setForm(f => ({ ...f, ...parsed })); return }
+        if (Object.keys(parsed).length) {
+          restoreForm(parsed)
+          return () => { cancelled = true }
+        }
       } catch {}
     }
 
@@ -197,6 +206,7 @@ export default function CheckoutPage() {
       fetch('/api/user-profile')
         .then(r => r.ok ? r.json() : null)
         .then(profile => {
+          if (cancelled) return
           setForm(f => ({
             firstName: profile?.first_name || f.firstName,
             lastName:  profile?.last_name  || f.lastName,
@@ -209,32 +219,38 @@ export default function CheckoutPage() {
             comment:   f.comment,
           }))
         })
-        .catch(() => setForm(f => ({ ...f, email: user.email })))
+        .catch(() => { if (!cancelled) setForm(f => ({ ...f, email: user.email })) })
     } else {
       // Guest, fresh visit → restore from sessionStorage if present
       try {
         const parsed = JSON.parse(sessionStorage.getItem('checkout_details') || '{}')
-        if (Object.keys(parsed).length) setForm(f => ({ ...f, ...parsed }))
+        if (Object.keys(parsed).length) restoreForm(parsed)
       } catch {}
     }
-  }, [user])
+    return () => { cancelled = true }
+  }, [user?.email])
 
   // Recalculate shipping whenever country or cart changes
   useEffect(() => {
     if (!cart.length) return
-    setShippingLoading(true)
-    fetch(getApiUrl('/shipping/calculate'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        country: form.country,
-        items: cart.map(item => ({ id: item.id, quantity: item.qty, volumetric_weight: item.volumetric_weight })),
-      }),
+    let cancelled = false
+    Promise.resolve().then(() => {
+      if (cancelled) return null
+      setShippingLoading(true)
+      return fetch(getApiUrl('/shipping/calculate'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          country: form.country,
+          items: cart.map(item => ({ id: item.id, quantity: item.qty, volumetric_weight: item.volumetric_weight })),
+        }),
+      })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => { if (!cancelled) setShippingResult(d) })
+        .catch(() => { if (!cancelled) setShippingResult(null) })
+        .finally(() => { if (!cancelled) setShippingLoading(false) })
     })
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => setShippingResult(d))
-      .catch(() => setShippingResult(null))
-      .finally(() => setShippingLoading(false))
+    return () => { cancelled = true }
   }, [form.country, cart])
 
   const registerPasswordChecks = [

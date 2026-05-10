@@ -5,7 +5,7 @@ import WishlistButton from './WishlistButton'
 
 export default function ProductCard({ product, colorSiblings = [], imagePriority = false }) {
   const [hovered, setHovered] = useState(false)
-  const [secondaryReady, setSecondaryReady] = useState(false)
+  const [secondaryReadyFor, setSecondaryReadyFor] = useState(null)
   const [swatchVariant, setSwatchVariant] = useState(null) // hovered color variant
   const touchTimerRef = useRef(null)
   const leaveTimerRef = useRef(null)
@@ -20,6 +20,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
     : (activeProduct.image_url ? [activeProduct.image_url] : [])
   const primaryImage = images[0]
   const secondaryImage = images[1]
+  const secondaryReady = secondaryReadyFor === secondaryImage
 
   const priceLabel = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price)
   const comparePriceLabel = product.compare_price
@@ -49,10 +50,6 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const visibleTags = ['sold_out', 'sale', 'low_stock', 'new']
     .filter(t => badgeTags.has(t) || (t === 'sale' && discount))
     .slice(0, 2)
-
-  useEffect(() => {
-    setSecondaryReady(false)
-  }, [secondaryImage])
 
   useEffect(() => () => {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
@@ -154,7 +151,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
                   sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
                   loading="lazy"
                   className="product-img"
-                  onLoad={() => setSecondaryReady(true)}
+                  onLoad={() => setSecondaryReadyFor(secondaryImage)}
                   style={{position:'absolute',inset:0,objectFit:'cover',opacity: hovered && secondaryReady ? 1 : 0,backfaceVisibility:'hidden',zIndex:1}}
                 />
               )}

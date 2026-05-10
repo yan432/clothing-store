@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 function ProductPicker({ products, selectedIds, onChange }) {
@@ -102,7 +102,12 @@ export default function HomepageSlidesClient() {
   const [timerLabel, setTimerLabel]     = useState('New Drop')
   const [timerSaving, setTimerSaving]   = useState(false)
 
-  async function load() {
+  const flash = useCallback((msg, isErr = false) => {
+    if (isErr) { setError(msg); setTimeout(() => setError(''), 4000) }
+    else { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
+  }, [])
+
+  const load = useCallback(async function loadSlides() {
     try {
       const res = await fetch(getApiUrl('/homepage-slides/admin'), { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -110,9 +115,9 @@ export default function HomepageSlidesClient() {
       setSlides(Array.isArray(data) ? data : [])
     } catch (e) { setError(e?.message || 'Failed to load slides') }
     finally { setLoading(false) }
-  }
+  }, [])
 
-  async function loadTimer() {
+  const loadTimer = useCallback(async function loadDropTimer() {
     try {
       const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
       if (!res.ok) {
@@ -139,7 +144,7 @@ export default function HomepageSlidesClient() {
     } catch (e) {
       flash(`Timer load error: ${e.message}`, true)
     }
-  }
+  }, [flash])
 
   async function saveTimer() {
     if (timerEnabled && !timerDate) {
@@ -170,7 +175,7 @@ export default function HomepageSlidesClient() {
     finally { setTimerSaving(false) }
   }
 
-  async function loadTiles() {
+  const loadTiles = useCallback(async function loadPhotoTiles() {
     try {
       const res = await fetch(getApiUrl('/homepage-photo-tiles/admin'), { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -178,16 +183,16 @@ export default function HomepageSlidesClient() {
       setTiles(Array.isArray(data) ? data : [])
     } catch (e) { flash(e?.message || 'Failed to load tiles', true) }
     finally { setTilesLoading(false) }
-  }
+  }, [flash])
 
-  async function loadAllProducts() {
+  const loadAllProducts = useCallback(async function loadProductsForPicker() {
     try {
       const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
       if (!res.ok) return
       const data = await res.json()
       setAllProducts(Array.isArray(data) ? data : [])
     } catch {}
-  }
+  }, [])
 
   async function handleTileUpload(e) {
     const raw = e.target.files?.[0]
@@ -272,12 +277,7 @@ export default function HomepageSlidesClient() {
     } catch { flash('Reorder failed', true) }
   }
 
-  useEffect(() => { load(); loadTimer(); loadTiles(); loadAllProducts() }, [])
-
-  function flash(msg, isErr = false) {
-    if (isErr) { setError(msg); setTimeout(() => setError(''), 4000) }
-    else { setMessage(msg); setTimeout(() => setMessage(''), 3000) }
-  }
+  useEffect(() => { load(); loadTimer(); loadTiles(); loadAllProducts() }, [load, loadTimer, loadTiles, loadAllProducts])
 
   // Compress image to fit Vercel's 4.5 MB serverless payload limit
   async function compressImage(file, maxPx = 1920, maxBytes = 3.5 * 1024 * 1024) {

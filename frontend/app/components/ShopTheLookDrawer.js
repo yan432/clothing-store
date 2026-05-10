@@ -23,7 +23,8 @@ function priceLabel(p) {
 
 function LookItem({ product }) {
   const { addToCart } = useCart()
-  const sizes = useMemo(() => sortSizes(parseSizeOptionsFromTags(product?.tags)), [product?.tags])
+  const productTags = product?.tags
+  const sizes = useMemo(() => sortSizes(parseSizeOptionsFromTags(productTags)), [productTags])
   const [size, setSize] = useState(sizes.length === 1 ? sizes[0] : '')
   const [added, setAdded] = useState(false)
   const [error, setError] = useState('')

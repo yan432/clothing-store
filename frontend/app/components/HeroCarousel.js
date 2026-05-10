@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 
 /**
@@ -25,16 +25,16 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
 
   const realIdx = total > 0 ? ((step % total) + total) % total : 0
 
-  function startAuto() {
+  const startAuto = useCallback(() => {
     clearInterval(autoRef.current)
     if (total <= 1) return
     autoRef.current = setInterval(() => setStep(s => s + 1), 5000)
-  }
+  }, [total])
 
   useEffect(() => {
     startAuto()
     return () => clearInterval(autoRef.current)
-  }, [total])
+  }, [startAuto])
 
   function go(direction) {
     setStep(s => s + direction)

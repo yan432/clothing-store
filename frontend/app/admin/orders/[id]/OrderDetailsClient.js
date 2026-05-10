@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminOnly from '../../../components/AdminOnly'
 import { Package, Mail } from 'lucide-react'
@@ -79,7 +79,7 @@ export default function OrderDetailsClient({ id }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  async function load(attempt = 1) {
+  const load = useCallback(async function loadOrder(attempt = 1) {
     if (!id) return
     setLoading(true)
     setError('')
@@ -102,15 +102,15 @@ export default function OrderDetailsClient({ id }) {
     } catch {
       // Render free tier sleeps ~15-30s on first request — retry every 5s up to 7 times
       if (attempt < 7) {
-        setTimeout(() => load(attempt + 1), 5000)
+        setTimeout(() => loadOrder(attempt + 1), 5000)
       } else {
         setError(`Server not responding. Make sure the backend is running.\nURL: ${url}`)
         setLoading(false)
       }
     }
-  }
+  }, [id])
 
-  useEffect(() => { load() }, [id])
+  useEffect(() => { load() }, [load])
 
   async function saveStatus() {
     setStatusSaving(true)

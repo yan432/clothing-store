@@ -5,6 +5,16 @@ import { safeJsonLd } from '../lib/safeJsonLd'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 
+function stableRandomRank(product) {
+  const input = String(product?.id ?? product?.slug ?? product?.name ?? '')
+  let hash = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return (hash >>> 0) / 4294967295
+}
+
 export async function generateMetadata() {
   try {
     const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
@@ -107,7 +117,7 @@ export default async function ProductsPage({ searchParams }) {
       priority: pt ? Number(String(pt).split('order:priority:')[1]) : null,
     }
   }
-  const randomRanks = new Map(filtered.map(p => [p.id, Math.random()]))
+  const randomRanks = new Map(filtered.map(p => [p.id, stableRandomRank(p)]))
   const sorted = [...filtered].sort((a, b) => {
     if (activeSort === 'default') {
       const am = getOrderMeta(a), bm = getOrderMeta(b)

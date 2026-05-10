@@ -113,7 +113,7 @@ export default function SettingsClient() {
   const [notionResult, setNotionResult] = useState(null)
 
   useEffect(() => {
-    fetch(getApiUrl('/settings'), { cache: 'no-store' })
+    fetch(getApiUrl('/settings/admin'), { cache: 'no-store' })
       .then(r => r.json())
       .then(data => { setValues(data); setLoading(false) })
       .catch(() => setLoading(false))

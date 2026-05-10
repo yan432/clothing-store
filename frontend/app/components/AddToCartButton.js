@@ -1,7 +1,7 @@
 'use client'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Bell, AlertTriangle } from 'lucide-react'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
 import NotifyMePopup from './NotifyMePopup'
@@ -12,12 +12,13 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
   const { user } = useAuth()
   const [added, setAdded]           = useState(false)
   const [maxReached, setMaxReached] = useState(false)
-  const [selectedSize, setSelectedSize] = useState('')
+  const [selectedSizeInput, setSelectedSizeInput] = useState('')
   const [notifyPopup, setNotifyPopup]   = useState(false)
+  const productTags = product?.tags
 
   // Parse + sort sizes in standard preset order (XS → S → M → L → XL → XXL → One Size)
   const sizeOptions = useMemo(() => {
-    const raw = parseSizeOptionsFromTags(product?.tags)
+    const raw = parseSizeOptionsFromTags(productTags)
     return [...raw].sort((a, b) => {
       const ia = SIZE_PRESET_OPTIONS.indexOf(a)
       const ib = SIZE_PRESET_OPTIONS.indexOf(b)
@@ -26,12 +27,15 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
       if (ib === -1) return -1
       return ia - ib
     })
-  }, [product?.tags])
+  }, [productTags])
 
   const shouldShowSizeSelector = showSizeSelector && sizeOptions.length > 0
   const mustSelectSize         = shouldShowSizeSelector && sizeOptions.length > 1
   const availableStock         = product.available_stock ?? product.stock ?? 0
   const isInStock              = availableStock > 0
+  const selectedSize = sizeOptions.includes(selectedSizeInput)
+    ? selectedSizeInput
+    : sizeOptions.length === 1 ? sizeOptions[0] : ''
 
   // Per-size helpers
   const getSizeQty   = (size) => sizeStock[size]          // undefined = not tracked
@@ -42,12 +46,6 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
     : isInStock
 
   const canAdd = effectiveInStock && (!mustSelectSize || Boolean(selectedSize))
-
-  // Auto-select when only one size
-  useEffect(() => {
-    if (sizeOptions.length === 1) { setSelectedSize(sizeOptions[0]); return }
-    if (!sizeOptions.includes(selectedSize)) setSelectedSize('')
-  }, [sizeOptions, selectedSize])
 
   function handleAdd() {
     if (!canAdd) return
@@ -91,7 +89,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
             </p>
             <select
               value={selectedSize}
-              onChange={e => setSelectedSize(e.target.value)}
+              onChange={e => setSelectedSizeInput(e.target.value)}
               style={{
                 width: '100%',
                 border: 'none',

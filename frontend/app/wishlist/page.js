@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useWishlist } from '../context/WishlistContext'
 import { useCart } from '../context/CartContext'
@@ -10,18 +10,16 @@ import NotifyMePopup from '../components/NotifyMePopup'
 function WishlistCard({ product, sizeStock, onRemove }) {
   const { addToCart, setDrawerOpen } = useCart()
   const { user } = useAuth()
-  const sizeOptions = parseSizeOptionsFromTags(product.tags)
-  const [selectedSize, setSelectedSize] = useState('')
+  const productTags = product.tags
+  const sizeOptions = useMemo(() => parseSizeOptionsFromTags(productTags), [productTags])
+  const [selectedSizeInput, setSelectedSizeInput] = useState('')
   const [added, setAdded] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [notifyPopup, setNotifyPopup] = useState(false)
-
-  // Pre-select first in-stock size
-  useEffect(() => {
-    if (!sizeOptions.length) return
-    const firstInStock = sizeOptions.find(s => (sizeStock[s] ?? 1) > 0)
-    setSelectedSize(firstInStock || sizeOptions[0])
-  }, [sizeOptions.join(','), JSON.stringify(sizeStock)])
+  const firstInStock = sizeOptions.find(s => (sizeStock[s] ?? 1) > 0)
+  const selectedSize = sizeOptions.includes(selectedSizeInput)
+    ? selectedSizeInput
+    : firstInStock || sizeOptions[0] || ''
 
   const imgs  = Array.isArray(product.image_urls) && product.image_urls.length
     ? product.image_urls : (product.image_url ? [product.image_url] : [])
@@ -132,7 +130,7 @@ function WishlistCard({ product, sizeStock, onRemove }) {
               const outOfStock = qty !== null && qty === 0
               const isSelected = selectedSize === s
               return (
-                <button key={s} onClick={() => setSelectedSize(s)}
+                <button key={s} onClick={() => setSelectedSizeInput(s)}
                   title={outOfStock ? `${s} — out of stock` : s}
                   style={{
                     padding: '4px 10px', fontSize: 12, fontWeight: 600, borderRadius: 7,
@@ -194,34 +192,42 @@ export default function WishlistPage() {
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    if (!user?.email) { setLoading(false); return }
     let cancelled = false
-    setLoading(true)
-    fetch('/api/user/wishlist/products')
-      .then(r => r.ok ? r.json() : [])
-      .then(async data => {
-        if (cancelled) return
-        // Drop hidden and archived products
-        const raw = Array.isArray(data) ? data : []
-        const list = raw.filter(p =>
-          !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]')
-        )
-
-        setProducts(list)
-
-        // Fetch size-stock for all visible products in parallel
-        const entries = await Promise.all(
-          list.map(p =>
-            fetch(getApiUrl(`/products/${p.id}/size-stock`))
-              .then(r => r.ok ? r.json() : {})
-              .then(stock => [p.id, stock])
-              .catch(() => [p.id, {}])
+    Promise.resolve().then(() => {
+      if (cancelled) return null
+      if (!user?.email) {
+        setProducts([])
+        setSizeStocks({})
+        setLoading(false)
+        return null
+      }
+      setLoading(true)
+      return fetch('/api/user/wishlist/products')
+        .then(r => r.ok ? r.json() : [])
+        .then(async data => {
+          if (cancelled) return
+          // Drop hidden and archived products
+          const raw = Array.isArray(data) ? data : []
+          const list = raw.filter(p =>
+            !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]')
           )
-        )
-        if (!cancelled) setSizeStocks(Object.fromEntries(entries))
-      })
-      .catch(() => { if (!cancelled) setProducts([]) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+
+          setProducts(list)
+
+          // Fetch size-stock for all visible products in parallel
+          const entries = await Promise.all(
+            list.map(p =>
+              fetch(getApiUrl(`/products/${p.id}/size-stock`))
+                .then(r => r.ok ? r.json() : {})
+                .then(stock => [p.id, stock])
+                .catch(() => [p.id, {}])
+            )
+          )
+          if (!cancelled) setSizeStocks(Object.fromEntries(entries))
+        })
+        .catch(() => { if (!cancelled) setProducts([]) })
+        .finally(() => { if (!cancelled) setLoading(false) })
+    })
     return () => { cancelled = true }
   }, [user?.email])  // only reload when user changes — removals handled locally
 

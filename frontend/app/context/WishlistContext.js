@@ -26,7 +26,7 @@ export function WishlistProvider({ children }) {
     } else {
       setIds(new Set())
     }
-  }, [user?.email]) // intentionally not depending on `load` to avoid extra calls
+  }, [user?.email, load])
 
   const toggle = useCallback(async (productId) => {
     if (!user?.email) return false

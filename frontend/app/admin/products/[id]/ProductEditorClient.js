@@ -5,8 +5,9 @@ import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { buildSizeTags, parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 
+const MANAGED_TAG_PREFIXES = ['new', 'sale', 'order:fixed', 'order:random', 'order:priority:', 'size:']
+
 export default function ProductEditorClient({ id }) {
-  const MANAGED_TAG_PREFIXES = ['new', 'sale', 'order:fixed', 'order:random', 'order:priority:', 'size:']
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)

@@ -35,7 +35,7 @@ export default function SuccessPage() {
         }
       }
     } catch (_) {}
-  }, [])
+  }, [clearCart])
 
   return (
     <main style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:24}}>

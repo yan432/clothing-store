@@ -96,7 +96,7 @@ export default function ConfirmPage() {
         if (ship?.price_eur != null) setShippingCost(ship.price_eur)
       } catch {}
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     // Recalculate shipping if cart or country changes

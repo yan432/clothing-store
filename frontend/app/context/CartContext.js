@@ -5,22 +5,35 @@ import { getApiUrl } from '../lib/api'
 
 const CartContext = createContext()
 
+function readStoredCart() {
+  if (typeof window === 'undefined') return []
+  try {
+    const saved = localStorage.getItem('cart')
+    return saved ? JSON.parse(saved) || [] : []
+  } catch {
+    localStorage.removeItem('cart') // corrupted — reset silently
+    return []
+  }
+}
+
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([])
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   useEffect(() => {
-    let initial = []
-    try {
-      const saved = localStorage.getItem('cart')
-      if (saved) initial = JSON.parse(saved) || []
-    } catch {
-      localStorage.removeItem('cart') // corrupted — reset silently
-    }
-    setCart(initial)
+    let cancelled = false
+    const initial = readStoredCart()
+    const hydrateTimer = setTimeout(() => {
+      if (!cancelled) setCart(initial)
+    }, 0)
 
     // Sync against server: remove items whose products are now hidden/archived.
-    if (initial.length === 0) return
+    if (initial.length === 0) {
+      return () => {
+        cancelled = true
+        clearTimeout(hydrateTimer)
+      }
+    }
     ;(async () => {
       try {
         const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
@@ -34,11 +47,18 @@ export function CartProvider({ children }) {
         )
         const filtered = initial.filter(item => visible.has(item.id))
         if (filtered.length !== initial.length) {
-          setCart(filtered)
+          if (!cancelled) {
+            clearTimeout(hydrateTimer)
+            setCart(filtered)
+          }
           localStorage.setItem('cart', JSON.stringify(filtered))
         }
       } catch {} // network error: keep existing cart
     })()
+    return () => {
+      cancelled = true
+      clearTimeout(hydrateTimer)
+    }
   }, [])
 
   const save = useCallback((items) => {

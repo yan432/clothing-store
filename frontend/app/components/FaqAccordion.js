@@ -1,5 +1,5 @@
 'use client'
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function normaliseFaqHtml(html) {
   if (!html || !html.includes('<div class="faq-item">')) return html
@@ -14,7 +14,6 @@ function sanitize(html) {
   if (typeof window === 'undefined') return html
   try {
     // Dynamic require so the module is never evaluated during SSR
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const DOMPurify = require('dompurify')
     const purify = DOMPurify.default ?? DOMPurify
     if (typeof purify.sanitize !== 'function') return html
@@ -29,13 +28,15 @@ function sanitize(html) {
 
 export default function FaqAccordion({ html }) {
   const ref = useRef(null)
-  const [safe, setSafe] = useState('')
 
   const processed = normaliseFaqHtml(html)
 
-  // Sanitize on the client after mount so SSR can render the raw HTML safely
+  const [safe, setSafe] = useState(processed || '')
+
+  // Sanitize after mount so SSR and first client render stay identical.
   useEffect(() => {
-    setSafe(sanitize(processed || ''))
+    const timer = setTimeout(() => setSafe(sanitize(processed || '')), 0)
+    return () => clearTimeout(timer)
   }, [processed])
 
 

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import OrdersTable from './OrdersTable'
 import AdminOnly from '../../components/AdminOnly'
@@ -12,7 +12,7 @@ export default function AdminOrdersClient() {
   const [retryCount, setRetryCount] = useState(0)
   const mounted = useRef(true)
 
-  async function load(attempt = 1) {
+  const load = useCallback(async function loadOrders(attempt = 1) {
     if (!mounted.current) return
     setLoading(true)
     setError('')
@@ -25,19 +25,19 @@ export default function AdminOrdersClient() {
     } catch {
       if (!mounted.current) return
       if (attempt < 7) {
-        setTimeout(() => load(attempt + 1), 5000)
+        setTimeout(() => loadOrders(attempt + 1), 5000)
       } else {
         setError('Server not responding. Try refreshing the page.')
         setLoading(false)
       }
     }
-  }
+  }, [])
 
   useEffect(() => {
     mounted.current = true
     load()
     return () => { mounted.current = false }
-  }, [])
+  }, [load])
 
   return (
     <AdminOnly>
