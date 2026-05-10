@@ -31,7 +31,7 @@ export default function AnnouncementBar() {
 
   if (!enabled) return null
 
-  // Render 4 copies so the loop is seamless at any screen width
+  // Use 4 copies so the loop is seamless at any screen width
   const copies = [0, 1, 2, 3]
 
   return (

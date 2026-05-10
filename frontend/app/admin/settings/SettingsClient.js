@@ -32,7 +32,7 @@ const FIELDS = [
   {
     section: 'New order alert — admin email',
     fields: [
-      { key: 'email_admin_subject', label: 'Subject', placeholder: 'New order #{order_id} — {total}', hint: 'Variables: {order_id}, {total}. Sent to ORDER_ALERT_EMAIL on Render.' },
+      { key: 'email_admin_subject', label: 'Subject', placeholder: 'New order #{order_id} — {total}', hint: 'Variables: {order_id}, {total}. Sent to ORDER_ALERT_EMAIL from the backend environment.' },
     ],
   },
   {
@@ -236,10 +236,10 @@ export default function SettingsClient() {
               <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 10px' }}>SMTP — Zoho Mail</p>
               <p style={{ fontSize: 13, color: '#555', margin: '0 0 8px', lineHeight: 1.6 }}>
                 Emails are sent via <strong>Zoho SMTP</strong> when configured, or Resend as fallback.<br />
-                Admin order alerts go to <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ORDER_ALERT_EMAIL</code> set on Render — which is your Zoho inbox.
+                Admin order alerts go to <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ORDER_ALERT_EMAIL</code> set in the backend environment — which is your Zoho inbox.
               </p>
               <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>
-                Set on Render: <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ZOHO_SMTP_USER</code> · <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ZOHO_SMTP_PASSWORD</code>
+                Set in Cloud Run env vars: <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ZOHO_SMTP_USER</code> · <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>ZOHO_SMTP_PASSWORD</code>
               </p>
             </div>
 
@@ -251,7 +251,7 @@ export default function SettingsClient() {
                 При первом запуске создаёт базу данных <strong>«Наличие товаров»</strong> внутри указанной страницы.
               </p>
               <p style={{ fontSize: 12, color: '#aaa', margin: '0 0 14px' }}>
-                Нужно на Render:{' '}
+                Нужно в Cloud Run env vars:{' '}
                 <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>NOTION_API_KEY</code>
                 {' '}·{' '}
                 <code style={{ background: '#eee', padding: '1px 5px', borderRadius: 4 }}>NOTION_PARENT_PAGE_ID</code>

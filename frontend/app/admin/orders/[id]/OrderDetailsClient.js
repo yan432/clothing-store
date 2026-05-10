@@ -100,7 +100,7 @@ export default function OrderDetailsClient({ id }) {
       setTrackingUrl(data.tracking_url || '')
       setLoading(false)
     } catch {
-      // Render free tier sleeps ~15-30s on first request — retry every 5s up to 7 times
+      // Cloud Run cold starts or deploys can take a moment — retry every 5s up to 7 times
       if (attempt < 7) {
         setTimeout(() => loadOrder(attempt + 1), 5000)
       } else {

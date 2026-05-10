@@ -181,8 +181,8 @@ def verify_user_token(email: str, request: Request) -> None:
 
 
 # ── Rate limiting (in-memory, per-IP) ─────────────────────────────────────────
-# Single-instance only — sufficient for Render free/starter tier deployments.
-# For multi-instance scaling, switch to Redis-backed limiter.
+# In-memory limiter is process-local.
+# For strict limits across Cloud Run instances, switch to Redis-backed limiter.
 from collections import defaultdict
 from time import time as _epoch_now
 from threading import Lock as _Lock
@@ -191,7 +191,7 @@ _rl_store: dict[str, list[float]] = defaultdict(list)
 _rl_lock = _Lock()
 
 def _client_ip(request: Request) -> str:
-    """Render and most reverse proxies set X-Forwarded-For with the real client IP first."""
+    """Cloud Run and most reverse proxies set X-Forwarded-For with the real client IP first."""
     fwd = request.headers.get("x-forwarded-for", "")
     if fwd:
         return fwd.split(",")[0].strip()
@@ -4237,7 +4237,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
 def process_abandoned_carts(bg: BackgroundTasks):
     """
     Find carts that have been abandoned for ≥ 2 hours and haven't been emailed yet.
-    Call this endpoint hourly via a cron service (cron-job.org or Render Cron Jobs).
+    Call this endpoint hourly via a cron service (cron-job.org or Cloud Scheduler).
 
     Example cron-job.org setup:
       URL: https://clothing-store-api-935987805883.europe-west3.run.app/abandoned-cart/process
