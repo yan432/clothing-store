@@ -2640,10 +2640,10 @@ async def stripe_webhook(request: Request):
         # For quick checkout the customer email/address is collected by Stripe,
         # not our form — so the DB order might not have it yet at webhook time.
         stripe_email = as_dict(data_obj.get("customer_details")).get("email")
-        if stripe_email:
+        if stripe_email and not first_non_empty(order.get("email")):
             order["email"] = stripe_email
         for field, value in extract_shipping_fields(data_obj).items():
-            if first_non_empty(value) is not None:
+            if first_non_empty(value) is not None and not first_non_empty(order.get(field)):
                 order[field] = value
         finalize_paid_stock(items)
         increment_promo_usage_if_needed(order)
@@ -2656,7 +2656,7 @@ async def stripe_webhook(request: Request):
 
     webhook_shipping_fields = {
         k: v for k, v in extract_shipping_fields(data_obj).items()
-        if first_non_empty(v) is not None
+        if first_non_empty(v) is not None and not first_non_empty(order.get(k))
     }
     update_payload = {
         "updated_at": now_iso(),
@@ -2665,7 +2665,7 @@ async def stripe_webhook(request: Request):
         "stripe_session_id": order.get("stripe_session_id") or stripe_session_id,
         "stripe_customer_id": data_obj.get("customer") or order.get("stripe_customer_id"),
         "stripe_payment_intent_id": data_obj.get("payment_intent") or order.get("stripe_payment_intent_id"),
-        "email": as_dict(data_obj.get("customer_details")).get("email") or order.get("email"),
+        "email": order.get("email") or as_dict(data_obj.get("customer_details")).get("email"),
         "shipping_json": data_obj.get("shipping_details") or order.get("shipping_json"),
         "customer_json": data_obj.get("customer_details") or order.get("customer_json"),
         "currency": data_obj.get("currency") or order.get("currency"),
