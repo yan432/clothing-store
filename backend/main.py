@@ -31,6 +31,51 @@ app = FastAPI(title="Clothing Store API")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://www.edmclothes.net")
 
 
+def _frontend_origin_from_url(raw_url: Optional[str]) -> Optional[str]:
+    if not raw_url:
+        return None
+    try:
+        parsed = urlparse(str(raw_url).strip())
+    except Exception:
+        return None
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _is_allowed_frontend_origin(origin: str) -> bool:
+    parsed = urlparse(origin)
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+
+    configured_host = (urlparse(FRONTEND_URL).hostname or "").lower()
+    allowed_hosts = {
+        configured_host,
+        "edmclothes.net",
+        "www.edmclothes.net",
+        "localhost",
+        "127.0.0.1",
+    }
+    if host in allowed_hosts:
+        return True
+    return bool(re.fullmatch(r"clothing-store(-[a-z0-9-]+)?\.vercel\.app", host))
+
+
+def checkout_frontend_base(payload_url: Optional[str], request: Optional[Request] = None) -> str:
+    candidates = [
+        payload_url,
+        request.headers.get("origin") if request else None,
+        FRONTEND_URL,
+        "https://www.edmclothes.net",
+    ]
+    for candidate in candidates:
+        origin = _frontend_origin_from_url(candidate)
+        if origin and _is_allowed_frontend_origin(origin):
+            return origin.rstrip("/")
+    return "https://www.edmclothes.net"
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -241,6 +286,8 @@ class CheckoutRequest(BaseModel):
     comment: Optional[str] = None
     quick: bool = False  # True = quick checkout from cart; Stripe collects shipping
     utm: Optional[dict] = None  # { utm_source, utm_medium, utm_campaign, utm_content, utm_term }
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
 
 
 class PromoCodeCreate(BaseModel):
@@ -2498,6 +2545,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
 
         # For quick checkout (from cart) Stripe collects shipping; for normal
         # checkout the customer already filled it in on our Details page.
+        frontend_base = checkout_frontend_base(payload.success_url, http_request)
         stripe_session_params: dict = dict(
             payment_method_types=["card", "klarna", "paypal"],
             line_items=line_items,
@@ -2512,8 +2560,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 "promo_code": str(promo.get("code")) if promo else "",
                 **({"order_note": payload.comment[:500]} if payload.comment else {}),
             },
-            success_url=f"{FRONTEND_URL.rstrip('/')}/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{FRONTEND_URL.rstrip('/')}/cart",
+            success_url=f"{frontend_base}/success?session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{frontend_base}/cart",
         )
         if payload.quick:
             stripe_session_params["shipping_address_collection"] = {
@@ -2592,30 +2640,11 @@ def compute_auto_tags(product: dict) -> list:
     
     return tags
 
-@app.post("/webhooks/stripe")
-async def stripe_webhook(request: Request):
-    secret = os.getenv("STRIPE_WEBHOOK_SECRET")
-    if not secret:
-        raise HTTPException(status_code=500, detail="STRIPE_WEBHOOK_SECRET is not configured")
-
-    payload = await request.body()
-    signature = request.headers.get("stripe-signature")
-    if not signature:
-        raise HTTPException(status_code=400, detail="Missing Stripe signature")
-
-    try:
-        event = stripe.Webhook.construct_event(payload=payload, sig_header=signature, secret=secret)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid payload: {exc}")
-    except stripe.error.SignatureVerificationError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid signature: {exc}")
-
-    event_dict = stripe_obj_to_dict(event)
-    if not save_webhook_event_once(event_dict):
-        return {"received": True, "duplicate": True}
-
-    event_type = event_dict.get("type")
-    data_obj = event_dict.get("data", {}).get("object", {})
+def process_checkout_session_event(event_type: str, data_obj: dict, event_dict: Optional[dict] = None) -> dict:
+    event_dict = event_dict or {
+        "type": event_type,
+        "data": {"object": data_obj},
+    }
     stripe_session_id = data_obj.get("id")
     client_reference_id = data_obj.get("client_reference_id")
     order = find_order(client_reference_id, stripe_session_id)
@@ -2641,6 +2670,7 @@ async def stripe_webhook(request: Request):
 
     items = order.get("items_json") or []
     changed = False
+    send_confirmation = False
     if target_status == ORDER_PAID and current_status == ORDER_PENDING:
         # Enrich order with Stripe-provided email & shipping before sending emails.
         # For quick checkout the customer email/address is collected by Stripe,
@@ -2653,8 +2683,8 @@ async def stripe_webhook(request: Request):
                 order[field] = value
         finalize_paid_stock(items)
         increment_promo_usage_if_needed(order)
-        send_order_confirmation_emails(order)
         changed = True
+        send_confirmation = True
     elif target_status in (ORDER_PAYMENT_FAILED, ORDER_CANCELLED) and current_status == ORDER_PENDING:
         release_reserved_stock(items)
         release_reserved_promo_if_needed(order)
@@ -2690,8 +2720,11 @@ async def stripe_webhook(request: Request):
 
     supabase.table("orders").update(update_payload).eq("id", order["id"]).execute()
 
+    updated_status = update_payload.get("status") or current_status
+    updated_order = {**order, **update_payload, "status": updated_status}
+
     # Record purchase event for marketing tracking
-    if target_status == ORDER_PAID:
+    if target_status == ORDER_PAID and changed:
         order_email = update_payload.get("email") or order.get("email")
         # Mark abandoned cart as converted so no recovery email is sent
         _mark_abandoned_cart_completed(order_email)
@@ -2706,15 +2739,78 @@ async def stripe_webhook(request: Request):
             },
         )
 
+    if send_confirmation:
+        try:
+            send_order_confirmation_emails(updated_order)
+        except Exception as exc:
+            print(f"order confirmation email failed for order {order.get('id')}: {type(exc).__name__}: {exc}")
+
     capture_subscriber_email(
         update_payload.get("email") or order.get("email"),
         "order_webhook",
         {
             "order_id": order.get("id"),
-            "status": update_payload.get("status") or order.get("status"),
+            "status": updated_status,
         },
     )
-    return {"received": True}
+    return {"received": True, "order_id": order.get("id"), "status": updated_status}
+
+
+@app.post("/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+    if not secret:
+        raise HTTPException(status_code=500, detail="STRIPE_WEBHOOK_SECRET is not configured")
+
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing Stripe signature")
+
+    try:
+        event = stripe.Webhook.construct_event(payload=payload, sig_header=signature, secret=secret)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid payload: {exc}")
+    except stripe.error.SignatureVerificationError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid signature: {exc}")
+
+    event_dict = stripe_obj_to_dict(event)
+    is_new_event = save_webhook_event_once(event_dict)
+    event_type = event_dict.get("type")
+    data_obj = event_dict.get("data", {}).get("object", {})
+    result = process_checkout_session_event(event_type, data_obj, event_dict)
+    if not is_new_event:
+        result["duplicate"] = True
+    return result
+
+
+@app.post("/checkout/sync-session/{session_id}")
+def sync_checkout_session(session_id: str):
+    """Verify a Checkout session server-side and apply the paid status.
+
+    This is a safe fallback for the success page. The browser only supplies the
+    Stripe session id; the backend still asks Stripe for the authoritative
+    payment_status before touching the order.
+    """
+    if not re.fullmatch(r"cs_(test|live)_[A-Za-z0-9]+", session_id or ""):
+        raise HTTPException(status_code=400, detail="Invalid checkout session id")
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except stripe.error.StripeError as exc:
+        print(f"Stripe session retrieve failed for {session_id[:12]}...: {type(exc).__name__}: {exc}")
+        raise HTTPException(status_code=502, detail="Failed to verify payment with Stripe") from exc
+
+    session_dict = stripe_obj_to_dict(session)
+    event_type = "checkout.session.completed"
+    if session_dict.get("status") == "expired":
+        event_type = "checkout.session.expired"
+
+    result = process_checkout_session_event(event_type, session_dict)
+    try:
+        result["order"] = get_order(session_id)
+    except Exception:
+        pass
+    return result
 
 
 @app.get("/orders", dependencies=[Depends(require_admin)])

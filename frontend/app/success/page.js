@@ -3,11 +3,19 @@ import { useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import { trackPurchase } from '../lib/track'
 import { getStoredUtm } from '../components/UtmCapture'
+import { getApiUrl } from '../lib/api'
 
 export default function SuccessPage() {
   const { clearCart } = useCart()
 
   useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get('session_id')
+    if (sessionId) {
+      fetch(getApiUrl(`/checkout/sync-session/${encodeURIComponent(sessionId)}`), {
+        method: 'POST',
+      }).catch(() => {})
+    }
+
     try {
       const pendingOrder = JSON.parse(localStorage.getItem('pending_order') || 'null')
       // Only clear cart and track purchase if we actually came from checkout
