@@ -28,7 +28,7 @@ from notion_sync import sync_products_to_notion
 
 load_dotenv()
 app = FastAPI(title="Clothing Store API")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://www.edmclothes.net")
 
 
 app.add_middleware(
@@ -1811,7 +1811,7 @@ def validate_promo_code(code: str, subtotal: float = 0.0, shipping: float = 0.0)
     if not promo:
         return PromoCodeValidateResponse(valid=False, message="Promo code is invalid or expired")
     discount_amount = promo_discount_amount(subtotal, promo, shipping)
-    if discount_amount <= 0:
+    if discount_amount <= 0 and str(promo.get("discount_type") or "").lower() != "free_shipping":
         return PromoCodeValidateResponse(valid=False, message="Promo code does not apply")
     return PromoCodeValidateResponse(
         valid=True,
