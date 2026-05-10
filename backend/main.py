@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 from datetime import datetime, timezone, timedelta
 import bleach
 import hashlib
@@ -100,6 +101,9 @@ ORDER_PENDING = "pending"
 ORDER_PAID = "paid"
 ORDER_PAYMENT_FAILED = "payment_failed"
 ORDER_CANCELLED = "cancelled"
+CHECKOUT_SESSION_TTL_MINUTES = int(os.getenv("CHECKOUT_SESSION_TTL_MINUTES", "30"))
+CHECKOUT_CLEANUP_INTERVAL_SECONDS = int(os.getenv("CHECKOUT_CLEANUP_INTERVAL_SECONDS", "300"))
+CHECKOUT_CLEANUP_BATCH_SIZE = int(os.getenv("CHECKOUT_CLEANUP_BATCH_SIZE", "50"))
 RESEND_API_URL = "https://api.resend.com/emails"
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Store <onboarding@resend.dev>")
@@ -2357,6 +2361,11 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
     if not payload.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
+    try:
+        cleanup_expired_pending_orders(limit=10)
+    except Exception as exc:
+        print(f"Pre-checkout expired cleanup skipped: {type(exc).__name__}: {exc}")
+
     normalized_items = []
     subtotal = 0.0
     line_items = []
@@ -2553,7 +2562,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             mode="payment",
             client_reference_id=client_reference_id,
             customer_email=payload.customer_email,
-            expires_at=int((datetime.now(tz=timezone.utc) + timedelta(minutes=30)).timestamp()),
+            expires_at=int((datetime.now(tz=timezone.utc) + timedelta(minutes=CHECKOUT_SESSION_TTL_MINUTES)).timestamp()),
             metadata={
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
@@ -2748,6 +2757,106 @@ def process_checkout_session_event(event_type: str, data_obj: dict, event_dict: 
     return {"received": True, "order_id": order.get("id"), "status": updated_status}
 
 
+def _session_event_type_from_snapshot(session_dict: dict) -> str:
+    if session_dict.get("status") == "expired":
+        return "checkout.session.expired"
+    return "checkout.session.completed"
+
+
+def _cancel_expired_pending_order_from_local_state(order: dict) -> dict:
+    items = order.get("items_json") or []
+    if items:
+        release_reserved_stock(items)
+    release_reserved_promo_if_needed(order)
+    update_payload = {
+        "status": ORDER_CANCELLED,
+        "cancelled_at": now_iso(),
+        "updated_at": now_iso(),
+        "metadata_json": {
+            **as_dict(order.get("metadata_json")),
+            "expired_checkout_cleanup": True,
+        },
+    }
+    supabase.table("orders").update(update_payload).eq("id", order["id"]).eq("status", ORDER_PENDING).execute()
+    return {"order_id": order.get("id"), "status": ORDER_CANCELLED, "source": "local_expiry"}
+
+
+def reconcile_expired_pending_order(order: dict) -> dict:
+    """Bring a locally-expired pending order in sync with Stripe before releasing stock."""
+    session_id = order.get("stripe_session_id")
+    if session_id:
+        try:
+            session = stripe.checkout.Session.retrieve(session_id)
+            session_dict = stripe_obj_to_dict(session)
+            event_type = _session_event_type_from_snapshot(session_dict)
+            result = process_checkout_session_event(event_type, session_dict)
+            return {
+                "order_id": order.get("id"),
+                "status": result.get("status"),
+                "source": "stripe",
+                "stripe_session_status": session_dict.get("status"),
+                "stripe_payment_status": session_dict.get("payment_status"),
+            }
+        except stripe.error.StripeError as exc:
+            print(f"Expired checkout cleanup skipped order {order.get('id')}: Stripe retrieve failed: {type(exc).__name__}: {exc}")
+            return {"order_id": order.get("id"), "status": order.get("status"), "source": "stripe_error"}
+
+    return _cancel_expired_pending_order_from_local_state(order)
+
+
+def cleanup_expired_pending_orders(limit: int = CHECKOUT_CLEANUP_BATCH_SIZE) -> dict:
+    result = (
+        supabase.table("orders")
+        .select("id,client_reference_id,stripe_session_id,status,items_json,metadata_json,expires_at")
+        .eq("status", ORDER_PENDING)
+        .lte("expires_at", now_iso())
+        .order("expires_at")
+        .limit(max(1, min(int(limit or CHECKOUT_CLEANUP_BATCH_SIZE), 100)))
+        .execute()
+    )
+    orders = result.data or []
+    processed: list[dict] = []
+    for order in orders:
+        try:
+            processed.append(reconcile_expired_pending_order(order))
+        except Exception as exc:
+            print(f"Expired checkout cleanup failed for order {order.get('id')}: {type(exc).__name__}: {exc}")
+            processed.append({"order_id": order.get("id"), "status": "error", "error": type(exc).__name__})
+    return {"checked": len(orders), "processed": processed}
+
+
+_checkout_cleanup_task: Optional[asyncio.Task] = None
+
+
+async def _checkout_cleanup_loop() -> None:
+    await asyncio.sleep(30)
+    while True:
+        try:
+            cleanup_expired_pending_orders()
+        except Exception as exc:
+            print(f"Expired checkout cleanup loop failed: {type(exc).__name__}: {exc}")
+        await asyncio.sleep(max(60, CHECKOUT_CLEANUP_INTERVAL_SECONDS))
+
+
+@app.on_event("startup")
+async def start_checkout_cleanup_loop():
+    global _checkout_cleanup_task
+    if CHECKOUT_CLEANUP_INTERVAL_SECONDS <= 0:
+        return
+    if _checkout_cleanup_task is None or _checkout_cleanup_task.done():
+        _checkout_cleanup_task = asyncio.create_task(_checkout_cleanup_loop())
+
+
+@app.on_event("shutdown")
+async def stop_checkout_cleanup_loop():
+    global _checkout_cleanup_task
+    if _checkout_cleanup_task:
+        _checkout_cleanup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _checkout_cleanup_task
+        _checkout_cleanup_task = None
+
+
 @app.post("/webhooks/stripe")
 async def stripe_webhook(request: Request):
     secret = os.getenv("STRIPE_WEBHOOK_SECRET")
@@ -2793,9 +2902,7 @@ def sync_checkout_session(session_id: str):
         raise HTTPException(status_code=502, detail="Failed to verify payment with Stripe") from exc
 
     session_dict = stripe_obj_to_dict(session)
-    event_type = "checkout.session.completed"
-    if session_dict.get("status") == "expired":
-        event_type = "checkout.session.expired"
+    event_type = _session_event_type_from_snapshot(session_dict)
 
     result = process_checkout_session_event(event_type, session_dict)
     try:
@@ -2909,6 +3016,11 @@ def get_order(id_or_session: str):
 
 
 # ── Admin order management ────────────────────────────────────────────────────
+
+@app.post("/orders/admin/cleanup-expired", dependencies=[Depends(require_admin)])
+def cleanup_expired_orders_admin(limit: int = Query(CHECKOUT_CLEANUP_BATCH_SIZE, ge=1, le=100)):
+    return cleanup_expired_pending_orders(limit=limit)
+
 
 @app.get("/orders/admin/{order_id}", dependencies=[Depends(require_admin)])
 def get_order_admin(order_id: int):
