@@ -462,7 +462,7 @@ def promo_discount_amount(subtotal: float, promo: dict, shipping_cost: float = 0
     dtype = str(promo.get("discount_type") or "").lower()
     value = float(promo.get("discount_value") or 0)
     if dtype == "free_shipping":
-        return round(shipping_safe, 2)
+        return 0.0  # No discount on subtotal for free shipping
     if subtotal_safe <= 0 or value <= 0:
         return 0.0
     if dtype == "percent":
@@ -889,10 +889,14 @@ def _unique_slug(base: str, exclude_id: int = None) -> str:
 
 
 def get_product_row(product_id: int) -> dict:
-    data = supabase.table("products").select("*").eq("id", product_id).execute()
-    if not data.data:
-        raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
-    return data.data[0]
+    try:
+        data = supabase.table("products").select("*").eq("id", product_id).execute()
+        if not data.data:
+            raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
+        return data.data[0]
+    except Exception as e:
+        print(f"Error fetching product {product_id}: {e}")
+        return None
 
 
 def get_visible_product_row(product_id: int) -> dict:
@@ -2377,8 +2381,10 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         if not promo:
             raise HTTPException(status_code=400, detail="Promo code is invalid or expired")
         promo_type = str(promo.get("discount_type") or "").lower()
+        if promo_type == "free_shipping":
+            shipping_cost_cfg = 0.0
         promo_discount = promo_discount_amount(subtotal, promo, shipping_cost_cfg)
-        if promo_discount <= 0:
+        if promo_discount <= 0 and promo_type != "free_shipping":
             raise HTTPException(status_code=400, detail="Promo code does not apply")
 
     # Per-email usage check (e.g. WELCOME10 — one use per customer account)
