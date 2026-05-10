@@ -4228,8 +4228,8 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
         f"---\nTo unsubscribe: {unsub_url}"
     )
 
-    subject = f"Hey {first_name}, you left something behind 👀"
-    send_email(email, subject, html, text)
+    subject = f"Hey {first_name}, you left something behind"
+    send_resend_email(email, subject, html, text)
     return True
 
 
