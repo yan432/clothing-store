@@ -2543,15 +2543,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         # Discount is already baked into product line item prices above.
         # No Stripe coupons needed — they would apply to shipping too.
 
-        # For quick checkout (from cart) Stripe collects shipping; for normal
-        # checkout the customer already filled it in on our Details page.
+        # Shipping and customer contact details are collected before Stripe.
+        # Do not force billing address collection in Checkout; wallets like
+        # Apple Pay can otherwise ask for the same address again.
         frontend_base = checkout_frontend_base(payload.success_url, http_request)
         stripe_session_params: dict = dict(
             payment_method_types=["card", "klarna", "paypal"],
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
-            billing_address_collection="required",
             customer_email=payload.customer_email,
             expires_at=int((datetime.now(tz=timezone.utc) + timedelta(minutes=30)).timestamp()),
             metadata={
@@ -2563,14 +2563,6 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             success_url=f"{frontend_base}/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{frontend_base}/cart",
         )
-        if payload.quick:
-            stripe_session_params["shipping_address_collection"] = {
-                "allowed_countries": [
-                    "US", "CA", "GB", "DE", "FR", "ES", "IT", "NL", "BE", "PL", "PT",
-                    "SE", "NO", "DK", "FI", "IE", "AT", "CH", "CZ"
-                ]
-            }
-            stripe_session_params["phone_number_collection"] = {"enabled": True}
         session = stripe.checkout.Session.create(**stripe_session_params)
         session_dict = stripe_obj_to_dict(session)
         expires_at_epoch = session_dict.get("expires_at")
