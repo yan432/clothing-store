@@ -473,8 +473,44 @@ def promo_discount_amount(subtotal: float, promo: dict, shipping_cost: float = 0
     return 0.0
 
 
+def promo_has_usage_limit(promo: Optional[dict]) -> bool:
+    return bool(promo and promo.get("usage_limit") is not None)
+
+
+def reserve_promo_usage(promo: Optional[dict]) -> bool:
+    """Reserve one limited promo use atomically before creating a checkout."""
+    if not promo_has_usage_limit(promo):
+        return False
+    try:
+        result = supabase.rpc("reserve_promo_usage", {"promo_id": int(promo["id"])}).execute()
+    except Exception as exc:
+        print(f"Promo usage reservation failed for promo {promo.get('id')}: {type(exc).__name__}: {exc}")
+        raise HTTPException(status_code=503, detail="Promo code could not be validated. Please try again.")
+    if result.data not in (True, "true"):
+        raise HTTPException(status_code=400, detail="Promo code usage limit reached")
+    return True
+
+
+def release_promo_usage(promo_id: Optional[int]) -> None:
+    if not promo_id:
+        return
+    try:
+        supabase.rpc("release_promo_usage", {"promo_id": int(promo_id)}).execute()
+    except Exception as exc:
+        print(f"Promo usage release failed for promo {promo_id}: {type(exc).__name__}: {exc}")
+
+
+def release_reserved_promo_if_needed(order: dict) -> None:
+    metadata = as_dict(order.get("metadata_json"))
+    if not metadata.get("promo_usage_reserved"):
+        return
+    release_promo_usage(metadata.get("promo_id"))
+
+
 def increment_promo_usage_if_needed(order: dict) -> None:
     metadata = as_dict(order.get("metadata_json"))
+    if metadata.get("promo_usage_reserved"):
+        return
     promo_code = normalize_promo_code(metadata.get("promo_code"))
     if not promo_code:
         return
@@ -507,6 +543,22 @@ def get_settings_bulk(keys: list[str]) -> dict:
         return {r["key"]: str(r.get("value") or "") for r in (rows.data or [])}
     except Exception:
         return {}
+
+
+PUBLIC_SETTING_KEYS = {
+    "shipping_free_threshold",
+}
+
+PUBLIC_SETTING_PREFIXES = (
+    "seo_",
+    "announcement_bar_",
+    "landing_",
+    "drop_timer_",
+)
+
+
+def is_public_setting_key(key: str) -> bool:
+    return key in PUBLIC_SETTING_KEYS or key.startswith(PUBLIC_SETTING_PREFIXES)
 
 
 def send_email_zoho(to_email: str, subject: str, html: str, text: str, from_name: str = "") -> bool:
@@ -2198,7 +2250,7 @@ def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config:
 
 class ShippingCalculateRequest(BaseModel):
     country: str
-    items: list[dict]  # [{id, quantity, volumetric_weight?}]
+    items: list[dict]  # [{id, quantity}]
 
 
 @app.post("/shipping/calculate")
@@ -2207,14 +2259,14 @@ def shipping_calculate(payload: ShippingCalculateRequest):
     config = get_shipping_config()
     total_vol_weight = 0.0
     for item in payload.items:
-        qty = max(1, int(item.get("quantity", 1)))
-        vol_w = item.get("volumetric_weight")
-        if vol_w is None:
-            try:
-                prod = get_visible_product_row(int(item["id"]))
-                vol_w = float(prod.get("volumetric_weight") or 0.3)
-            except Exception:
-                vol_w = 0.3  # fallback: 300 g per item
+        try:
+            qty = max(1, int(item.get("quantity", 1)))
+            prod = get_visible_product_row(int(item["id"]))
+            vol_w = float(prod.get("volumetric_weight") or 0.3)
+        except (KeyError, TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid cart item")
+        except HTTPException:
+            raise HTTPException(status_code=400, detail="Invalid cart item")
         total_vol_weight += float(vol_w) * qty
     total_vol_weight = max(0.1, total_vol_weight)
     result = compute_shipping_cost(payload.country, total_vol_weight, config)
@@ -2267,14 +2319,24 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             price = float(db_product.get("price") or item.price)
         except HTTPException:
             raise HTTPException(status_code=400, detail=f"Product {item.id} not found or unavailable")
+        db_image_url = db_product.get("image_url")
+        db_image_urls = db_product.get("image_urls") or []
+        if isinstance(db_image_urls, str):
+            try:
+                db_image_urls = json.loads(db_image_urls)
+            except Exception:
+                db_image_urls = []
+        if not db_image_url and isinstance(db_image_urls, list) and db_image_urls:
+            db_image_url = db_image_urls[0]
+        product_name = db_product.get("name") or item.name
         # Accumulate volumetric weight from DB (default 0.3 kg per item)
         total_vol_weight += float(db_product.get("volumetric_weight") or 0.3) * qty
         normalized_item = {
             "id": int(item.id),
-            "name": db_product.get("name") or item.name,
+            "name": product_name,
             "price": price,
             "quantity": qty,
-            "image_url": item.image_url,
+            "image_url": db_image_url,
             "size": item.size,
         }
         normalized_items.append(normalized_item)
@@ -2283,8 +2345,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "price_data": {
                 "currency": "eur",
                 "product_data": {
-                    "name": item.name,
-                    "images": [item.image_url] if item.image_url else [],
+                    "name": product_name,
+                    "images": [db_image_url] if db_image_url else [],
                     "metadata": {
                         "product_id": str(item.id),
                         "size": item.size or "",
@@ -2337,8 +2399,9 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 raise HTTPException(status_code=400, detail="This promo code can only be used once per account")
         except HTTPException:
             raise
-        except Exception:
-            pass  # If check fails, allow the order to continue
+        except Exception as exc:
+            print(f"Promo one-per-email check failed: {type(exc).__name__}: {exc}")
+            raise HTTPException(status_code=503, detail="Promo code could not be validated. Please try again.")
 
     should_charge_shipping = promo_type != "free_shipping" and not qualifies_free_shipping
 
@@ -2367,11 +2430,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         })
     amount_total = subtotal - promo_discount + (shipping_cost_cfg if should_charge_shipping else 0.0)
 
-    reserve_stock(normalized_items)
     client_reference_id = str(uuid.uuid4())
     created_order = None
+    promo_usage_reserved = False
+    stock_reserved = False
 
     try:
+        reserve_stock(normalized_items)
+        stock_reserved = True
+        promo_usage_reserved = reserve_promo_usage(promo)
         metadata_json = {"source": "web_checkout"}
         # UTM attribution — capture last-touch email/ad source at purchase time
         if payload.utm and isinstance(payload.utm, dict):
@@ -2380,10 +2447,12 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 if k in allowed_utm and isinstance(v, str) and v:
                     metadata_json[k] = v[:200]
         if promo:
+            metadata_json["promo_id"] = promo.get("id")
             metadata_json["promo_code"] = promo.get("code")
             metadata_json["promo_discount_type"] = promo.get("discount_type")
             metadata_json["promo_discount_value"] = promo.get("discount_value")
             metadata_json["promo_discount_amount"] = promo_discount
+            metadata_json["promo_usage_reserved"] = promo_usage_reserved
         if payload.comment:
             metadata_json["order_note"] = payload.comment[:500]
         # Shipping carrier info (server-computed)
@@ -2471,18 +2540,36 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         }).eq("id", created_order["id"]).execute()
         return {"url": session.url}
 
-    except HTTPException:
-        release_reserved_stock(normalized_items)
+    except HTTPException as exc:
+        if stock_reserved:
+            release_reserved_stock(normalized_items)
+        if promo_usage_reserved:
+            release_promo_usage(promo.get("id") if promo else None)
+        if exc.status_code >= 500:
+            request_id = uuid.uuid4().hex[:12]
+            print(f"Checkout failed [{request_id}]: {exc.detail}")
+            raise HTTPException(
+                status_code=500,
+                detail={"message": "Checkout failed. Please try again.", "request_id": request_id},
+            )
         raise
     except Exception as exc:
-        release_reserved_stock(normalized_items)
+        request_id = uuid.uuid4().hex[:12]
+        print(f"Checkout creation failed [{request_id}]: {type(exc).__name__}: {exc}")
+        if stock_reserved:
+            release_reserved_stock(normalized_items)
+        if promo_usage_reserved:
+            release_promo_usage(promo.get("id") if promo else None)
         if created_order:
             supabase.table("orders").update({
                 "status": ORDER_PAYMENT_FAILED,
                 "failed_at": now_iso(),
                 "updated_at": now_iso(),
             }).eq("id", created_order["id"]).execute()
-        raise HTTPException(status_code=500, detail=f"Checkout creation failed: {exc}")
+        raise HTTPException(
+            status_code=500,
+            detail={"message": "Checkout failed. Please try again.", "request_id": request_id},
+        )
 
 def compute_auto_tags(product: dict) -> list:
     tags = list(product.get("tags") or [])
@@ -2564,6 +2651,7 @@ async def stripe_webhook(request: Request):
         changed = True
     elif target_status in (ORDER_PAYMENT_FAILED, ORDER_CANCELLED) and current_status == ORDER_PENDING:
         release_reserved_stock(items)
+        release_reserved_promo_if_needed(order)
         changed = True
 
     webhook_shipping_fields = {
@@ -2686,28 +2774,44 @@ _UUID_RE = re.compile(
 
 @app.get("/orders/{id_or_session}")
 def get_order(id_or_session: str):
-    """Public endpoint: look up by Stripe session ID or UUID (client_reference_id).
-    Integer primary-key lookup is intentionally excluded — sequential IDs would
-    allow unauthenticated enumeration of all orders (IDOR). Admins use
-    GET /orders/admin/{id} instead.
+    """Public checkout success lookup.
+
+    The caller may know a Stripe checkout session ID from the success URL, but
+    that should not grant access to the full order row with PII, shipping data,
+    Stripe payloads, or item details. Admins use GET /orders/admin/{id} for the
+    complete record.
     """
     try:
-        # stripe_session_id is TEXT — always safe (cs_live_... format)
-        result = supabase.table("orders").select("*").eq("stripe_session_id", id_or_session).limit(1).execute()
+        public_cols = "id,status,currency,amount_total,created_at,paid_at"
+        result = (
+            supabase.table("orders")
+            .select(public_cols)
+            .eq("stripe_session_id", id_or_session)
+            .limit(1)
+            .execute()
+        )
         if result.data:
-            return result.data[0]
+            row = result.data[0]
+            return {**row, "order_number": 10000 + int(row.get("id") or 0)}
 
-        # client_reference_id is UUID — only query if value is a valid UUID
         if _UUID_RE.match(id_or_session):
-            result = supabase.table("orders").select("*").eq("client_reference_id", id_or_session).limit(1).execute()
+            result = (
+                supabase.table("orders")
+                .select(public_cols)
+                .eq("client_reference_id", id_or_session)
+                .limit(1)
+                .execute()
+            )
             if result.data:
-                return result.data[0]
+                row = result.data[0]
+                return {**row, "order_number": 10000 + int(row.get("id") or 0)}
 
         raise HTTPException(status_code=404, detail="Order not found")
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"get_order error: {type(exc).__name__}: {exc}") from exc
+        print(f"get_order public lookup failed: {type(exc).__name__}: {exc}")
+        raise HTTPException(status_code=500, detail="Failed to load order") from exc
 
 
 # ── Admin order management ────────────────────────────────────────────────────
@@ -2742,7 +2846,7 @@ def update_order_admin(order_id: int, payload: OrderUpdatePayload):
             # Restore stock when admin manually cancels an order
             if payload.status == "cancelled":
                 try:
-                    cur = supabase.table("orders").select("status,items_json").eq("id", order_id).limit(1).execute()
+                    cur = supabase.table("orders").select("status,items_json,metadata_json").eq("id", order_id).limit(1).execute()
                     if cur.data:
                         current_status = cur.data[0].get("status") or ""
                         items = cur.data[0].get("items_json") or []
@@ -2751,6 +2855,8 @@ def update_order_admin(order_id: int, payload: OrderUpdatePayload):
                                 release_reserved_stock(items)
                             elif current_status in ("paid", "shipped", "delivered"):
                                 restore_sold_stock(items)
+                        if current_status == "pending":
+                            release_reserved_promo_if_needed(cur.data[0])
                 except Exception as exc:
                     print(f"Warning: stock restoration on cancel failed for order {order_id}: {exc}")
 
@@ -3056,6 +3162,16 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
 
 @app.get("/settings")
 def get_all_settings():
+    data = supabase.table("settings").select("key,value").execute()
+    return {
+        row["key"]: row.get("value", "")
+        for row in (data.data or [])
+        if is_public_setting_key(str(row.get("key") or ""))
+    }
+
+
+@app.get("/settings/admin", dependencies=[Depends(require_admin)])
+def get_all_settings_admin():
     data = supabase.table("settings").select("key,value").execute()
     return {row["key"]: row.get("value", "") for row in (data.data or [])}
 
@@ -3694,7 +3810,7 @@ class AbandonedCartPayload(BaseModel):
 
 
 @app.post("/abandoned-cart")
-def save_abandoned_cart(payload: AbandonedCartPayload):
+def save_abandoned_cart(payload: AbandonedCartPayload, request: Request):
     """
     Called by the frontend when the user moves from /checkout → /confirm.
     Upserts a row per email — if the user goes back and changes the cart
@@ -3707,6 +3823,7 @@ def save_abandoned_cart(payload: AbandonedCartPayload):
     accepted; the recovery email looks up name/image/slug from the products
     table at send time.
     """
+    rate_limit(request, "abandoned-cart", max_requests=20, window_seconds=3600)
     email = normalize_email(payload.email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
@@ -3722,18 +3839,37 @@ def save_abandoned_cart(payload: AbandonedCartPayload):
         if pid <= 0:
             continue
         try:
-            qty = max(1, int(raw.get("quantity") or raw.get("qty") or 1))
+            qty = min(99, max(1, int(raw.get("quantity") or raw.get("qty") or 1)))
         except (TypeError, ValueError):
             qty = 1
         size = str(raw.get("size") or "")[:32]  # bound length
         safe_items.append({"id": pid, "quantity": qty, "size": size})
+
+    authoritative_total = None
+    if safe_items:
+        product_ids = sorted({item["id"] for item in safe_items})
+        products = (
+            supabase.table("products")
+            .select("id,price")
+            .in_("id", product_ids)
+            .eq("is_hidden", False)
+            .execute()
+            .data
+            or []
+        )
+        products_by_id = {int(p["id"]): p for p in products}
+        safe_items = [item for item in safe_items if item["id"] in products_by_id]
+        authoritative_total = round(
+            sum(float(products_by_id[item["id"]].get("price") or 0) * int(item["quantity"]) for item in safe_items),
+            2,
+        ) if safe_items else None
 
     now = now_iso()
     supabase.table("abandoned_carts").upsert({
         "email":      email,
         "first_name": (payload.first_name or "").strip()[:64] or None,
         "items_json": safe_items,
-        "total_eur":  payload.total_eur,
+        "total_eur":  authoritative_total,
         "status":     "pending",
         "updated_at": now,
         "emailed_at": None,   # reset if they came back and updated cart

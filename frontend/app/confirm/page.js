@@ -191,7 +191,7 @@ export default function ConfirmPage() {
           utm: getStoredUtm() || undefined,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (data.url) {
         // Save order snapshot for GA4 purchase event on /success
         try {
@@ -210,11 +210,11 @@ export default function ConfirmPage() {
         return // keep loading spinner while Stripe redirects
       }
       // Backend returned an error (e.g. out of stock, promo expired)
-      const detail = data.detail || data.error || JSON.stringify(data)
-      alert('Could not place order: ' + detail)
+      const requestId = data.request_id || data.detail?.request_id || null
+      alert(`Checkout failed. Please try again.${requestId ? ` Reference: ${requestId}` : ''}`)
       setLoading(false)
-    } catch (e) {
-      alert('Something went wrong: ' + e.message)
+    } catch {
+      alert('Checkout failed. Please try again.')
       setLoading(false)
     }
   }

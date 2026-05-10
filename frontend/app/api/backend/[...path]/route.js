@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { randomUUID } from 'crypto'
 
 const BACKEND = (
   process.env.NEXT_PUBLIC_API_URL ||
@@ -89,7 +90,12 @@ async function proxy(request, context) {
       headers: { 'content-type': upstream.headers.get('content-type') || 'application/json' },
     })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 502 })
+    const requestId = randomUUID()
+    console.error(`Backend proxy failed [${requestId}]`, e)
+    return NextResponse.json(
+      { error: 'Upstream request failed', request_id: requestId },
+      { status: 502 }
+    )
   }
 }
 

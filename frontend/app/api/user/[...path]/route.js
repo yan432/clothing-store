@@ -13,7 +13,7 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { createHmac } from 'crypto'
+import { createHmac, randomUUID } from 'crypto'
 
 const BACKEND = (
   process.env.NEXT_PUBLIC_API_URL ||
@@ -85,7 +85,12 @@ async function proxy(request, context) {
       },
     })
   } catch (e) {
-    return NextResponse.json({ error: e.message }, { status: 502 })
+    const requestId = randomUUID()
+    console.error(`User proxy failed [${requestId}]`, e)
+    return NextResponse.json(
+      { error: 'Upstream request failed', request_id: requestId },
+      { status: 502 }
+    )
   }
 }
 
