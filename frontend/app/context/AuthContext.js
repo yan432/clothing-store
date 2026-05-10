@@ -85,7 +85,11 @@ export function AuthProvider({ children }) {
   }
 
   async function updateEmail(nextEmail) {
-    const { error } = await supabase.auth.updateUser({ email: nextEmail })
+    const emailRedirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/account`
+        : undefined
+    const { error } = await supabase.auth.updateUser({ email: nextEmail }, { emailRedirectTo })
     return { error }
   }
 

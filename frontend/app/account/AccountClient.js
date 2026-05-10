@@ -195,6 +195,8 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
   const [pwLoading, setPwLoading] = useState(false)
 
   const [newEmail, setNewEmail] = useState('')
+  const [emailPassword, setEmailPassword] = useState('')
+  const [showEmailPassword, setShowEmailPassword] = useState(false)
   const [emailMsg, setEmailMsg] = useState(null)
   const [emailLoading, setEmailLoading] = useState(false)
 
@@ -231,10 +233,17 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
     const val = newEmail.trim()
     if (!val || !val.includes('@')) { setEmailMsg({ ok: false, text: 'Enter a valid email' }); return }
     if (val.toLowerCase() === user?.email?.toLowerCase()) { setEmailMsg({ ok: false, text: 'This is already your current email' }); return }
+    if (!emailPassword) { setEmailMsg({ ok: false, text: 'Enter your current password first' }); return }
     setEmailLoading(true)
+    const { error: reErr } = await reauthenticate(user.email, emailPassword)
+    if (reErr) { setEmailMsg({ ok: false, text: 'Current password is incorrect' }); setEmailLoading(false); return }
     const { error } = await updateEmail(val)
     if (error) setEmailMsg({ ok: false, text: error.message })
-    else setEmailMsg({ ok: true, text: 'Confirmation sent. Click the link in your new inbox to confirm the change.' })
+    else {
+      setEmailMsg({ ok: true, text: 'Password verified. Confirmation sent to your new email address.' })
+      setNewEmail('')
+      setEmailPassword('')
+    }
     setEmailLoading(false)
   }
 
@@ -286,10 +295,19 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
         <p style={{ fontSize: 13, color: '#aaa', margin: '0 0 10px' }}>Current: <strong style={{ color: '#111' }}>{user?.email}</strong></p>
         <input type="email" placeholder="New email address"
           value={newEmail} onChange={e => setNewEmail(e.target.value)} style={inp()} />
+        <div style={{ position: 'relative', marginTop: 10 }}>
+          <input type={showEmailPassword ? 'text' : 'password'} placeholder="Current password"
+            value={emailPassword} onChange={e => setEmailPassword(e.target.value)}
+            style={{ ...inp(), paddingRight: 64 }} />
+          <button type="button" onClick={() => setShowEmailPassword(v => !v)}
+            style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', fontSize: 12, color: '#888', cursor: 'pointer' }}>
+            {showEmailPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
         {emailMsg && <MsgBox ok={emailMsg.ok} text={emailMsg.text} />}
         <button onClick={changeEmail} disabled={emailLoading}
           style={{ marginTop: 14, padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: emailLoading ? 'default' : 'pointer', opacity: emailLoading ? 0.65 : 1 }}>
-          {emailLoading ? 'Sending...' : 'Send confirmation'}
+          {emailLoading ? 'Sending...' : 'Verify password & send confirmation'}
         </button>
       </div>
     </SectionCard>
