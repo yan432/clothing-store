@@ -37,22 +37,21 @@ export function AuthProvider({ children }) {
   }, [setAdmCookie, supabase.auth])
 
   async function signUp(email, password) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const emailRedirectTo =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/auth`
+        : undefined
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo },
+    })
     const identities = Array.isArray(data?.user?.identities) ? data.user.identities : null
     const isExistingUser = !error && identities !== null && identities.length === 0
     return { data, error, isExistingUser }
   }
 
-  async function verifySignUpCode(email, code) {
-    const { error } = await supabase.auth.verifyOtp({
-      type: 'signup',
-      email,
-      token: code,
-    })
-    return { error }
-  }
-
-  async function resendSignUpCode(email) {
+  async function resendSignUpVerification(email) {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email,
@@ -101,7 +100,7 @@ export function AuthProvider({ children }) {
   const isAdmin = isAdminEmail(user?.email)
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, verifySignUpCode, resendSignUpCode, requestPasswordReset, updatePassword, updateEmail, reauthenticate, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut, resendSignUpVerification, requestPasswordReset, updatePassword, updateEmail, reauthenticate, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )

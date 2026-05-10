@@ -147,7 +147,7 @@ function StepBar() {
 
 export default function CheckoutPage() {
   const { cart, total } = useCart()
-  const { user, signIn, signUp, verifySignUpCode, resendSignUpCode, requestPasswordReset } = useAuth()
+  const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
   const router = useRouter()
   const [mode, setMode] = useState('guest')
   const [loading, setLoading] = useState(false)
@@ -158,7 +158,6 @@ export default function CheckoutPage() {
   const [authEmail, setAuthEmail] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authConfirmPassword, setAuthConfirmPassword] = useState('')
-  const [authVerifyCode, setAuthVerifyCode] = useState('')
   const [pendingVerifyEmail, setPendingVerifyEmail] = useState('')
   const [authNewsletterOptIn, setAuthNewsletterOptIn] = useState(true)
   const [showAuthPassword, setShowAuthPassword] = useState(false)
@@ -304,8 +303,19 @@ export default function CheckoutPage() {
       if (error) setAuthError(error.message)
       else if (isExistingUser) setAuthError('This email is already registered. Please sign in or reset your password.')
       else {
-        setPendingVerifyEmail(authEmail.trim().toLowerCase())
-        setAuthMessage('Enter the verification code from your email.')
+        const normalizedEmail = authEmail.trim().toLowerCase()
+        setPendingVerifyEmail(normalizedEmail)
+        setForm((f) => ({ ...f, email: normalizedEmail }))
+        if (authNewsletterOptIn) {
+          try {
+            await fetch(getApiUrl('/email-subscribers/capture'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: normalizedEmail, source: 'signup_checkout' }),
+            })
+          } catch (_) {}
+        }
+        setAuthMessage('Verification link sent to your email. You can continue checkout while you verify your account.')
       }
     }
     setLoading(false)
@@ -326,43 +336,14 @@ export default function CheckoutPage() {
     setLoading(false)
   }
 
-  async function handleVerifyCode(e) {
-    e.preventDefault()
-    if (!pendingVerifyEmail || !authVerifyCode.trim()) return
-    setAuthError('')
-    setAuthMessage('')
-    setLoading(true)
-    const { error } = await verifySignUpCode(pendingVerifyEmail, authVerifyCode.trim())
-    if (error) {
-      setAuthError(error.message)
-      setLoading(false)
-      return
-    }
-    if (authNewsletterOptIn) {
-      try {
-        await fetch(getApiUrl('/email-subscribers/capture'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: pendingVerifyEmail, source: 'signup_checkout' }),
-        })
-      } catch (_) {}
-    }
-    setForm((f) => ({ ...f, email: pendingVerifyEmail }))
-    setPendingVerifyEmail('')
-    setAuthVerifyCode('')
-    setMode('guest')
-    setAuthMessage('Email verified. You can continue checkout.')
-    setLoading(false)
-  }
-
-  async function handleResendCode() {
+  async function handleResendVerification() {
     if (!pendingVerifyEmail) return
     setAuthError('')
     setAuthMessage('')
     setLoading(true)
-    const { error } = await resendSignUpCode(pendingVerifyEmail)
+    const { error } = await resendSignUpVerification(pendingVerifyEmail)
     if (error) setAuthError(error.message)
-    else setAuthMessage('New verification code sent.')
+    else setAuthMessage('New verification link sent.')
     setLoading(false)
   }
 
@@ -423,7 +404,6 @@ export default function CheckoutPage() {
                     setAuthPassword('')
                     setAuthConfirmPassword('')
                     setPendingVerifyEmail('')
-                    setAuthVerifyCode('')
                     setShowAuthPassword(false)
                     setShowAuthConfirmPassword(false)
                   }}
@@ -509,34 +489,22 @@ export default function CheckoutPage() {
                   </button>
                 </form>
               {mode === 'register' && pendingVerifyEmail && (
-                <form onSubmit={handleVerifyCode} style={{display:'flex',flexDirection:'column',gap:10,maxWidth:420,marginBottom:24,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
-                  <p style={{margin:0,fontSize:13,color:'#555'}}>Verification code for <strong>{pendingVerifyEmail}</strong></p>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Enter code"
-                    value={authVerifyCode}
-                    onChange={(e) => setAuthVerifyCode(e.target.value)}
-                    style={{padding:'12px 14px',borderRadius:10,border:'1px solid #e5e5e3',fontSize:16,outline:'none'}}
-                  />
+                <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:420,marginBottom:24,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
+                  <p style={{margin:0,fontSize:13,color:'#555'}}>Verification link sent to <strong>{pendingVerifyEmail}</strong></p>
+                  <p style={{margin:0,fontSize:13,color:'#777',lineHeight:1.5}}>
+                    Open the link in your inbox to verify your account. You can keep checking out with this email.
+                  </p>
                   <div style={{display:'flex',gap:8}}>
                     <button
-                      type="submit"
-                      disabled={loading}
-                      style={{background:'#000',color:'#fff',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'none',cursor:'pointer',opacity: loading ? 0.6 : 1}}
-                    >
-                      Verify code
-                    </button>
-                    <button
                       type="button"
-                      onClick={handleResendCode}
+                      onClick={handleResendVerification}
                       disabled={loading}
                       style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
                     >
-                      Resend code
+                      Resend link
                     </button>
                   </div>
-                </form>
+                </div>
               )}
                 </>
               )}
@@ -691,7 +659,7 @@ export default function CheckoutPage() {
             </div>
             {shippingResult?.zone === 'unavailable' && (
               <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0',textAlign:'right'}}>
-                We don't ship to this country yet
+                We don&apos;t ship to this country yet
               </p>
             )}
             {shippingResult?.label && shippingResult?.zone !== 'unavailable' && (

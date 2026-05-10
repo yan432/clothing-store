@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
@@ -9,7 +9,6 @@ export default function AuthPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [verifyCode, setVerifyCode] = useState('')
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
   const [newsletterOptIn, setNewsletterOptIn] = useState(true)
   const [showPassword, setShowPassword] = useState(false)
@@ -17,8 +16,12 @@ export default function AuthPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signIn, signUp, verifySignUpCode, resendSignUpCode, requestPasswordReset } = useAuth()
+  const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
   const router = useRouter()
+
+  useEffect(() => {
+    if (user) router.push('/')
+  }, [router, user])
 
   const passwordChecks = [
     { id: 'length', label: 'At least 8 characters', valid: password.length >= 8 },
@@ -56,8 +59,18 @@ export default function AuthPage() {
       if (error) setError(error.message)
       else if (isExistingUser) setError('This email is already registered. Please sign in or reset your password.')
       else {
-        setPendingVerificationEmail(email.trim().toLowerCase())
-        setMessage('Enter the verification code sent to your email.')
+        const normalizedEmail = email.trim().toLowerCase()
+        setPendingVerificationEmail(normalizedEmail)
+        if (newsletterOptIn) {
+          try {
+            await fetch(getApiUrl('/email-subscribers/capture'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: normalizedEmail, source: 'signup' }),
+            })
+          } catch (_) {}
+        }
+        setMessage('Verification link sent to your email. Open it to finish creating your account.')
       }
     }
     setLoading(false)
@@ -78,39 +91,14 @@ export default function AuthPage() {
     setLoading(false)
   }
 
-  async function handleVerifyCode(e) {
-    e.preventDefault()
-    if (!pendingVerificationEmail || !verifyCode.trim()) return
-    setError('')
-    setMessage('')
-    setLoading(true)
-    const { error } = await verifySignUpCode(pendingVerificationEmail, verifyCode.trim())
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-    if (newsletterOptIn) {
-      try {
-        await fetch(getApiUrl('/email-subscribers/capture'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: pendingVerificationEmail, source: 'signup' }),
-        })
-      } catch (_) {}
-    }
-    setLoading(false)
-    router.push('/')
-  }
-
-  async function handleResendCode() {
+  async function handleResendVerification() {
     if (!pendingVerificationEmail) return
     setError('')
     setMessage('')
     setLoading(true)
-    const { error } = await resendSignUpCode(pendingVerificationEmail)
+    const { error } = await resendSignUpVerification(pendingVerificationEmail)
     if (error) setError(error.message)
-    else setMessage('New verification code sent.')
+    else setMessage('New verification link sent.')
     setLoading(false)
   }
 
@@ -218,34 +206,22 @@ export default function AuthPage() {
         </form>
 
         {mode === 'signup' && pendingVerificationEmail && (
-          <form onSubmit={handleVerifyCode} style={{marginTop:16,display:'flex',flexDirection:'column',gap:10,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
-            <p style={{margin:0,fontSize:13,color:'#555'}}>Verification code for <strong>{pendingVerificationEmail}</strong></p>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Enter code"
-              value={verifyCode}
-              onChange={(e) => setVerifyCode(e.target.value)}
-              style={{padding:'12px 14px',borderRadius:10,border:'1px solid #e5e5e3',fontSize:14,outline:'none'}}
-            />
+          <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:10,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
+            <p style={{margin:0,fontSize:13,color:'#555'}}>Verification link sent to <strong>{pendingVerificationEmail}</strong></p>
+            <p style={{margin:0,fontSize:13,color:'#777',lineHeight:1.5}}>
+              Open the link in your inbox to verify your account. If you do not see it, check your spam folder.
+            </p>
             <div style={{display:'flex',gap:8}}>
               <button
-                type="submit"
-                disabled={loading}
-                style={{background:'#000',color:'#fff',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'none',cursor:'pointer',opacity: loading ? 0.6 : 1}}
-              >
-                Verify code
-              </button>
-              <button
                 type="button"
-                onClick={handleResendCode}
+                onClick={handleResendVerification}
                 disabled={loading}
                 style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
               >
-                Resend code
+                Resend link
               </button>
             </div>
-          </form>
+          </div>
         )}
 
         <p style={{textAlign:'center',fontSize:14,color:'#aaa',marginTop:24}}>
@@ -258,7 +234,6 @@ export default function AuthPage() {
               setPassword('')
               setConfirmPassword('')
               setPendingVerificationEmail('')
-              setVerifyCode('')
               setShowPassword(false)
               setShowConfirmPassword(false)
             }}
