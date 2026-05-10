@@ -2832,7 +2832,7 @@ async def _checkout_cleanup_loop() -> None:
     await asyncio.sleep(30)
     while True:
         try:
-            cleanup_expired_pending_orders()
+            await asyncio.to_thread(cleanup_expired_pending_orders)
         except Exception as exc:
             print(f"Expired checkout cleanup loop failed: {type(exc).__name__}: {exc}")
         await asyncio.sleep(max(60, CHECKOUT_CLEANUP_INTERVAL_SECONDS))
