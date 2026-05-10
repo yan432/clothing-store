@@ -2,6 +2,7 @@ export const metadata = {
   alternates: { canonical: '/' },
 }
 
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
@@ -138,10 +139,20 @@ export default async function Home({ searchParams }) {
         background: '#1a1a18',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
+        {hero.image && (
+          <Image
+            src={hero.image}
+            alt=""
+            fill
+            preload
+            sizes="100vw"
+            aria-hidden="true"
+            style={{ objectFit: 'cover', objectPosition: 'center' }}
+          />
+        )}
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: `linear-gradient(to top, rgba(0,0,0,${ov.toFixed(2)}), rgba(0,0,0,${(ov*0.28).toFixed(2)}), rgba(0,0,0,${(ov*0.42).toFixed(2)})), url(${hero.image})`,
-          backgroundSize: 'cover', backgroundPosition: 'center',
+          background: `linear-gradient(to top, rgba(0,0,0,${ov.toFixed(2)}), rgba(0,0,0,${(ov*0.28).toFixed(2)}), rgba(0,0,0,${(ov*0.42).toFixed(2)}))`,
         }} aria-hidden="true" />
         <div style={{ position: 'relative', textAlign: 'center', color: '#fff', padding: '0 24px', maxWidth: 640, width: '100%' }}>
           <p style={{ fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 20px' }}>
@@ -202,7 +213,15 @@ export default async function Home({ searchParams }) {
         <div className="home-categories-grid">
           {promoTiles.map(tile => (
             <a key={tile.title} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
-              <div className="category-tile-img" style={{ aspectRatio: '4/5', backgroundImage: `url(${tile.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} aria-label={tile.title} />
+              <div className="category-tile-img" style={{ position: 'relative', aspectRatio: '4/5' }} aria-label={tile.title}>
+                <Image
+                  src={tile.image}
+                  alt=""
+                  fill
+                  sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
+                  style={{ objectFit: 'cover', objectPosition: 'center' }}
+                />
+              </div>
               <div style={{ background: '#fff', padding: '14px 16px', textAlign: 'center' }}>
                 <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{tile.title}</p>
               </div>

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 
 export default function ProductGallery({ product }) {
   const images = useMemo(() => {
@@ -79,6 +80,7 @@ export default function ProductGallery({ product }) {
                 border:'2px solid ' + (activeIndex === index ? '#111' : 'transparent'),
                 background:'#f5f5f3',
                 borderRadius:8,
+                position:'relative',
                 width:'100%',
                 aspectRatio:'4/5',
                 overflow:'hidden',
@@ -86,7 +88,14 @@ export default function ProductGallery({ product }) {
                 padding:0,
                 flexShrink:0,
               }}>
-              <img src={src} alt={product.name + ' thumbnail ' + (index + 1)} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+              <Image
+                src={src}
+                alt={product.name + ' thumbnail ' + (index + 1)}
+                fill
+                sizes="80px"
+                loading="lazy"
+                style={{objectFit:'cover'}}
+              />
             </button>
           ))}
         </div>
@@ -106,14 +115,22 @@ export default function ProductGallery({ product }) {
               transition: isDragging || instantSwitch ? 'none' : 'transform 320ms cubic-bezier(0.22, 1, 0.36, 1)',
             }}>
             {images.map((src, index) => (
-              <img
+              <div
                 key={src + index}
-                className="product-gallery-main-image"
-                src={src}
-                alt={product.name + ' image ' + (index + 1)}
-                draggable={false}
-                style={{width:'100%',height:'100%',objectFit:'cover',flex:'0 0 100%'}}
-              />
+                style={{position:'relative',width:'100%',height:'100%',flex:'0 0 100%'}}
+              >
+                <Image
+                  className="product-gallery-main-image"
+                  src={src}
+                  alt={product.name + ' image ' + (index + 1)}
+                  fill
+                  sizes="(max-width: 760px) 100vw, 58vw"
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  fetchPriority={index === 0 ? 'high' : 'auto'}
+                  draggable={false}
+                  style={{objectFit:'cover'}}
+                />
+              </div>
             ))}
           </div>
         ) : (

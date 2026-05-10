@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Image from 'next/image'
 import ShopTheLookDrawer from './ShopTheLookDrawer'
 
 function CartIcon() {
@@ -30,11 +31,14 @@ export default function HomepagePhotoTiles({ tiles }) {
           const hasProducts = Array.isArray(tile.product_ids) && tile.product_ids.length > 0
           const inner = (
             <div className="photo-tile-inner">
-              <img
+              <Image
                 src={tile.image_url}
                 alt=""
+                fill
+                sizes="(max-width: 680px) 50vw, 25vw"
                 className="photo-tile-img"
                 loading="lazy"
+                style={{objectFit:'cover',objectPosition:'center top'}}
               />
               <button
                 type="button"

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 
 /**
  * Hero carousel with a sliding window of 5 slides (current + 2 each side).
@@ -88,12 +89,14 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
         background: '#1a1a18',
         overflow: 'hidden',
       }}>
-        <img
+        <Image
           src={s.image}
           alt={s.title}
+          fill
+          sizes="100vw"
           draggable={false}
           loading="lazy"
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center center', display: 'block' }}
+          style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
         <div style={{
           position: 'absolute', inset: 0,

@@ -7,6 +7,11 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://tlaagtvplz
 const supabaseHost = (() => {
   try { return new URL(SUPABASE_URL).hostname } catch { return '' }
 })()
+const imageHosts = Array.from(new Set([
+  supabaseHost,
+  'tlaagtvplzitmqwqbluq.supabase.co',
+  'assets.bigcartel.com',
+].filter(Boolean)))
 
 const cspHeader = [
   "default-src 'self'",
@@ -32,10 +37,8 @@ const cspHeader = [
 
 const nextConfig = {
   images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'tlaagtvplzitmqwqbluq.supabase.co' },
-      { protocol: 'https', hostname: 'assets.bigcartel.com' },
-    ],
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname })),
   },
 
   async headers() {

@@ -1,5 +1,6 @@
 'use client'
 import { useRef } from 'react'
+import Image from 'next/image'
 
 export default function ProductCarousel({ products }) {
   const trackRef = useRef(null)
@@ -62,9 +63,16 @@ export default function ProductCarousel({ products }) {
                 border: '1px solid #ececea', background: '#fff',
               }}
             >
-              <div style={{ aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden' }}>
+              <div style={{ position:'relative', aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden' }}>
                 {img && (
-                  <img src={img} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 400ms ease', }} />
+                  <Image
+                    src={img}
+                    alt={p.name}
+                    fill
+                    sizes="200px"
+                    loading="lazy"
+                    style={{ objectFit: 'cover', transition: 'transform 400ms ease' }}
+                  />
                 )}
               </div>
               <div style={{ padding: '10px 12px 12px' }}>

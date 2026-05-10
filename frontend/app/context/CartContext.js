@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { trackCartAdd } from '../lib/track'
 import { getApiUrl } from '../lib/api'
 
@@ -41,22 +41,22 @@ export function CartProvider({ children }) {
     })()
   }, [])
 
-  function save(items) {
+  const save = useCallback((items) => {
     setCart(items)
     localStorage.setItem('cart', JSON.stringify(items))
-  }
+  }, [])
 
-  function getMaxStock(item) {
+  const getMaxStock = useCallback((item) => {
     return Math.max(0, Number(item?.available_stock ?? item?.stock ?? 0))
-  }
+  }, [])
 
   // How many units of a specific (product, size) combination are already in the cart
-  function getQtyForSize(productId, size) {
+  const getQtyForSize = useCallback((productId, size) => {
     return cart.reduce((sum, item) =>
       item.id === productId && item.size === size ? sum + item.qty : sum, 0)
-  }
+  }, [cart])
 
-  function addToCart(product) {
+  const addToCart = useCallback((product) => {
     const maxStock = getMaxStock(product)
     if (maxStock <= 0) return { ok: false, reason: 'out_of_stock' }
     // Per-size limit: compare only the qty already in cart for this exact (product, size)
@@ -75,13 +75,13 @@ export function CartProvider({ children }) {
     trackCartAdd(product.id)
     setDrawerOpen(true)
     return { ok: true }
-  }
+  }, [cart, getMaxStock, getQtyForSize, save])
 
-  function removeFromCart(id, size) {
+  const removeFromCart = useCallback((id, size) => {
     save(cart.filter(i => !(i.id === id && i.size === size)))
-  }
+  }, [cart, save])
 
-  function updateQty(id, qty, size) {
+  const updateQty = useCallback((id, qty, size) => {
     if (qty < 1) return removeFromCart(id, size)
     const target = cart.find((i) => i.id === id && i.size === size)
     if (!target) return
@@ -91,15 +91,26 @@ export function CartProvider({ children }) {
     // Cap at per-size stock (each size is independent)
     const nextQty = Math.min(qty, maxStock)
     save(cart.map(i => (i.id === id && i.size === size) ? {...i, qty: nextQty} : i))
-  }
+  }, [cart, getMaxStock, removeFromCart, save])
 
-  function clearCart() { save([]) }
+  const clearCart = useCallback(() => { save([]) }, [save])
 
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0)
   const count = cart.reduce((sum, i) => sum + i.qty, 0)
+  const value = useMemo(() => ({
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQty,
+    clearCart,
+    total,
+    count,
+    drawerOpen,
+    setDrawerOpen,
+  }), [cart, addToCart, removeFromCart, updateQty, clearCart, total, count, drawerOpen])
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQty, clearCart, total, count, drawerOpen, setDrawerOpen }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   )

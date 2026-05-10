@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import WishlistButton from './WishlistButton'
 
-export default function ProductCard({ product, colorSiblings = [] }) {
+export default function ProductCard({ product, colorSiblings = [], imagePriority = false }) {
   const [hovered, setHovered] = useState(false)
   const [secondaryReady, setSecondaryReady] = useState(false)
   const [swatchVariant, setSwatchVariant] = useState(null) // hovered color variant
@@ -51,11 +52,12 @@ export default function ProductCard({ product, colorSiblings = [] }) {
 
   useEffect(() => {
     setSecondaryReady(false)
-    if (!secondaryImage) return
-    const img = new Image()
-    img.src = secondaryImage
-    img.onload = () => setSecondaryReady(true)
   }, [secondaryImage])
+
+  useEffect(() => () => {
+    if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+  }, [])
 
   function handleMouseEnter() {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
@@ -128,24 +130,32 @@ export default function ProductCard({ product, colorSiblings = [] }) {
               transform: hovered ? 'translateZ(0) scale(1.03)' : 'translateZ(0) scale(1)',
               willChange:'transform',backfaceVisibility:'hidden',
             }}>
-              <img
+              <Image
                 src={primaryImage}
                 alt={product.name}
+                fill
+                sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
+                loading={imagePriority ? 'eager' : 'lazy'}
+                fetchPriority={imagePriority ? 'high' : 'auto'}
                 className="product-img"
                 style={{
                   position:'absolute',inset:0,
+                  objectFit:'cover',
                   opacity: hovered && secondaryImage && secondaryReady ? 0 : 1,
                   transition:'opacity 560ms cubic-bezier(0.22, 1, 0.36, 1)',
                   willChange:'opacity',backfaceVisibility:'hidden',zIndex:2,
                 }}
               />
-              {secondaryImage && (
-                <img
+              {secondaryImage && (hovered || secondaryReady) && (
+                <Image
                   src={secondaryImage}
-                  alt={product.name}
+                  alt=""
+                  fill
+                  sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
+                  loading="lazy"
                   className="product-img"
                   onLoad={() => setSecondaryReady(true)}
-                  style={{position:'absolute',inset:0,opacity: secondaryReady ? 1 : 0,backfaceVisibility:'hidden',zIndex:1}}
+                  style={{position:'absolute',inset:0,objectFit:'cover',opacity: hovered && secondaryReady ? 1 : 0,backfaceVisibility:'hidden',zIndex:1}}
                 />
               )}
             </div>

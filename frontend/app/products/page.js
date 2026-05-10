@@ -1,6 +1,7 @@
 import ProductCard from '../components/ProductCard'
 import SortSelect from './SortSelect'
 import { getApiUrl } from '../lib/api'
+import { safeJsonLd } from '../lib/safeJsonLd'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 
@@ -161,7 +162,7 @@ export default async function ProductsPage({ searchParams }) {
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}/>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}/>
       <main className="products-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 28px' }}>
 
         {fetchError && (
@@ -254,8 +255,13 @@ export default async function ProductsPage({ searchParams }) {
           </div>
         ) : (
           <div className="products-grid">
-            {sorted.map(product => (
-              <ProductCard key={product.id} product={product} colorSiblings={colorSiblingsMap[product.id] || []} />
+            {sorted.map((product, index) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                colorSiblings={colorSiblingsMap[product.id] || []}
+                imagePriority={index < 4}
+              />
             ))}
           </div>
         )}

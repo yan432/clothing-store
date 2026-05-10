@@ -6,6 +6,7 @@ import ProductCard from '../../components/ProductCard'
 import RecommendationsCarousel from '../../components/RecommendationsCarousel'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
+import { safeJsonLd } from '../../lib/safeJsonLd'
 
 async function getProduct(slug) {
   const res = await fetch(getApiUrl('/products/' + slug), { cache: 'no-store' })
@@ -64,7 +65,7 @@ export async function generateMetadata({ params }) {
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
 
   return {
-    title: product.name + ' — edm.clothes',
+    title: product.name,
     description: product.description,
     alternates: { canonical: `/products/${slug}` },
     openGraph: {
@@ -126,7 +127,7 @@ export default async function ProductPage({ params }) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
       />
       <ProductViewTracker productId={product.id} />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>

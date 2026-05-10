@@ -1,5 +1,5 @@
 'use client'
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from './AuthContext'
 import { getApiUrl } from '../lib/api'
 
@@ -28,7 +28,7 @@ export function WishlistProvider({ children }) {
     }
   }, [user?.email]) // intentionally not depending on `load` to avoid extra calls
 
-  async function toggle(productId) {
+  const toggle = useCallback(async (productId) => {
     if (!user?.email) return false
     const numId = Number(productId)
     const wasIn = ids.has(numId)
@@ -56,14 +56,21 @@ export function WishlistProvider({ children }) {
       return false
     }
     return true
-  }
+  }, [ids, user?.email])
 
-  function isWishlisted(productId) {
+  const isWishlisted = useCallback((productId) => {
     return ids.has(Number(productId))
-  }
+  }, [ids])
+
+  const value = useMemo(() => ({
+    ids,
+    toggle,
+    isWishlisted,
+    reload: load,
+  }), [ids, toggle, isWishlisted, load])
 
   return (
-    <WishlistContext.Provider value={{ ids, toggle, isWishlisted, reload: load }}>
+    <WishlistContext.Provider value={value}>
       {children}
     </WishlistContext.Provider>
   )
