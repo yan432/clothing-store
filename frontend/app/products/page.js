@@ -31,7 +31,7 @@ export async function generateMetadata() {
 
 async function getProducts() {
   try {
-    const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/products'), { next: { revalidate: 300 } })
     if (!res.ok) return { products: [], fetchError: 'Catalog is temporarily unavailable.' }
     const data = await res.json()
     return { products: Array.isArray(data) ? data : [], fetchError: '' }
