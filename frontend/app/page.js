@@ -15,7 +15,7 @@ import DropCountdown from './components/DropCountdown'
 
 async function getProducts() {
   try {
-    const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/products'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? data.filter(p => !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]')) : []
@@ -24,7 +24,7 @@ async function getProducts() {
 
 async function getSlides() {
   try {
-    const res = await fetch(getApiUrl('/homepage-slides'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/homepage-slides'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     return await res.json()
   } catch { return [] }
@@ -32,7 +32,7 @@ async function getSlides() {
 
 async function getPhotoTiles() {
   try {
-    const res = await fetch(getApiUrl('/homepage-photo-tiles'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/homepage-photo-tiles'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     return await res.json()
   } catch { return [] }
@@ -40,7 +40,7 @@ async function getPhotoTiles() {
 
 async function getLandingContent() {
   try {
-    const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
     if (!res.ok) return null
     const raw = await res.json()
     const map = Array.isArray(raw)
@@ -62,7 +62,7 @@ async function getLandingContent() {
 
 async function getDropTimer() {
   try {
-    const res = await fetch(getApiUrl('/settings'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
     if (!res.ok) return null
     const raw = await res.json()
     const map = Array.isArray(raw)
