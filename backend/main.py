@@ -25,7 +25,7 @@ from pydantic import BaseModel
 import requests
 import stripe
 from supabase import Client, create_client
-from notion_sync import sync_products_to_notion
+from notion_sync import sync_products_to_notion, sync_orders_to_notion
 
 load_dotenv()
 app = FastAPI(title="Clothing Store API")
@@ -4689,11 +4689,13 @@ async def resend_webhook(request: Request):
 # ── Notion sync ───────────────────────────────────────────────────────────────
 
 NOTION_PARENT_PAGE_ID = os.getenv("NOTION_PARENT_PAGE_ID", "")
+NOTION_ORDERS_PARENT_PAGE_ID = os.getenv("NOTION_ORDERS_PARENT_PAGE_ID", "")
 NOTION_SYNC_INTERVAL_HOURS = int(os.getenv("NOTION_SYNC_INTERVAL_HOURS", "24"))
+NOTION_ORDERS_SYNC_INTERVAL_HOURS = int(os.getenv("NOTION_ORDERS_SYNC_INTERVAL_HOURS", "1"))
 
 
 def _notion_sync_once() -> dict:
-    """Run one full sync cycle. Shared by the manual endpoint and the auto-scheduler."""
+    """Run one full products sync cycle. Shared by the manual endpoint and the auto-scheduler."""
     existing_db_id = get_setting("notion_database_id") or None
     result = sync_products_to_notion(
         supabase_client=supabase,
@@ -4703,6 +4705,23 @@ def _notion_sync_once() -> dict:
     if result["database_id"] and result["database_id"] != existing_db_id:
         supabase.table("settings").upsert(
             {"key": "notion_database_id", "value": result["database_id"]},
+            on_conflict="key",
+        ).execute()
+    return result
+
+
+def _notion_orders_sync_once() -> dict:
+    """Run one full orders sync cycle. Shared by the manual endpoint and the auto-scheduler."""
+    parent_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
+    existing_db_id = get_setting("notion_orders_database_id") or None
+    result = sync_orders_to_notion(
+        supabase_client=supabase,
+        parent_page_id=parent_page_id,
+        existing_database_id=existing_db_id,
+    )
+    if result["database_id"] and result["database_id"] != existing_db_id:
+        supabase.table("settings").upsert(
+            {"key": "notion_orders_database_id", "value": result["database_id"]},
             on_conflict="key",
         ).execute()
     return result
@@ -4725,15 +4744,36 @@ async def _notion_sync_loop():
             print(f"[Notion auto-sync] ✗ {e}")
 
 
+async def _notion_orders_sync_loop():
+    """Hourly background task: syncs orders to Notion every NOTION_ORDERS_SYNC_INTERVAL_HOURS hours."""
+    interval = NOTION_ORDERS_SYNC_INTERVAL_HOURS * 3600
+    while True:
+        await asyncio.sleep(interval)
+        orders_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
+        if not os.getenv("NOTION_API_KEY") or not orders_page_id:
+            continue
+        try:
+            result = await asyncio.to_thread(_notion_orders_sync_once)
+            print(
+                f"[Notion orders auto-sync] ✓ created={result['created']} "
+                f"updated={result['updated']} total={result['total']} errors={len(result['errors'])}"
+            )
+        except Exception as e:
+            print(f"[Notion orders auto-sync] ✗ {e}")
+
+
 @app.on_event("startup")
 async def _start_notion_sync():
     if os.getenv("NOTION_API_KEY") and NOTION_PARENT_PAGE_ID:
         asyncio.create_task(_notion_sync_loop())
+    orders_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
+    if os.getenv("NOTION_API_KEY") and orders_page_id:
+        asyncio.create_task(_notion_orders_sync_loop())
 
 
 @app.post("/admin/notion/sync", dependencies=[Depends(require_admin)])
 def notion_sync():
-    """Manually trigger a Notion sync. Also creates the DB on first call."""
+    """Manually trigger a Notion products sync. Also creates the DB on first call."""
     if not os.getenv("NOTION_API_KEY"):
         raise HTTPException(status_code=400, detail="NOTION_API_KEY is not configured")
     if not NOTION_PARENT_PAGE_ID:
@@ -4742,4 +4782,19 @@ def notion_sync():
     result = _notion_sync_once()
     if result["errors"]:
         return {**result, "warning": f"{len(result['errors'])} product(s) failed to sync"}
+    return result
+
+
+@app.post("/admin/notion/sync-orders", dependencies=[Depends(require_admin)])
+def notion_sync_orders():
+    """Manually trigger a Notion orders sync. Also creates the orders DB on first call."""
+    if not os.getenv("NOTION_API_KEY"):
+        raise HTTPException(status_code=400, detail="NOTION_API_KEY is not configured")
+    orders_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
+    if not orders_page_id:
+        raise HTTPException(status_code=400, detail="NOTION_ORDERS_PARENT_PAGE_ID is not configured")
+
+    result = _notion_orders_sync_once()
+    if result["errors"]:
+        return {**result, "warning": f"{len(result['errors'])} order(s) failed to sync"}
     return result
