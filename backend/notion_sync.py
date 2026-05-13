@@ -1,12 +1,14 @@
-"""Notion sync — pushes product availability from Supabase to a Notion database.
+"""Notion sync — pushes product availability and orders from Supabase to Notion.
 
 Required env vars:
-  NOTION_API_KEY          — Integration token from notion.so/my-integrations
-  NOTION_PARENT_PAGE_ID   — ID of the Notion page to create the database inside
-                            (grab from the page URL: notion.so/<page-id>)
+  NOTION_API_KEY               — Integration token from notion.so/my-integrations
+  NOTION_PARENT_PAGE_ID        — Page ID for the products database
+  NOTION_ORDERS_PARENT_PAGE_ID — Page ID where the orders database will be created
+                                  (grab from the page URL: notion.so/<page-id>)
 
-The Notion database ID is stored in the Supabase settings table under key
-"notion_database_id" after first sync. Subsequent syncs update existing rows.
+Database IDs are stored in the Supabase settings table:
+  notion_database_id        — products DB
+  notion_orders_database_id — orders DB
 """
 
 import os
@@ -221,5 +223,233 @@ def sync_products_to_notion(
         "created": created,
         "updated": updated,
         "total": len(products),
+        "errors": errors,
+    }
+
+
+# ── Orders sync ───────────────────────────────────────────────────────────────
+
+_ORDER_STATUS_COLORS = {
+    "pending": "yellow",
+    "paid": "blue",
+    "shipped": "purple",
+    "delivered": "green",
+    "payment_failed": "red",
+    "cancelled": "gray",
+}
+
+_ALL_ORDER_STATUSES = list(_ORDER_STATUS_COLORS.keys())
+
+
+def create_orders_database(parent_page_id: str) -> str:
+    """Create a Notion orders database inside parent_page_id. Returns the database ID."""
+    body = {
+        "parent": {"type": "page_id", "page_id": parent_page_id},
+        "title": [{"type": "text", "text": {"content": "Заказы"}}],
+        "properties": {
+            "Номер заказа": {"title": {}},
+            "Order ID": {"number": {"format": "number"}},
+            "Статус": {
+                "select": {
+                    "options": [
+                        {"name": k, "color": v}
+                        for k, v in _ORDER_STATUS_COLORS.items()
+                    ]
+                }
+            },
+            "Email": {"email": {}},
+            "Имя покупателя": {"rich_text": {}},
+            "Телефон": {"phone_number": {}},
+            "Товары": {"rich_text": {}},
+            "Сумма (€)": {"number": {"format": "euro"}},
+            "Промокод": {"rich_text": {}},
+            "Адрес доставки": {"rich_text": {}},
+            "Трекинг": {"url": {}},
+            "Дата создания": {"date": {}},
+            "Дата оплаты": {"date": {}},
+            "Дата отправки": {"date": {}},
+            "Последняя синхронизация": {"date": {}},
+        },
+    }
+    result = _notion_post("/databases", body)
+    return result["id"]
+
+
+def _get_order_id_from_page(page: dict) -> Optional[int]:
+    try:
+        return int(page["properties"]["Order ID"]["number"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _order_items_text(items: list) -> str:
+    if not items:
+        return ""
+    parts = []
+    for item in items:
+        name = str(item.get("name") or "?")
+        size = str(item.get("size") or "")
+        qty = int(item.get("quantity") or 1)
+        price = item.get("price")
+        part = name
+        if size:
+            part += f" ({size})"
+        part += f" ×{qty}"
+        if price:
+            part += f" — €{float(price):.2f}"
+        parts.append(part)
+    return "; ".join(parts)
+
+
+def _order_address_text(order: dict) -> str:
+    parts = [
+        order.get("shipping_line1"),
+        order.get("shipping_line2"),
+        order.get("shipping_city"),
+        order.get("shipping_state"),
+        order.get("shipping_postal_code"),
+        order.get("shipping_country"),
+    ]
+    return ", ".join(p for p in parts if p and str(p).strip())
+
+
+def _rich_text(value: str, limit: int = 2000) -> list:
+    text = str(value or "")[:limit]
+    if not text:
+        return []
+    return [{"text": {"content": text}}]
+
+
+def _order_page_properties(order: dict, now_iso: str) -> dict:
+    import json as _json
+
+    human_id = 10000 + int(order.get("id") or 0)
+    items = order.get("items_json") or []
+    metadata = order.get("metadata_json") or {}
+    if isinstance(metadata, str):
+        try:
+            metadata = _json.loads(metadata)
+        except Exception:
+            metadata = {}
+
+    promo_code = str(metadata.get("promo_code") or "").strip()
+    items_text = _order_items_text(items)
+    address_text = _order_address_text(order)
+    status = str(order.get("status") or "pending")
+
+    props: dict = {
+        "Номер заказа": {"title": [{"text": {"content": f"#{human_id}"}}]},
+        "Order ID": {"number": int(order["id"])},
+        "Статус": {"select": {"name": status}},
+        "Сумма (€)": {"number": float(order.get("amount_total") or 0)},
+        "Последняя синхронизация": {"date": {"start": now_iso}},
+    }
+
+    if items_text:
+        props["Товары"] = {"rich_text": _rich_text(items_text)}
+    if address_text:
+        props["Адрес доставки"] = {"rich_text": _rich_text(address_text)}
+
+    email = str(order.get("email") or "").strip()
+    if email:
+        props["Email"] = {"email": email}
+
+    name = str(order.get("shipping_name") or "").strip()
+    if name:
+        props["Имя покупателя"] = {"rich_text": _rich_text(name)}
+
+    phone = str(order.get("phone") or "").strip()
+    if phone:
+        props["Телефон"] = {"phone_number": phone}
+
+    if promo_code:
+        props["Промокод"] = {"rich_text": _rich_text(promo_code)}
+
+    tracking_url = str(order.get("tracking_url") or "").strip()
+    if tracking_url:
+        props["Трекинг"] = {"url": tracking_url}
+
+    created_at = order.get("created_at")
+    if created_at:
+        props["Дата создания"] = {"date": {"start": str(created_at)}}
+
+    paid_at = order.get("paid_at")
+    if paid_at:
+        props["Дата оплаты"] = {"date": {"start": str(paid_at)}}
+
+    shipped_at = order.get("shipped_at")
+    if shipped_at:
+        props["Дата отправки"] = {"date": {"start": str(shipped_at)}}
+
+    return props
+
+
+def sync_orders_to_notion(
+    supabase_client,
+    parent_page_id: str,
+    existing_database_id: Optional[str],
+) -> dict:
+    """Sync all orders (all statuses) from Supabase to a Notion database.
+
+    Returns a dict with:
+      database_id  — the Notion DB id (created or reused)
+      created      — number of new rows created
+      updated      — number of rows updated
+      errors       — list of error strings
+    """
+    errors = []
+    created = 0
+    updated = 0
+
+    # ── 1. Ensure database exists ────────────────────────────────────────────
+    database_id = existing_database_id
+    if not database_id:
+        database_id = create_orders_database(parent_page_id)
+
+    # ── 2. Fetch all orders from Supabase ────────────────────────────────────
+    orders_resp = supabase_client.table("orders").select(
+        "id, status, email, phone, shipping_name, "
+        "shipping_line1, shipping_line2, shipping_city, shipping_state, "
+        "shipping_postal_code, shipping_country, "
+        "items_json, metadata_json, amount_total, "
+        "created_at, paid_at, shipped_at, tracking_url"
+    ).order("id").execute()
+    orders = orders_resp.data or []
+
+    # ── 3. Build map of existing Notion rows: order_id → page_id ─────────────
+    existing_pages = _query_all_db_pages(database_id)
+    existing_map: dict[int, str] = {}
+    for page in existing_pages:
+        oid = _get_order_id_from_page(page)
+        if oid is not None:
+            existing_map[oid] = page["id"]
+
+    now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+
+    # ── 4. Upsert each order ─────────────────────────────────────────────────
+    for order in orders:
+        oid = order["id"]
+        props = _order_page_properties(order, now_iso)
+        try:
+            if oid in existing_map:
+                _notion_patch(f"/pages/{existing_map[oid]}", {"properties": props})
+                updated += 1
+            else:
+                _notion_post(
+                    "/pages",
+                    {
+                        "parent": {"database_id": database_id},
+                        "properties": props,
+                    },
+                )
+                created += 1
+        except Exception as e:
+            errors.append(f"Order {oid}: {e}")
+
+    return {
+        "database_id": database_id,
+        "created": created,
+        "updated": updated,
+        "total": len(orders),
         "errors": errors,
     }
