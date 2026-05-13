@@ -20,7 +20,6 @@ export default function HomepagePhotoTiles({ tiles }) {
 
   function openDrawer(tile, e) {
     e.preventDefault()
-    e.stopPropagation()
     setActiveTile(tile)
   }
 
@@ -40,20 +39,26 @@ export default function HomepagePhotoTiles({ tiles }) {
                 loading="lazy"
                 style={{objectFit:'cover',objectPosition:'center top'}}
               />
-              <button
-                type="button"
-                className="photo-tile-cart-btn"
-                aria-label="Shop this look"
-                onClick={hasProducts ? (e) => openDrawer(tile, e) : undefined}
-                disabled={!hasProducts}
-                style={{ cursor: hasProducts ? 'pointer' : 'default' }}
-              >
+              <div className="photo-tile-cart-btn" aria-hidden="true">
                 <CartIcon />
-              </button>
+              </div>
             </div>
           )
-          // If no products linked, fall back to full-tile link (or static tile)
-          if (!hasProducts && tile.href) {
+          if (hasProducts) {
+            return (
+              <button
+                key={tile.id}
+                type="button"
+                className="photo-tile"
+                aria-label="Shop this look"
+                onClick={(e) => openDrawer(tile, e)}
+                style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'block', textAlign: 'left' }}
+              >
+                {inner}
+              </button>
+            )
+          }
+          if (tile.href) {
             return <a key={tile.id} href={tile.href} className="photo-tile">{inner}</a>
           }
           return <div key={tile.id} className="photo-tile">{inner}</div>
