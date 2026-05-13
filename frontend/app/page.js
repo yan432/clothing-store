@@ -144,7 +144,7 @@ export default async function Home({ searchParams }) {
             src={hero.image}
             alt=""
             fill
-            preload
+            priority
             sizes="100vw"
             aria-hidden="true"
             style={{ objectFit: 'cover', objectPosition: 'center' }}

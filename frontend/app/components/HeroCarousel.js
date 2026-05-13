@@ -80,7 +80,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
   // too (the duplicate ends up off-screen).
   const offsets = total > 1 ? [-2, -1, 0, 1, 2] : [0]
 
-  function renderSlideContent(s) {
+  function renderSlideContent(s, isActive = false) {
     return (
       <div style={{
         position: 'relative',
@@ -95,7 +95,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           fill
           sizes="100vw"
           draggable={false}
-          loading="lazy"
+          loading={isActive ? 'eager' : 'lazy'}
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
         <div style={{
@@ -119,10 +119,10 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
     )
   }
 
-  function slideWrapper(s) {
+  function slideWrapper(s, isActive = false) {
     return s.href
-      ? <a href={s.href} style={{ display: 'block', width: '100%', height: '100%', textDecoration: 'none' }}>{renderSlideContent(s)}</a>
-      : renderSlideContent(s)
+      ? <a href={s.href} style={{ display: 'block', width: '100%', height: '100%', textDecoration: 'none' }}>{renderSlideContent(s, isActive)}</a>
+      : renderSlideContent(s, isActive)
   }
 
   return (
@@ -170,7 +170,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
                 height: '100%',
               }}
             >
-              {slideWrapper(s)}
+              {slideWrapper(s, offset === 0)}
             </div>
           )
         })}
