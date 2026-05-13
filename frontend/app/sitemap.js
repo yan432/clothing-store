@@ -27,11 +27,9 @@ export default async function sitemap() {
       productPages = products
         .filter(p => !p.is_hidden && p.slug && !(p.name || '').startsWith('[ARCHIVED]'))
         .map(p => {
-          const images = []
-          const urls = Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls : p.image_url ? [p.image_url] : []
-          for (const url of urls.slice(0, 5)) {
-            images.push({ url, title: p.name })
-          }
+          // Next.js 16 sitemap expects images as string[], not { url, title }
+          const rawUrls = Array.isArray(p.image_urls) && p.image_urls.length ? p.image_urls : p.image_url ? [p.image_url] : []
+          const images = rawUrls.slice(0, 5).map(u => (typeof u === 'string' ? u : String(u?.url ?? u))).filter(u => u.startsWith('http'))
           const isNew = Array.isArray(p.tags) && p.tags.includes('new')
           return {
             url: `${BASE_URL}/products/${p.slug}`,
