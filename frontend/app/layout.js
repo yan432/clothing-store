@@ -10,7 +10,6 @@ import EmailCapturePopup from './components/EmailCapturePopup'
 import { getApiUrl } from './lib/api'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { GoogleAnalytics } from '@next/third-parties/google'
 import Script from 'next/script'
 import CookieConsent from './components/CookieConsent'
 import UtmCapture from './components/UtmCapture'
@@ -99,7 +98,14 @@ export default function RootLayout({ children }) {
             <CookieConsent />
             <Analytics />
             <SpeedInsights />
-            <GoogleAnalytics gaId="G-CMVZYXVZ8Y" />
+            {/* GA loads after page is fully idle — reduces initial JS weight ~64 KiB */}
+            <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="lazyOnload" />
+            <Script id="ga-config" strategy="lazyOnload">{`
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'G-CMVZYXVZ8Y');
+            `}</Script>
           </CartProvider>
           </WishlistProvider>
         </AuthProvider>

@@ -38,6 +38,9 @@ const cspHeader = [
 const nextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
+    // Add 390px so mobile cards (50vw on 390px phone at 2× DPR)
+    // get a 390px image instead of jumping straight to 640px.
+    deviceSizes: [390, 640, 750, 828, 1080, 1200, 1920],
     remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname })),
   },
 
