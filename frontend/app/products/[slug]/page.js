@@ -7,16 +7,20 @@ import RecommendationsCarousel from '../../components/RecommendationsCarousel'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 import { safeJsonLd } from '../../lib/safeJsonLd'
+import { notFound } from 'next/navigation'
 
 async function getProduct(slug) {
-  const res = await fetch(getApiUrl('/products/' + slug), { cache: 'no-store' })
-  if (!res.ok) return null
-  return res.json()
+  try {
+    const res = await fetch(getApiUrl('/products/' + slug), { next: { revalidate: 300 } })
+    if (res.status === 404) return { notFound: true }
+    if (!res.ok) return null
+    return res.json()
+  } catch { return null }
 }
 
 async function getAllProducts() {
   try {
-    const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
+    const res = await fetch(getApiUrl('/products'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? data : []
@@ -61,23 +65,25 @@ function buildRecommendations(current, all) {
 export async function generateMetadata({ params }) {
   const { slug } = await params
   const product = await getProduct(slug)
+  if (product?.notFound) notFound()
   if (!product) return { title: 'Product not found' }
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
+  const desc = product.description || `${product.name} — available at edm.clothes`
 
   return {
     title: product.name,
-    description: product.description,
+    description: desc,
     alternates: { canonical: `/products/${slug}` },
     openGraph: {
       title: product.name,
-      description: product.description,
+      description: desc,
       images: image ? [{ url: image, width: 800, height: 800, alt: product.name }] : [],
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
       title: product.name,
-      description: product.description,
+      description: desc,
       images: image ? [image] : [],
     },
   }
@@ -86,8 +92,9 @@ export async function generateMetadata({ params }) {
 export default async function ProductPage({ params }) {
   const { slug } = await params
   const [product, allProducts] = await Promise.all([getProduct(slug), getAllProducts()])
+  if (product?.notFound) notFound()
   const sizeStock = product ? await getSizeStock(product.id) : {}
-  if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Product not found</div>
+  if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Store temporarily unavailable</div>
   const recommendations = buildRecommendations(product, allProducts)
   const availableStock = product.available_stock ?? product.stock ?? 0
   const isInStock = availableStock > 0
@@ -112,6 +119,7 @@ export default async function ProductPage({ params }) {
     image: productImages,
     sku: String(product.id),
     category: product.category,
+    brand: { '@type': 'Brand', name: 'edm.clothes' },
     offers: {
       '@type': 'Offer',
       price: product.price,
@@ -123,12 +131,20 @@ export default async function ProductPage({ params }) {
     },
   }
 
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://edmclothes.net' },
+      { '@type': 'ListItem', position: 2, name: 'Shop', item: 'https://edmclothes.net/products' },
+      { '@type': 'ListItem', position: 3, name: product.name, item: `https://edmclothes.net/products/${slug}` },
+    ],
+  }
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />
       <ProductViewTracker productId={product.id} />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
         <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</a>
@@ -172,32 +188,17 @@ export default async function ProductPage({ params }) {
                   }} />
                   {/* Variant swatches */}
                   {Array.isArray(product.color_variants) && product.color_variants.map(v => (
-                    v.is_hidden ? (
-                      /* Hidden = coming soon, show as dim swatch, no link */
-                      <div key={v.id} title={v.color_name + ' — coming soon'}
-                        style={{
-                          width:28,height:28,borderRadius:'50%',
-                          background: v.color_hex || '#ccc',
-                          border:'2px solid transparent',
-                          boxShadow:'0 0 0 1.5px #ccc',
-                          flexShrink:0,
-                          opacity:0.35,
-                          cursor:'default',
-                          position:'relative',
-                        }} />
-                    ) : (
-                      <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
-                        style={{
-                          width:28,height:28,borderRadius:'50%',
-                          background: v.color_hex || '#ccc',
-                          border:'2px solid transparent',
-                          boxShadow:'0 0 0 1.5px #ccc',
-                          flexShrink:0,
-                          display:'block',
-                          opacity: v.in_stock ? 1 : 0.55,
-                          textDecoration:'none',
-                        }} />
-                    )
+                    <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
+                      style={{
+                        width:28,height:28,borderRadius:'50%',
+                        background: v.color_hex || '#ccc',
+                        border:'2px solid transparent',
+                        boxShadow:'0 0 0 1.5px #ccc',
+                        flexShrink:0,
+                        display:'block',
+                        opacity: v.in_stock ? 1 : 0.55,
+                        textDecoration:'none',
+                      }} />
                   ))}
                 </div>
               </div>
