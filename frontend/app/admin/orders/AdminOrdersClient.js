@@ -10,6 +10,8 @@ export default function AdminOrdersClient() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [retryCount, setRetryCount] = useState(0)
+  const [notionSyncing, setNotionSyncing] = useState(false)
+  const [notionResult, setNotionResult] = useState(null)
   const mounted = useRef(true)
 
   const load = useCallback(async function loadOrders(attempt = 1) {
@@ -33,6 +35,21 @@ export default function AdminOrdersClient() {
     }
   }, [])
 
+  const syncToNotion = async () => {
+    setNotionSyncing(true)
+    setNotionResult(null)
+    try {
+      const res = await fetch(getApiUrl('/admin/notion/sync-orders'), { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.detail || `Error ${res.status}`)
+      setNotionResult({ ok: true, message: `✓ ${data.created} created, ${data.updated} updated (${data.total} total)` })
+    } catch (e) {
+      setNotionResult({ ok: false, message: e.message })
+    } finally {
+      setNotionSyncing(false)
+    }
+  }
+
   useEffect(() => {
     mounted.current = true
     load()
@@ -42,10 +59,29 @@ export default function AdminOrdersClient() {
   return (
     <AdminOnly>
       <main style={{maxWidth:1200,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
           <h1 style={{fontSize:30,fontWeight:600,margin:0}}>Orders</h1>
-          <p style={{fontSize:14,color:'#80807a',margin:0}}>{orders.length} total</p>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <p style={{fontSize:14,color:'#80807a',margin:0}}>{orders.length} total</p>
+            <button
+              onClick={syncToNotion}
+              disabled={notionSyncing}
+              style={{
+                border:'1px solid #e5e5e0', borderRadius:8, padding:'7px 14px',
+                fontSize:13, cursor: notionSyncing ? 'default' : 'pointer',
+                background:'#fff', color:'#333',
+                opacity: notionSyncing ? 0.6 : 1,
+              }}
+            >
+              {notionSyncing ? 'Syncing…' : 'Sync to Notion'}
+            </button>
+          </div>
         </div>
+        {notionResult && (
+          <p style={{fontSize:13, color: notionResult.ok ? '#166534' : '#b91c1c', marginBottom:16, marginTop:-8}}>
+            {notionResult.message}
+          </p>
+        )}
         <AdminTopBar active="orders" />
 
         {loading ? (
