@@ -94,6 +94,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           alt={s.title}
           fill
           sizes="100vw"
+          quality={90}
           draggable={false}
           loading={isActive ? 'eager' : 'lazy'}
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
