@@ -14,7 +14,7 @@ export default function ImprintPage() {
         <p><strong>EDM Clothes</strong></p>
         <p>
           Email: <a href="mailto:sales@edmclothes.net" style={{ color: '#111', textDecoration: 'underline' }}>sales@edmclothes.net</a><br />
-          Website: <a href="https://edmclothes.net" style={{ color: '#111', textDecoration: 'underline' }}>edmclothes.net</a>
+          Website: <a href="https://www.edmclothes.net" style={{ color: '#111', textDecoration: 'underline' }}>edmclothes.net</a>
         </p>
       </section>
 

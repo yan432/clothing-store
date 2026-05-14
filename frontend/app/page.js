@@ -111,8 +111,8 @@ export default async function Home({ searchParams }) {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'edm.clothes',
-    url: 'https://edmclothes.net',
-    logo: 'https://edmclothes.net/icon.png',
+    url: 'https://www.edmclothes.net',
+    logo: 'https://www.edmclothes.net/icon.png',
     sameAs: [],
   }
 
@@ -120,10 +120,10 @@ export default async function Home({ searchParams }) {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: 'edm.clothes',
-    url: 'https://edmclothes.net',
+    url: 'https://www.edmclothes.net',
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://edmclothes.net/products?q={search_term_string}',
+      target: 'https://www.edmclothes.net/products?q={search_term_string}',
       'query-input': 'required name=search_term_string',
     },
   }

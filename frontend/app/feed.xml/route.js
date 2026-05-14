@@ -1,7 +1,7 @@
 import { getApiUrl } from '../lib/api'
 import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://edmclothes.net'
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.edmclothes.net'
 const BRAND = 'edm.clothes'
 
 const CATEGORY_TAXONOMY = {

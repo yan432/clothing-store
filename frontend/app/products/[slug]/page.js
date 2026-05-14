@@ -127,7 +127,7 @@ export default async function ProductPage({ params }) {
       availability: availableStock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      url: `https://edmclothes.net/products/${slug}`,
+      url: `https://www.edmclothes.net/products/${slug}`,
       shippingDetails: {
         '@type': 'OfferShippingDetails',
         shippingRate: {
@@ -160,9 +160,9 @@ export default async function ProductPage({ params }) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://edmclothes.net' },
-      { '@type': 'ListItem', position: 2, name: 'Shop', item: 'https://edmclothes.net/products' },
-      { '@type': 'ListItem', position: 3, name: product.name, item: `https://edmclothes.net/products/${slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.edmclothes.net' },
+      { '@type': 'ListItem', position: 2, name: 'Shop', item: 'https://www.edmclothes.net/products' },
+      { '@type': 'ListItem', position: 3, name: product.name, item: `https://www.edmclothes.net/products/${slug}` },
     ],
   }
 

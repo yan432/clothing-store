@@ -7,6 +7,6 @@ export default function robots() {
         disallow: ['/admin', '/account', '/checkout', '/confirm', '/api/'],
       },
     ],
-    sitemap: 'https://edmclothes.net/sitemap.xml',
+    sitemap: 'https://www.edmclothes.net/sitemap.xml',
   }
 }

@@ -44,6 +44,17 @@ const nextConfig = {
     remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname })),
   },
 
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'edmclothes.net' }],
+        destination: 'https://www.edmclothes.net/:path*',
+        permanent: true,
+      },
+    ]
+  },
+
   async headers() {
     return [
       {

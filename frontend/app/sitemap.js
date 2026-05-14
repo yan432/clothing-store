@@ -1,6 +1,6 @@
 import { getApiUrl } from './lib/api'
 
-const BASE_URL = 'https://edmclothes.net'
+const BASE_URL = 'https://www.edmclothes.net'
 
 // Approximate last-modified dates for static pages
 const STATIC_PAGES = [

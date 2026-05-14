@@ -36,7 +36,7 @@ export async function generateMetadata() {
   const description = s.seo_home_description || 'Minimal essentials designed for everyday wear. Made in Ukraine.'
 
   return {
-    metadataBase: new URL('https://edmclothes.net'),
+    metadataBase: new URL('https://www.edmclothes.net'),
     title: { default: homeTitle, template: `%s — ${siteName}` },
     description,
     icons: { icon: '/icon.png', apple: '/icon.png' },
