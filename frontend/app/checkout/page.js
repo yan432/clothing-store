@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 
 const COUNTRIES = [
@@ -146,9 +146,10 @@ function StepBar() {
 }
 
 export default function CheckoutPage() {
-  const { cart, total } = useCart()
+  const { cart, total, addToCart } = useCart()
   const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [mode, setMode] = useState('guest')
   const [loading, setLoading] = useState(false)
   const [shippingResult, setShippingResult] = useState(null)
@@ -174,6 +175,22 @@ export default function CheckoutPage() {
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+
+  // ?buy={id} — add product to cart when arriving from Google Shopping
+  useEffect(() => {
+    const buyId = searchParams.get('buy')
+    if (!buyId) return
+    // Skip if already in cart
+    if (cart.some(i => String(i.id) === String(buyId) || i.slug === buyId)) return
+    fetch(getApiUrl(`/products/${buyId}`))
+      .then(r => r.ok ? r.json() : null)
+      .then(product => {
+        if (!product || product.is_hidden) return
+        addToCart(product)
+      })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // Pre-fill form:
   // - If returning from Confirm (flag set) → restore sessionStorage exactly as typed
