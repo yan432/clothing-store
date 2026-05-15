@@ -109,6 +109,8 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL", "Store <onboarding@resend.dev>")
 RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
+KLAVIYO_API_KEY = os.getenv("KLAVIYO_API_KEY", "")
+KLAVIYO_LIST_ID = os.getenv("KLAVIYO_LIST_ID", "")
 
 # ── Admin auth ────────────────────────────────────────────────────────────────
 # Set ADMIN_SECRET to a long random string in your backend .env.
@@ -461,6 +463,7 @@ def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Op
             "created_at": now,
             "updated_at": now,
         }).execute()
+        sync_to_klaviyo(email, source_name)
         return
     source_counts = as_dict(row.get("source_counts"))
     source_counts[source_name] = int(source_counts.get(source_name) or 0) + 1
@@ -475,6 +478,86 @@ def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Op
         "metadata_json": merged_metadata,
         "updated_at": now,
     }).eq("id", row["id"]).execute()
+    sync_to_klaviyo(email, source_name)
+
+
+def sync_to_klaviyo(email: str, source: str = "", first_name: str = "", last_name: str = "") -> None:
+    """Subscribe email to Klaviyo list as SUBSCRIBED (real opt-in).
+    Uses subscription bulk-create job which sets proper marketing consent.
+    Auto-pulls name from user_profiles if not supplied."""
+    if not KLAVIYO_API_KEY or not KLAVIYO_LIST_ID:
+        return
+    try:
+        import requests as req
+        # Auto-lookup name from user_profiles if caller didn't pass it
+        if not first_name and not last_name:
+            try:
+                p = supabase.table("user_profiles").select("first_name,last_name").eq("email", email).limit(1).execute()
+                if p.data:
+                    first_name = (p.data[0].get("first_name") or "").strip()
+                    last_name  = (p.data[0].get("last_name")  or "").strip()
+            except Exception:
+                pass
+        headers = {
+            "Authorization": f"Klaviyo-API-Key {KLAVIYO_API_KEY}",
+            "revision": "2024-10-15",
+            "Content-Type": "application/json",
+        }
+        now = datetime.now(timezone.utc).isoformat()
+        profile_attrs = {
+            "email": email,
+            "subscriptions": {
+                "email": {
+                    "marketing": {
+                        "consent": "SUBSCRIBED",
+                        "consented_at": now,
+                    }
+                }
+            },
+        }
+        res = req.post(
+            "https://a.klaviyo.com/api/profile-subscription-bulk-create-jobs/",
+            headers=headers,
+            json={
+                "data": {
+                    "type": "profile-subscription-bulk-create-job",
+                    "attributes": {
+                        "custom_source": source or "website_popup",
+                        "profiles": {"data": [{"type": "profile", "attributes": profile_attrs}]},
+                    },
+                    "relationships": {
+                        "list": {"data": {"type": "list", "id": KLAVIYO_LIST_ID}},
+                    },
+                }
+            },
+            timeout=5,
+        )
+        if res.status_code in (200, 201, 202):
+            print(f"Klaviyo subscribed: {_mask_email(email)}")
+        else:
+            print(f"Klaviyo subscribe error ({res.status_code}): {res.text[:200]}")
+        # update name separately if provided
+        if first_name or last_name:
+            search = req.get(
+                "https://a.klaviyo.com/api/profiles/",
+                headers=headers,
+                params={"filter": f'equals(email,"{email}")'},
+                timeout=5,
+            )
+            data = (search.json() or {}).get("data") if search.ok else None
+            if data:
+                pid = data[0]["id"]
+                attrs = {}
+                if first_name: attrs["first_name"] = first_name
+                if last_name:  attrs["last_name"]  = last_name
+                req.patch(
+                    f"https://a.klaviyo.com/api/profiles/{pid}/",
+                    headers=headers,
+                    json={"data": {"type": "profile", "id": pid, "attributes": attrs}},
+                    timeout=5,
+                )
+    except Exception as e:
+        print(f"Klaviyo sync error: {e}")
 
 
 def generate_random_promo_code(length: int = 8) -> str:
@@ -1564,7 +1647,7 @@ def update_product_size_stock(product_id: int, stock_map: dict):
 @app.get("/admin/inventory", dependencies=[Depends(require_admin)])
 def get_inventory():
     """All visible products with their per-size stock for CMS."""
-    products = supabase.table("products").select("id,name,slug,tags").eq("is_hidden", False).neq("category", "archived").order("name").execute()
+    products = supabase.table("products").select("id,name,slug,tags").neq("category", "archived").order("name").execute()
     try:
         size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
     except Exception:
