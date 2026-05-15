@@ -96,7 +96,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           sizes="100vw"
           quality={90}
           draggable={false}
-          loading={isActive ? 'eager' : 'lazy'}
+          {...(isActive ? { priority: true } : { loading: 'lazy' })}
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
         <div style={{
