@@ -36,6 +36,8 @@ export default function AdminProductsClient() {
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkOrderSaving, setBulkOrderSaving] = useState(false)
   const [orderDrafts, setOrderDrafts] = useState({})
+  const [schedulePopup, setSchedulePopup] = useState(null) // { productId, value }
+  const [scheduleSaving, setScheduleSaving] = useState(false)
 
   async function loadProducts() {
     setError('')
@@ -113,6 +115,13 @@ export default function AdminProductsClient() {
     setSelectedIds((prev) => prev.filter((id) => filtered.some((p) => p.id === id)))
   }, [filtered])
 
+  useEffect(() => {
+    if (!schedulePopup) return
+    function onKey(e) { if (e.key === 'Escape') setSchedulePopup(null) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [schedulePopup])
+
   async function handleToggleVisibility(product) {
     setError('')
     setUpdatingVisibilityId(product.id)
@@ -135,6 +144,59 @@ export default function AdminProductsClient() {
     } finally {
       setUpdatingVisibilityId(null)
     }
+  }
+
+  async function handleSaveSchedule(productId, datetimeLocalValue) {
+    setScheduleSaving(true)
+    try {
+      const publishAt = datetimeLocalValue ? new Date(datetimeLocalValue).toISOString() : null
+      const res = await fetch(getApiUrl('/products/' + productId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publish_at: publishAt }),
+      })
+      if (!res.ok) throw new Error(await res.text() || 'Failed to schedule')
+      setProducts((prev) => prev.map((p) => (
+        p.id === productId ? { ...p, publish_at: publishAt } : p
+      )))
+      setSchedulePopup(null)
+    } catch (e) {
+      setError(e?.message || 'Failed to schedule')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
+
+  async function handleCancelSchedule(productId) {
+    setScheduleSaving(true)
+    try {
+      const res = await fetch(getApiUrl('/products/' + productId), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publish_at: null }),
+      })
+      if (!res.ok) throw new Error(await res.text() || 'Failed to cancel schedule')
+      setProducts((prev) => prev.map((p) => (
+        p.id === productId ? { ...p, publish_at: null } : p
+      )))
+    } catch (e) {
+      setError(e?.message || 'Failed to cancel schedule')
+    } finally {
+      setScheduleSaving(false)
+    }
+  }
+
+  function formatScheduledDate(isoString) {
+    if (!isoString) return ''
+    const d = new Date(isoString)
+    return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  function toDatetimeLocal(isoString) {
+    if (!isoString) return ''
+    const d = new Date(isoString)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
 
   function parseOrderMeta(tagsValue) {
@@ -495,16 +557,30 @@ export default function AdminProductsClient() {
                     </td>
                     <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{p.category || '-'}</td>
                     <td style={{padding:'12px 14px',fontSize:12}}>
-                      <span style={{
-                        border:'1px solid ' + (p.is_hidden ? '#fde68a' : '#bbf7d0'),
-                        background:p.is_hidden ? '#fffbeb' : '#ecfdf3',
-                        color:p.is_hidden ? '#92400e' : '#166534',
-                        borderRadius:999,
-                        padding:'3px 8px',
-                        display:'inline-block',
-                      }}>
-                        {p.is_hidden ? 'Hidden' : 'Visible'}
-                      </span>
+                      {p.is_hidden && p.publish_at ? (
+                        <span style={{
+                          border:'1px solid #bfdbfe',
+                          background:'#eff6ff',
+                          color:'#1d4ed8',
+                          borderRadius:999,
+                          padding:'3px 8px',
+                          display:'inline-block',
+                          whiteSpace:'nowrap',
+                        }}>
+                          {'⏰'} {formatScheduledDate(p.publish_at)}
+                        </span>
+                      ) : (
+                        <span style={{
+                          border:'1px solid ' + (p.is_hidden ? '#fde68a' : '#bbf7d0'),
+                          background:p.is_hidden ? '#fffbeb' : '#ecfdf3',
+                          color:p.is_hidden ? '#92400e' : '#166534',
+                          borderRadius:999,
+                          padding:'3px 8px',
+                          display:'inline-block',
+                        }}>
+                          {p.is_hidden ? 'Hidden' : 'Visible'}
+                        </span>
+                      )}
                     </td>
                     <td style={{padding:'12px 14px',fontSize:13}}>€{Number(p.price || 0).toFixed(2)}</td>
                     <td style={{padding:'12px 14px',fontSize:13}}>{p.available_stock ?? p.stock ?? 0}</td>
@@ -563,7 +639,7 @@ export default function AdminProductsClient() {
                       })()}
                     </td>
                     <td style={{padding:'12px 14px'}}>
-                      <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                         <a href={`/admin/products/${p.id}`} style={{fontSize:13,color:'#2563eb',textDecoration:'none'}}>Edit</a>
                         <button
                           type="button"
@@ -581,6 +657,70 @@ export default function AdminProductsClient() {
                           }}>
                           {updatingVisibilityId === p.id ? 'Saving...' : (p.is_hidden ? 'Publish now' : 'Hide')}
                         </button>
+                        {p.is_hidden && (
+                          <div style={{position:'relative'}}>
+                            <button
+                              type="button"
+                              onClick={() => setSchedulePopup(schedulePopup?.productId === p.id ? null : { productId: p.id, value: toDatetimeLocal(p.publish_at) })}
+                              style={{
+                                border:'1px solid #bfdbfe',
+                                background:'#eff6ff',
+                                color:'#1d4ed8',
+                                borderRadius:999,
+                                padding:'4px 9px',
+                                fontSize:12,
+                                cursor:'pointer',
+                              }}>
+                              {p.publish_at ? 'Edit schedule' : 'Schedule'}
+                            </button>
+                            {schedulePopup?.productId === p.id && (
+                              <div style={{
+                                position:'absolute',
+                                right:0,
+                                top:'calc(100% + 6px)',
+                                background:'#fff',
+                                border:'1px solid #e5e5e0',
+                                borderRadius:12,
+                                boxShadow:'0 4px 20px rgba(0,0,0,0.12)',
+                                padding:16,
+                                zIndex:100,
+                                minWidth:260,
+                              }}>
+                                <div style={{fontSize:13,fontWeight:600,marginBottom:10}}>Auto-publish at</div>
+                                <input
+                                  type="datetime-local"
+                                  value={schedulePopup.value}
+                                  onChange={(e) => setSchedulePopup((prev) => ({ ...prev, value: e.target.value }))}
+                                  style={{width:'100%',border:'1px solid #ddd',borderRadius:8,padding:'6px 8px',fontSize:13,boxSizing:'border-box'}}
+                                />
+                                <div style={{display:'flex',gap:8,marginTop:10}}>
+                                  <button
+                                    type="button"
+                                    disabled={scheduleSaving || !schedulePopup.value}
+                                    onClick={() => handleSaveSchedule(p.id, schedulePopup.value)}
+                                    style={{flex:1,background:'#0a0a0a',color:'#fff',border:'none',borderRadius:8,padding:'7px 0',fontSize:13,cursor:'pointer',opacity:scheduleSaving || !schedulePopup.value ? 0.5 : 1}}>
+                                    {scheduleSaving ? 'Saving...' : 'Save'}
+                                  </button>
+                                  {p.publish_at && (
+                                    <button
+                                      type="button"
+                                      disabled={scheduleSaving}
+                                      onClick={() => handleCancelSchedule(p.id)}
+                                      style={{background:'#fff',color:'#dc2626',border:'1px solid #fecaca',borderRadius:8,padding:'7px 10px',fontSize:13,cursor:'pointer'}}>
+                                      Cancel
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => setSchedulePopup(null)}
+                                    style={{background:'#f4f4f1',color:'#555',border:'none',borderRadius:8,padding:'7px 10px',fontSize:13,cursor:'pointer'}}>
+                                    Close
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
