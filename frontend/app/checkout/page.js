@@ -4,6 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
+import { trackCheckoutStarted } from '../lib/track'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -193,6 +194,24 @@ function CheckoutPage() {
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+
+  // Fire InitiateCheckout pixel event once when cart is non-empty
+  const initiateTracked = useRef(false)
+  useEffect(() => {
+    if (!cart.length || initiateTracked.current) return
+    initiateTracked.current = true
+    trackCheckoutStarted()
+    if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+      window.fbq('track', 'InitiateCheckout', {
+        value:        cart.reduce((s, i) => s + i.price * i.qty, 0),
+        currency:     'EUR',
+        content_ids:  cart.map(i => String(i.id)),
+        content_type: 'product',
+        num_items:    cart.reduce((s, i) => s + i.qty, 0),
+      })
+    }
+  }, [cart])
+
 
   // Pre-fill form:
   // - If returning from Confirm (flag set) → restore sessionStorage exactly as typed
