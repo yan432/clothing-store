@@ -1,0 +1,16 @@
+name: Publish scheduled products
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish-scheduled endpoint
+        run: |
+          curl -s -X POST \
+            -H "X-Admin-Secret: ${{ secrets.BACKEND_ADMIN_SECRET }}" \
+            https://clothing-store-api-935987805883.europe-west3.run.app/products/publish-scheduled
