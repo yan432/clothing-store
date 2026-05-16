@@ -3,6 +3,12 @@
  * Fire-and-forget — never throws, never blocks UI.
  */
 
+function fbq(...args) {
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    window.fbq(...args)
+  }
+}
+
 import { getApiUrl } from './api'
 import { getSessionId } from './session'
 
@@ -26,11 +32,19 @@ async function send(event_type, extra = {}) {
 /** User viewed a product page */
 export function trackProductView(productId, email = null) {
   send('product_view', { product_id: productId, email })
+  fbq('track', 'ViewContent', {
+    content_ids:  [String(productId)],
+    content_type: 'product',
+  })
 }
 
 /** User added an item to cart */
 export function trackCartAdd(productId, email = null) {
   send('cart_add', { product_id: productId, email })
+  fbq('track', 'AddToCart', {
+    content_ids:  [String(productId)],
+    content_type: 'product',
+  })
 }
 
 /** User reached the checkout confirmation step */
@@ -51,6 +65,14 @@ export function trackLogin(email) {
 export function trackPurchase({ orderId, total, currency = 'EUR', items = [], utm = null }) {
   // Internal backend event
   send('purchase', { order_id: orderId, total })
+
+  // Meta Pixel purchase event
+  fbq('track', 'Purchase', {
+    value:        Number(total),
+    currency,
+    content_ids:  items.map(i => String(i.product_id || i.id || '')).filter(Boolean),
+    content_type: 'product',
+  })
 
   // GA4 e-commerce purchase event
   if (typeof window !== 'undefined' && typeof window.gtag === 'function') {

@@ -1,9 +1,10 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
+import { trackCheckoutStarted } from '../lib/track'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -145,26 +146,27 @@ function StepBar() {
   )
 }
 
-function BuyParamEffect({ cart, addToCart }) {
+function BuyParamEffect({ addToCartRef, setDrawerOpen }) {
   const searchParams = useSearchParams()
   useEffect(() => {
     const buyId = searchParams.get('buy')
     if (!buyId) return
-    if (cart.some(i => String(i.id) === String(buyId) || i.slug === buyId)) return
     fetch(getApiUrl(`/products/${buyId}`))
       .then(r => r.ok ? r.json() : null)
       .then(product => {
         if (!product || product.is_hidden) return
-        addToCart(product)
+        addToCartRef.current(product)
+        setDrawerOpen(false)
       })
       .catch(() => {})
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [searchParams, addToCartRef, setDrawerOpen])
   return null
 }
 
-export default function CheckoutPage() {
-  const { cart, total, addToCart } = useCart()
+function CheckoutPage() {
+  const { cart, total, addToCart, setDrawerOpen } = useCart()
+  const addToCartRef = useRef(addToCart)
+  useEffect(() => { addToCartRef.current = addToCart }, [addToCart])
   const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
   const router = useRouter()
   const [mode, setMode] = useState('guest')
@@ -192,6 +194,24 @@ export default function CheckoutPage() {
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+
+  // Fire InitiateCheckout pixel event once when cart is non-empty
+  const initiateTracked = useRef(false)
+  useEffect(() => {
+    if (!cart.length || initiateTracked.current) return
+    initiateTracked.current = true
+    trackCheckoutStarted()
+    if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+      window.fbq('track', 'InitiateCheckout', {
+        value:        cart.reduce((s, i) => s + i.price * i.qty, 0),
+        currency:     'EUR',
+        content_ids:  cart.map(i => String(i.id)),
+        content_type: 'product',
+        num_items:    cart.reduce((s, i) => s + i.qty, 0),
+      })
+    }
+  }, [cart])
+
 
   // Pre-fill form:
   // - If returning from Confirm (flag set) → restore sessionStorage exactly as typed
@@ -407,7 +427,7 @@ export default function CheckoutPage() {
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
       <Suspense fallback={null}>
-        <BuyParamEffect cart={cart} addToCart={addToCart} />
+        <BuyParamEffect addToCartRef={addToCartRef} setDrawerOpen={setDrawerOpen} />
       </Suspense>
       <StepBar />
       <div className="checkout-layout">
@@ -695,5 +715,13 @@ export default function CheckoutPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function CheckoutPageWrapper() {
+  return (
+    <Suspense>
+      <CheckoutPage />
+    </Suspense>
   )
 }
