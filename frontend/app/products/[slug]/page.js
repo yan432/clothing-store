@@ -134,6 +134,7 @@ export default async function ProductPage({ params }) {
           '@type': 'MonetaryAmount',
           currency: 'EUR',
           minValue: 0,
+          maxValue: 30,
         },
         shippingDestination: {
           '@type': 'DefinedRegion',
