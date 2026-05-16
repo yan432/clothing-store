@@ -4,14 +4,16 @@ import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.edmclothes.net'
 const BRAND = 'edm.clothes'
 
+// Exact strings from Google Product Taxonomy
+// https://www.google.com/basepages/producttype/taxonomy.en-US.txt
 const CATEGORY_TAXONOMY = {
-  Tops:       'Apparel & Accessories > Clothing > Tops',
-  Bottoms:    'Apparel & Accessories > Clothing > Pants',
-  Outerwear:  'Apparel & Accessories > Clothing > Outerwear',
-  Accessories:'Apparel & Accessories > Accessories',
-  Knitwear:   'Apparel & Accessories > Clothing > Tops > Sweaters',
-  Denim:      'Apparel & Accessories > Clothing > Pants',
-  Jackets:    'Apparel & Accessories > Clothing > Outerwear',
+  Tops:        'Apparel & Accessories > Clothing > Shirts & Tops',
+  Bottoms:     'Apparel & Accessories > Clothing > Pants',
+  Outerwear:   'Apparel & Accessories > Clothing > Outerwear > Coats & Jackets',
+  Accessories: 'Apparel & Accessories > Clothing Accessories',
+  Knitwear:    'Apparel & Accessories > Clothing > Shirts & Tops',
+  Denim:       'Apparel & Accessories > Clothing > Pants',
+  Jackets:     'Apparel & Accessories > Clothing > Outerwear > Coats & Jackets',
 }
 
 function esc(str) {
@@ -44,6 +46,7 @@ function buildItem(p, { id, size } = {}) {
       ${extraImages.map(u => `<g:additional_image_link>${esc(u)}</g:additional_image_link>`).join('\n      ')}
       <g:price>${Number(p.price || 0).toFixed(2)} EUR</g:price>
       <g:availability>${stock > 0 ? 'in stock' : 'out of stock'}</g:availability>
+      <g:quantity_to_sell_on_facebook>${Math.max(0, Number(stock) || 0)}</g:quantity_to_sell_on_facebook>
       <g:condition>new</g:condition>
       <g:brand>${BRAND}</g:brand>
       <g:mpn>EDM-${p.id}</g:mpn>
