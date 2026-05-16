@@ -236,6 +236,7 @@ class Product(BaseModel):
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
     is_hidden: bool = False
+    publish_at: Optional[datetime] = None
     tags: list = []
     slug: Optional[str] = None
     color_name: Optional[str] = None
@@ -257,6 +258,7 @@ class ProductUpdate(BaseModel):
     available_stock: Optional[int] = None
     reserved_stock: Optional[int] = None
     is_hidden: Optional[bool] = None
+    publish_at: Optional[datetime] = None
     tags: Optional[list] = None
     slug: Optional[str] = None
     color_name: Optional[str] = None
@@ -1611,6 +1613,27 @@ def archive_product(product_id: int):
     if not data.data:
         raise HTTPException(status_code=404, detail="Товар не найден")
     return _decorate_product_with_images(data.data[0])
+
+
+# ── Scheduled publish ─────────────────────────────────────────────────────────
+
+@app.post("/products/publish-scheduled", dependencies=[Depends(require_admin)])
+def publish_scheduled_products():
+    """Publish all hidden products whose publish_at is in the past. Called by cron."""
+    now = datetime.now(timezone.utc).isoformat()
+    data = (
+        supabase.table("products")
+        .select("id")
+        .eq("is_hidden", True)
+        .not_.is_("publish_at", "null")
+        .lte("publish_at", now)
+        .execute()
+    )
+    ids = [row["id"] for row in (data.data or [])]
+    if not ids:
+        return {"published": 0, "ids": []}
+    supabase.table("products").update({"is_hidden": False, "publish_at": None}).in_("id", ids).execute()
+    return {"published": len(ids), "ids": ids}
 
 
 # ── Per-size stock ────────────────────────────────────────────────────────────
