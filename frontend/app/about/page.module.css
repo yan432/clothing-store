@@ -648,8 +648,9 @@
   .mosaicSection { padding: 56px 0; }
   .fullDark { padding: 52px 20px; }
   .facts { padding: 40px 0; }
-  .factsRow { gap: 40px; margin-bottom: 32px; }
-  .statN { font-size: 44px; }
+  .factsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 32px; }
+  .statN { font-size: 36px; }
+  .statL { font-size: 10px; }
   .citiesList { flex-direction: row; gap: 8px 16px; font-size: 13px; }
   .citiesList span::after { display: none; }
   .cities h3 { font-size: 28px; margin: 12px 0 20px; }
