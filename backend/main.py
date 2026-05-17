@@ -2419,18 +2419,38 @@ def shipping_calculate(payload: ShippingCalculateRequest):
     """Calculate shipping cost for a given country + cart items."""
     config = get_shipping_config()
     total_vol_weight = 0.0
+    subtotal = 0.0
     for item in payload.items:
         try:
             qty = max(1, int(item.get("quantity", 1)))
             prod = get_visible_product_row(int(item["id"]))
             vol_w = float(prod.get("volumetric_weight") or 0.3)
+            price = float(prod.get("price") or 0)
         except (KeyError, TypeError, ValueError):
             raise HTTPException(status_code=400, detail="Invalid cart item")
         except HTTPException:
             raise HTTPException(status_code=400, detail="Invalid cart item")
         total_vol_weight += float(vol_w) * qty
+        subtotal += price * qty
     total_vol_weight = max(0.1, total_vol_weight)
     result = compute_shipping_cost(payload.country, total_vol_weight, config)
+
+    # Free shipping above threshold — match Stripe checkout behaviour
+    free_threshold, _ = get_shipping_settings()
+    if subtotal >= free_threshold:
+        result = {
+            **result,
+            "price_eur": 0.0,
+            "free_shipping_applied": True,
+            "free_shipping_threshold": free_threshold,
+        }
+    else:
+        result = {
+            **result,
+            "free_shipping_applied": False,
+            "free_shipping_threshold": free_threshold,
+        }
+
     return {**result, "total_vol_weight_kg": round(total_vol_weight, 3)}
 
 
