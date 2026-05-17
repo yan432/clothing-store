@@ -46,6 +46,9 @@ export async function generateMetadata() {
       locale: 'en_US',
       type: 'website',
     },
+    other: {
+      'facebook-domain-verification': 'nvr0bc6n44ihao3txijoyc3aunbvri',
+    },
   }
 }
 
