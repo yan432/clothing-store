@@ -174,7 +174,7 @@ async function fetchProduct(slug) {
   } catch { return null }
 }
 
-function BuyParamEffect({ addToCartRef, setDrawerOpen }) {
+function BuyParamEffect({ addToCartRef, addManyToCartRef, setDrawerOpen }) {
   const searchParams = useSearchParams()
   useEffect(() => {
     // Meta Shops checkout URL: ?products=slug-size:qty,slug-size:qty&coupon=CODE
@@ -185,17 +185,17 @@ function BuyParamEffect({ addToCartRef, setDrawerOpen }) {
         try { sessionStorage.setItem('pending_coupon', coupon) } catch {}
       }
       ;(async () => {
-        const entries = productsParam.split(',').map(s => s.trim()).filter(Boolean)
-        for (const entry of entries) {
+        const rawEntries = productsParam.split(',').map(s => s.trim()).filter(Boolean)
+        const fetched = await Promise.all(rawEntries.map(async entry => {
           const [rawId, rawQty] = entry.split(':')
           const qty = Math.max(1, parseInt(rawQty || '1', 10) || 1)
           const { slug, size } = parseVariantId(rawId)
           const product = await fetchProduct(slug)
-          if (!product || product.is_hidden) continue
-          for (let i = 0; i < qty; i++) {
-            addToCartRef.current(size ? { ...product, size } : product)
-          }
-        }
+          if (!product || product.is_hidden) return null
+          return { product: size ? { ...product, size } : product, qty }
+        }))
+        const cartEntries = fetched.filter(Boolean)
+        if (cartEntries.length) addManyToCartRef.current(cartEntries)
         setDrawerOpen(false)
       })()
       return
@@ -209,14 +209,16 @@ function BuyParamEffect({ addToCartRef, setDrawerOpen }) {
       addToCartRef.current(product)
       setDrawerOpen(false)
     })
-  }, [searchParams, addToCartRef, setDrawerOpen])
+  }, [searchParams, addToCartRef, addManyToCartRef, setDrawerOpen])
   return null
 }
 
 function CheckoutPage() {
-  const { cart, total, addToCart, setDrawerOpen } = useCart()
+  const { cart, total, addToCart, addManyToCart, setDrawerOpen } = useCart()
   const addToCartRef = useRef(addToCart)
   useEffect(() => { addToCartRef.current = addToCart }, [addToCart])
+  const addManyToCartRef = useRef(addManyToCart)
+  useEffect(() => { addManyToCartRef.current = addManyToCart }, [addManyToCart])
   const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
   const router = useRouter()
   const [mode, setMode] = useState('guest')
@@ -482,7 +484,11 @@ function CheckoutPage() {
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
       <Suspense fallback={null}>
-        <BuyParamEffect addToCartRef={addToCartRef} setDrawerOpen={setDrawerOpen} />
+        <BuyParamEffect
+          addToCartRef={addToCartRef}
+          addManyToCartRef={addManyToCartRef}
+          setDrawerOpen={setDrawerOpen}
+        />
       </Suspense>
       <StepBar />
       <div className="checkout-layout">

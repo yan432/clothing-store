@@ -120,11 +120,46 @@ export function CartProvider({ children }) {
 
   const clearCart = useCallback(() => { save([]) }, [save])
 
+  /**
+   * Add multiple items in a single save() call.
+   * `entries` = [{ product, qty }] where product may include `size`.
+   * Used by Meta Shops checkout URL where several (product, qty) pairs arrive at once.
+   */
+  const addManyToCart = useCallback((entries) => {
+    if (!Array.isArray(entries) || entries.length === 0) return
+    const next = [...cart]
+    for (const { product, qty } of entries) {
+      if (!product) continue
+      const maxStock = getMaxStock(product)
+      if (maxStock <= 0) continue
+      const desiredQty = Math.max(1, Number(qty) || 1)
+      const idx = next.findIndex(i => i.id === product.id && i.size === product.size)
+      if (idx >= 0) {
+        const totalQty = Math.min(maxStock, next[idx].qty + desiredQty)
+        next[idx] = { ...next[idx], qty: totalQty, available_stock: maxStock }
+      } else {
+        next.push({
+          ...product,
+          price: parseFloat(product.price),
+          qty:   Math.min(maxStock, desiredQty),
+        })
+      }
+      trackCartAdd({
+        id:           product.id,
+        slug:         product.slug,
+        size:         product.size,
+        colorGroupId: product.color_group_id,
+      })
+    }
+    save(next)
+  }, [cart, getMaxStock, save])
+
   const total = cart.reduce((sum, i) => sum + i.price * i.qty, 0)
   const count = cart.reduce((sum, i) => sum + i.qty, 0)
   const value = useMemo(() => ({
     cart,
     addToCart,
+    addManyToCart,
     removeFromCart,
     updateQty,
     clearCart,
@@ -132,7 +167,7 @@ export function CartProvider({ children }) {
     count,
     drawerOpen,
     setDrawerOpen,
-  }), [cart, addToCart, removeFromCart, updateQty, clearCart, total, count, drawerOpen])
+  }), [cart, addToCart, addManyToCart, removeFromCart, updateQty, clearCart, total, count, drawerOpen])
 
   return (
     <CartContext.Provider value={value}>
