@@ -146,19 +146,69 @@ function StepBar() {
   )
 }
 
+// Split a Meta-Shops content_id (e.g. "riot-bomber-m") into { slug, size }.
+// Catalog variant IDs are built as `${slug}-${size}` (size lowercased, spaces→hyphens).
+const KNOWN_SIZE_SUFFIXES = [
+  ['-xxs',      'XXS'],
+  ['-xs',       'XS'],
+  ['-s',        'S'],
+  ['-m',        'M'],
+  ['-l',        'L'],
+  ['-xl',       'XL'],
+  ['-xxl',      'XXL'],
+  ['-one-size', 'One Size'],
+]
+function parseVariantId(variantId) {
+  for (const [suffix, size] of KNOWN_SIZE_SUFFIXES) {
+    if (variantId.endsWith(suffix)) {
+      return { slug: variantId.slice(0, -suffix.length), size }
+    }
+  }
+  return { slug: variantId, size: null }
+}
+
+async function fetchProduct(slug) {
+  try {
+    const res = await fetch(getApiUrl(`/products/${slug}`))
+    return res.ok ? await res.json() : null
+  } catch { return null }
+}
+
 function BuyParamEffect({ addToCartRef, setDrawerOpen }) {
   const searchParams = useSearchParams()
   useEffect(() => {
+    // Meta Shops checkout URL: ?products=slug-size:qty,slug-size:qty&coupon=CODE
+    const productsParam = searchParams.get('products')
+    if (productsParam) {
+      const coupon = searchParams.get('coupon')
+      if (coupon) {
+        try { sessionStorage.setItem('pending_coupon', coupon) } catch {}
+      }
+      ;(async () => {
+        const entries = productsParam.split(',').map(s => s.trim()).filter(Boolean)
+        for (const entry of entries) {
+          const [rawId, rawQty] = entry.split(':')
+          const qty = Math.max(1, parseInt(rawQty || '1', 10) || 1)
+          const { slug, size } = parseVariantId(rawId)
+          const product = await fetchProduct(slug)
+          if (!product || product.is_hidden) continue
+          for (let i = 0; i < qty; i++) {
+            addToCartRef.current(size ? { ...product, size } : product)
+          }
+        }
+        setDrawerOpen(false)
+      })()
+      return
+    }
+
+    // Google Shopping: ?buy={slug-or-id}
     const buyId = searchParams.get('buy')
     if (!buyId) return
-    fetch(getApiUrl(`/products/${buyId}`))
-      .then(r => r.ok ? r.json() : null)
-      .then(product => {
-        if (!product || product.is_hidden) return
-        addToCartRef.current(product)
-        setDrawerOpen(false)
-      })
-      .catch(() => {})
+    fetchProduct(buyId).then(product => {
+      if (!product || product.is_hidden) return
+      addToCartRef.current(product)
+      setDrawerOpen(false)
+    })
   }, [searchParams, addToCartRef, setDrawerOpen])
   return null
 }
