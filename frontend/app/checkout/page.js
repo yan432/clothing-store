@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
-import { trackCheckoutStarted } from '../lib/track'
+import { trackCheckoutStarted, catalogItemId } from '../lib/track'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -205,7 +205,12 @@ function CheckoutPage() {
       window.fbq('track', 'InitiateCheckout', {
         value:        cart.reduce((s, i) => s + i.price * i.qty, 0),
         currency:     'EUR',
-        content_ids:  cart.map(i => String(i.id)),
+        content_ids:  cart.map(i => catalogItemId({
+          id:            i.id,
+          slug:          i.slug,
+          size:          i.size,
+          colorGroupId:  i.color_group_id,
+        })).filter(Boolean),
         content_type: 'product',
         num_items:    cart.reduce((s, i) => s + i.qty, 0),
       })

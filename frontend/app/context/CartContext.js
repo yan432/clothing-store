@@ -92,7 +92,12 @@ export function CartProvider({ children }) {
     } else {
       save([...cart, {...product, price: parseFloat(product.price), qty: 1}])
     }
-    trackCartAdd(product.id)
+    trackCartAdd({
+      id:            product.id,
+      slug:          product.slug,
+      size:          product.size,
+      colorGroupId:  product.color_group_id,
+    })
     setDrawerOpen(true)
     return { ok: true }
   }, [cart, getMaxStock, getQtyForSize, save])

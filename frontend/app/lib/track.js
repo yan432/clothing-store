@@ -9,6 +9,19 @@ function fbq(...args) {
   }
 }
 
+/**
+ * Build a catalog content_id matching the feed format:
+ *  - variant items (with size):       `${slug}-${size}` → matches g:id
+ *  - product group (no size, e.g. ViewContent): `colorGroupId || slug` → matches g:item_group_id
+ * Falls back to the numeric product id when no slug is available.
+ */
+export function catalogItemId({ slug, id, size, colorGroupId } = {}) {
+  if (slug && size) {
+    return `${slug}-${String(size).replace(/\s+/g, '-').toLowerCase()}`
+  }
+  return colorGroupId || slug || String(id || '')
+}
+
 import { getApiUrl } from './api'
 import { getSessionId } from './session'
 
@@ -29,22 +42,42 @@ async function send(event_type, extra = {}) {
   }
 }
 
-/** User viewed a product page */
-export function trackProductView(productId, email = null) {
-  send('product_view', { product_id: productId, email })
-  fbq('track', 'ViewContent', {
-    content_ids:  [String(productId)],
-    content_type: 'product',
-  })
+/**
+ * User viewed a product page.
+ * Pass { id, slug, colorGroupId } for accurate Catalog match.
+ * Legacy: trackProductView(productId, email) still works.
+ */
+export function trackProductView(productOrId, email = null) {
+  const product = (productOrId && typeof productOrId === 'object')
+    ? productOrId
+    : { id: productOrId }
+  send('product_view', { product_id: product.id, email })
+  const contentId = catalogItemId(product)
+  if (contentId) {
+    fbq('track', 'ViewContent', {
+      content_ids:  [contentId],
+      content_type: 'product',
+    })
+  }
 }
 
-/** User added an item to cart */
-export function trackCartAdd(productId, email = null) {
-  send('cart_add', { product_id: productId, email })
-  fbq('track', 'AddToCart', {
-    content_ids:  [String(productId)],
-    content_type: 'product',
-  })
+/**
+ * User added an item to cart.
+ * Pass full product object (with slug + size) for accurate Catalog match.
+ * Legacy: trackCartAdd(productId, email) still works.
+ */
+export function trackCartAdd(productOrId, email = null) {
+  const product = (productOrId && typeof productOrId === 'object')
+    ? productOrId
+    : { id: productOrId }
+  send('cart_add', { product_id: product.id, email })
+  const contentId = catalogItemId(product)
+  if (contentId) {
+    fbq('track', 'AddToCart', {
+      content_ids:  [contentId],
+      content_type: 'product',
+    })
+  }
 }
 
 /** User reached the checkout confirmation step */
@@ -70,7 +103,12 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
   fbq('track', 'Purchase', {
     value:        Number(total),
     currency,
-    content_ids:  items.map(i => String(i.product_id || i.id || '')).filter(Boolean),
+    content_ids:  items.map(i => catalogItemId({
+      id:            i.product_id || i.id,
+      slug:          i.slug || i.product_slug,
+      size:          i.size,
+      colorGroupId:  i.color_group_id,
+    })).filter(Boolean),
     content_type: 'product',
   })
 

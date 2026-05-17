@@ -34,7 +34,9 @@ function buildItem(p, { id, size } = {}) {
   const mainImage   = images[0] || ''
   const extraImages = images.slice(1, 10)
   const taxonomy    = CATEGORY_TAXONOMY[p.category] || 'Apparel & Accessories > Clothing'
-  const itemGroupId = p.color_group_id ? `group_${p.color_group_id}` : `product_${p.id}`
+  // Use slug/color_group_id directly (no prefix) so Pixel content_ids
+  // from product pages match this value for Catalog Match Rate.
+  const itemGroupId = p.color_group_id || p.slug || String(p.id)
 
   return `
     <item>
