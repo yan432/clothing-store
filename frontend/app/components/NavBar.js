@@ -12,6 +12,7 @@ const SHOP_STATIC = [
 ]
 
 const INFO_LINKS = [
+  { label: 'About',               href: '/about' },
   { label: 'Contact us',          href: '/contact' },
   { label: 'Shipping info',       href: '/shipping' },
   { label: 'Returns & exchanges', href: '/returns' },

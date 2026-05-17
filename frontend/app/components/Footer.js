@@ -56,6 +56,7 @@ export default function Footer() {
     ...categories.map(cat => [cat, `/products?category=${encodeURIComponent(cat)}`]),
   ]
   const careLinks = [
+    ['About','/about'],
     ['Contact us','/contact'],
     ['Shipping info','/shipping'],
     ['Returns & exchanges','/returns'],
