@@ -415,7 +415,7 @@
 .mosaicCta {
   margin-top: 36px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .mosaicInstaBtn {
