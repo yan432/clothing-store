@@ -6,6 +6,7 @@ const BASE_URL = 'https://www.edmclothes.net'
 const STATIC_PAGES = [
   { url: BASE_URL,                 priority: 1.0, changeFrequency: 'daily',   lastModified: new Date('2025-01-01') },
   { url: `${BASE_URL}/products`,   priority: 0.9, changeFrequency: 'daily',   lastModified: new Date('2025-01-01') },
+  { url: `${BASE_URL}/about`,      priority: 0.8, changeFrequency: 'monthly', lastModified: new Date('2026-05-17') },
   { url: `${BASE_URL}/contact`,    priority: 0.7, changeFrequency: 'monthly', lastModified: new Date('2025-01-01') },
   { url: `${BASE_URL}/shipping`,   priority: 0.5, changeFrequency: 'monthly', lastModified: new Date('2025-01-01') },
   { url: `${BASE_URL}/returns`,    priority: 0.5, changeFrequency: 'monthly', lastModified: new Date('2025-01-01') },
