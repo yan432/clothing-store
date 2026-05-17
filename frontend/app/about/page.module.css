@@ -408,14 +408,14 @@
 
 /* ─── MOSAIC ─── */
 .mosaicSection {
-  padding: 120px 0;
+  padding: 120px 0 56px;
   border-bottom: 1px solid #ececea;
 }
 
 .mosaicCta {
   margin-top: 36px;
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .mosaicInstaBtn {
