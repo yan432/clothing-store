@@ -412,6 +412,33 @@
   border-bottom: 1px solid #ececea;
 }
 
+.mosaicCta {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+}
+
+.mosaicInstaBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: 1px solid #1a1a18;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #1a1a18;
+  background: transparent;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.mosaicInstaBtn:hover {
+  background: #1a1a18;
+  color: #fff;
+}
+
 .mosaicSection .labelCenter {
   font-size: 11px;
   letter-spacing: 0.28em;
