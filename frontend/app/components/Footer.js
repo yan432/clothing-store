@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { getApiUrl } from '../lib/api'
-import { trackNewsletterSignup } from '../lib/track'
 
 const STATIC_SHOP_LINKS = [
   ['All products', '/products'],
@@ -44,7 +43,6 @@ export default function Footer() {
         throw new Error(text || 'Failed to subscribe')
       }
       setNewsletterMessage('Thanks, you are subscribed.')
-      trackNewsletterSignup({ source: 'footer_newsletter' })
       setNewsletterEmail('')
     } catch (_) {
       setNewsletterMessage('Could not subscribe right now.')
@@ -127,7 +125,7 @@ export default function Footer() {
           <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:'0 0 16px'}}>
             Get early access to new arrivals, sales, exclusive content, events and more!
           </p>
-          <form id="footer-newsletter-form" name="footer_newsletter" onSubmit={handleNewsletterSubmit} className="footer-newsletter-form">
+          <form onSubmit={handleNewsletterSubmit} className="footer-newsletter-form">
             <input
               type="email"
               placeholder="Email address"
