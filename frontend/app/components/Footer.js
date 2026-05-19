@@ -3,6 +3,80 @@
 import { useState, useEffect } from 'react'
 import { getApiUrl } from '../lib/api'
 
+const PAYMENT_ICONS = [
+  {
+    id: 'visa', label: 'Visa',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="11" fill="#1a1f71" letterSpacing="-0.5">VISA</text>
+      </svg>
+    ),
+  },
+  {
+    id: 'mastercard', label: 'Mastercard',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="13" r="8" fill="#EB001B"/>
+        <circle cx="24" cy="13" r="8" fill="#F79E1B"/>
+        <path d="M19 7.4a8 8 0 0 1 0 11.2A8 8 0 0 1 19 7.4z" fill="#FF5F00"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'maestro', label: 'Maestro',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="14" cy="13" r="8" fill="#EB001B"/>
+        <circle cx="24" cy="13" r="8" fill="#00A2E5"/>
+        <path d="M19 7.4a8 8 0 0 1 0 11.2A8 8 0 0 1 19 7.4z" fill="#7B0099"/>
+      </svg>
+    ),
+  },
+  {
+    id: 'paypal', label: 'PayPal',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="52%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="8.5" fill="#003087">Pay</text>
+        <text x="50%" y="72%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="8.5" fill="#009cde">Pal</text>
+      </svg>
+    ),
+  },
+  {
+    id: 'klarna', label: 'Klarna',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <rect width="38" height="26" rx="4" fill="#FFB3C7"/>
+        <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="9" fill="#17120f">klarna</text>
+      </svg>
+    ),
+  },
+  {
+    id: 'applepay', label: 'Apple Pay',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12.5 8.5c.5-.6 1.1-1 1.9-1-.1.8-.4 1.5-.9 2-.5.6-1.1 1-1.9 1 0-.8.4-1.5.9-2zm-1 2.8c1 0 1.8.5 2.3.5.5 0 1.3-.6 2.3-.5.4 0 1.5.1 2.1.9-.1 0-1.3.7-1.2 2.1 0 1.6 1.4 2.2 1.4 2.2 0 .1-.2.7-.7 1.3-.4.6-.9 1.2-1.6 1.2-.7 0-.9-.4-1.7-.4s-1 .4-1.8.4c-.7 0-1.2-.6-1.7-1.2-.8-1-1.5-2.6-1.5-4.1 0-2.4 1.6-3.7 3.1-3.4z" fill="#111"/>
+        <text x="22" y="55%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="7.5" fill="#111">Pay</text>
+      </svg>
+    ),
+  },
+  {
+    id: 'googlepay', label: 'Google Pay',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="7" fill="#111" letterSpacing="0">G Pay</text>
+      </svg>
+    ),
+  },
+  {
+    id: 'stripe', label: 'Stripe',
+    svg: (
+      <svg viewBox="0 0 38 26" width="38" height="26" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="55%" dominantBaseline="middle" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="bold" fontSize="10" fill="#635BFF">stripe</text>
+      </svg>
+    ),
+  },
+]
+
 const STATIC_SHOP_LINKS = [
   ['All products', '/products'],
   ['New arrivals', '/products?special=new'],
@@ -153,17 +227,10 @@ export default function Footer() {
 
           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
             <span style={{fontSize:12,color:'#555',marginRight:4,whiteSpace:'nowrap'}}>We accept</span>
-            {[
-              { file: 'visa.png',       alt: 'Visa' },
-              { file: 'mastercard.png', alt: 'Mastercard' },
-              { file: 'Maestro.png',    alt: 'Maestro' },
-              { file: 'paypal.png',     alt: 'PayPal' },
-              { file: 'klarna.png',     alt: 'Klarna' },
-              { file: 'applepay.png',   alt: 'Apple Pay' },
-              { file: 'googlepay.png',  alt: 'Google Pay' },
-              { file: 'Stripe.png',     alt: 'Stripe' },
-            ].map(({ file, alt }) => (
-              <img key={file} src={`/payment-icons/${file}`} alt={alt} width={38} height={26} style={{display:'block',flexShrink:0}} />
+            {PAYMENT_ICONS.map(({ id, label, svg }) => (
+              <span key={id} title={label} style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:38,height:26,background:'#fff',borderRadius:4,border:'1px solid #2a2a2a',flexShrink:0,overflow:'hidden'}}>
+                {svg}
+              </span>
             ))}
           </div>
 
