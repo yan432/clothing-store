@@ -154,13 +154,13 @@ export default function Footer() {
           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
             <span style={{fontSize:12,color:'#555',marginRight:4,whiteSpace:'nowrap'}}>We accept</span>
             {[
-              { file: 'visa.png',       alt: 'Visa' },
-              { file: 'mastercard.png', alt: 'Mastercard' },
+              { file: 'Visa.png',       alt: 'Visa' },
+              { file: 'Mastercard.png', alt: 'Mastercard' },
               { file: 'Maestro.png',    alt: 'Maestro' },
-              { file: 'paypal.png',     alt: 'PayPal' },
-              { file: 'klarna.png',     alt: 'Klarna' },
-              { file: 'applepay.png',   alt: 'Apple Pay' },
-              { file: 'googlepay.png',  alt: 'Google Pay' },
+              { file: 'PayPal.png',     alt: 'PayPal' },
+              { file: 'Klarna.png',     alt: 'Klarna' },
+              { file: 'ApplePay.png',   alt: 'Apple Pay' },
+              { file: 'GooglePay.png',  alt: 'Google Pay' },
               { file: 'Stripe.png',     alt: 'Stripe' },
             ].map(({ file, alt }) => (
               <img key={file} src={`/payment-icons/${file}`} alt={alt} width={38} height={26} style={{display:'block',flexShrink:0}} />
