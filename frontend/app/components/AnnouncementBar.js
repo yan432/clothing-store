@@ -47,6 +47,8 @@ export default function AnnouncementBar() {
       letterSpacing: '0.1em',
       textTransform: 'uppercase',
       userSelect: 'none',
+      transform: 'translateZ(0)',
+      isolation: 'isolate',
     }}>
       <div className="announcement-track">
         {copies.map(c =>
