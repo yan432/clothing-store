@@ -111,6 +111,18 @@ RESEND_WEBHOOK_SECRET = os.getenv("RESEND_WEBHOOK_SECRET", "")
 ORDER_ALERT_EMAIL = os.getenv("ORDER_ALERT_EMAIL")
 KLAVIYO_API_KEY = os.getenv("KLAVIYO_API_KEY", "")
 KLAVIYO_LIST_ID = os.getenv("KLAVIYO_LIST_ID", "")
+META_PIXEL_ID = os.getenv("META_PIXEL_ID", "1608949326833856").strip()
+META_CONVERSIONS_API_ACCESS_TOKEN = (
+    os.getenv("META_CONVERSIONS_API_ACCESS_TOKEN")
+    or os.getenv("META_CAPI_ACCESS_TOKEN")
+    or ""
+).strip()
+META_GRAPH_API_VERSION = os.getenv("META_GRAPH_API_VERSION", "v25.0").strip() or "v25.0"
+META_TEST_EVENT_CODE = os.getenv("META_TEST_EVENT_CODE", "").strip()
+
+TIKTOK_PIXEL_ID = os.getenv("TIKTOK_PIXEL_ID", "D879J7JC77U3446EEDE0").strip()
+TIKTOK_ACCESS_TOKEN = os.getenv("TIKTOK_ACCESS_TOKEN", "").strip()
+TIKTOK_TEST_EVENT_CODE = os.getenv("TIKTOK_TEST_EVENT_CODE", "").strip()
 
 # ── Admin auth ────────────────────────────────────────────────────────────────
 # Set ADMIN_SECRET to a long random string in your backend .env.
@@ -296,6 +308,7 @@ class CheckoutRequest(BaseModel):
     utm: Optional[dict] = None  # { utm_source, utm_medium, utm_campaign, utm_content, utm_term }
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
+    meta: Optional[dict] = None  # Meta Pixel/CAPI attribution: fbp, fbc, consent
 
 
 class PromoCodeCreate(BaseModel):
@@ -441,6 +454,299 @@ def normalize_promo_code(value: Optional[str]) -> str:
 
 def normalize_email(value: Optional[str]) -> str:
     return str(value or "").strip().lower()
+
+
+def normalize_meta_graph_api_version(value: str) -> str:
+    version = str(value or "v25.0").strip().lower()
+    if not version:
+        return "v25.0"
+    return version if version.startswith("v") else f"v{version}"
+
+
+def sha256_meta_value(value: Any, *, phone: bool = False) -> Optional[str]:
+    text = str(value or "").strip().lower()
+    if phone:
+        text = re.sub(r"\D+", "", text)
+    if not text:
+        return None
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def sanitize_meta_tracking(raw: Optional[dict]) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    result: dict[str, str] = {}
+    for key in ("fbp", "fbc"):
+        value = str(raw.get(key) or "").strip()
+        if value and value.startswith("fb.") and len(value) <= 500:
+            result[key] = value
+    consent = str(raw.get("consent") or "").strip().lower()
+    if consent in ("granted", "denied"):
+        result["consent"] = consent
+    return result
+
+
+def catalog_item_id_for_meta(item: dict) -> str:
+    slug = str(item.get("slug") or item.get("product_slug") or "").strip()
+    size = str(item.get("size") or "").strip()
+    color_group_id = str(item.get("color_group_id") or item.get("colorGroupId") or "").strip()
+    product_id = item.get("product_id") or item.get("id") or ""
+    if slug and size:
+        size_slug = re.sub(r"\s+", "-", size).lower()
+        return f"{slug}-{size_slug}"
+    return color_group_id or slug or str(product_id)
+
+
+def meta_purchase_event_id(order_id: Any) -> str:
+    return f"purchase-{order_id}"
+
+
+def build_meta_user_data(order: dict) -> dict:
+    metadata = as_dict(order.get("metadata_json"))
+    order = enrich_order_shipping(order)
+    user_data: dict[str, Any] = {}
+
+    email_hash = sha256_meta_value(order.get("email"))
+    phone_hash = sha256_meta_value(order.get("phone"), phone=True)
+    if email_hash:
+        user_data["em"] = [email_hash]
+    if phone_hash:
+        user_data["ph"] = [phone_hash]
+
+    shipping_name = str(order.get("shipping_name") or "").strip()
+    if shipping_name:
+        parts = [p for p in shipping_name.split() if p]
+        first_name_hash = sha256_meta_value(parts[0] if parts else "")
+        last_name_hash = sha256_meta_value(parts[-1] if len(parts) > 1 else "")
+        if first_name_hash:
+            user_data["fn"] = [first_name_hash]
+        if last_name_hash:
+            user_data["ln"] = [last_name_hash]
+
+    for source_key, meta_key in (
+        ("shipping_city", "ct"),
+        ("shipping_state", "st"),
+        ("shipping_postal_code", "zp"),
+        ("shipping_country", "country"),
+    ):
+        hashed = sha256_meta_value(order.get(source_key))
+        if hashed:
+            user_data[meta_key] = [hashed]
+
+    external_id_hash = sha256_meta_value(order.get("id"))
+    if external_id_hash:
+        user_data["external_id"] = [external_id_hash]
+
+    client_ip = first_non_empty(metadata.get("client_ip_address"))
+    if client_ip and client_ip not in ("unknown", "127.0.0.1", "::1"):
+        user_data["client_ip_address"] = client_ip
+    client_user_agent = first_non_empty(metadata.get("client_user_agent"))
+    if client_user_agent:
+        user_data["client_user_agent"] = client_user_agent
+    if metadata.get("meta_fbp"):
+        user_data["fbp"] = metadata["meta_fbp"]
+    if metadata.get("meta_fbc"):
+        user_data["fbc"] = metadata["meta_fbc"]
+
+    return user_data
+
+
+def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) -> Optional[dict]:
+    metadata = as_dict(order.get("metadata_json"))
+    if metadata.get("meta_cookie_consent") != "granted":
+        return None
+
+    user_data = build_meta_user_data(order)
+    if not user_data:
+        return None
+
+    items = order.get("items_json") or []
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except Exception:
+            items = []
+    if not isinstance(items, list):
+        items = []
+
+    contents = []
+    content_ids = []
+    num_items = 0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        qty = max(1, int(to_float(item.get("quantity") or item.get("qty"), 1)))
+        content_id = catalog_item_id_for_meta(item)
+        if content_id:
+            content_ids.append(content_id)
+            contents.append({
+                "id": content_id,
+                "quantity": qty,
+                "item_price": to_float(item.get("price")),
+            })
+        num_items += qty
+
+    event_time = int((event_dict or {}).get("created") or datetime.now(timezone.utc).timestamp())
+    event = {
+        "event_name": "Purchase",
+        "event_time": event_time,
+        "event_id": meta_purchase_event_id(order.get("id")),
+        "event_source_url": metadata.get("event_source_url") or f"{FRONTEND_URL.rstrip('/')}/success",
+        "action_source": "website",
+        "user_data": user_data,
+        "custom_data": {
+            "currency": str(order.get("currency") or "EUR").upper(),
+            "value": to_float(order.get("amount_total")),
+            "order_id": str(order.get("id")),
+            "content_type": "product",
+            "content_ids": content_ids,
+            "contents": contents,
+            "num_items": num_items,
+        },
+    }
+    return {"data": [event]}
+
+
+def send_meta_purchase_event(order: dict, event_dict: Optional[dict] = None) -> dict:
+    if not META_PIXEL_ID or not META_CONVERSIONS_API_ACCESS_TOKEN:
+        return {"skipped": "meta_capi_not_configured"}
+
+    payload = build_meta_purchase_payload(order, event_dict)
+    if not payload:
+        return {"skipped": "meta_payload_empty_or_consent_missing"}
+
+    if META_TEST_EVENT_CODE:
+        payload["test_event_code"] = META_TEST_EVENT_CODE
+
+    version = normalize_meta_graph_api_version(META_GRAPH_API_VERSION)
+    url = f"https://graph.facebook.com/{version}/{META_PIXEL_ID}/events"
+    try:
+        response = requests.post(
+            url,
+            params={"access_token": META_CONVERSIONS_API_ACCESS_TOKEN},
+            json=payload,
+            timeout=5,
+        )
+        if response.status_code >= 400:
+            print(f"Meta CAPI purchase failed for order {order.get('id')}: {response.status_code} {response.text[:500]}")
+            return {"ok": False, "status_code": response.status_code}
+        return {"ok": True, "status_code": response.status_code}
+    except requests.RequestException as exc:
+        print(f"Meta CAPI purchase failed for order {order.get('id')}: {type(exc).__name__}: {exc}")
+        return {"ok": False, "error": type(exc).__name__}
+
+
+def build_tiktok_purchase_payload(order: dict, event_dict: Optional[dict] = None) -> Optional[dict]:
+    metadata = as_dict(order.get("metadata_json"))
+    if metadata.get("meta_cookie_consent") != "granted":
+        return None
+
+    # ── User data (all fields SHA-256 hashed) ─────────────────────────────────
+    user: dict[str, Any] = {}
+
+    email_hash = sha256_meta_value(order.get("email"))
+    if email_hash:
+        user["email"] = email_hash
+
+    phone_hash = sha256_meta_value(order.get("phone"), phone=True)
+    if phone_hash:
+        user["phone_number"] = phone_hash
+
+    external_id_hash = sha256_meta_value(order.get("id"))
+    if external_id_hash:
+        user["external_id"] = external_id_hash
+
+    client_ip = first_non_empty(metadata.get("client_ip_address"))
+    if client_ip and client_ip not in ("unknown", "127.0.0.1", "::1"):
+        user["ip"] = client_ip
+
+    client_user_agent = first_non_empty(metadata.get("client_user_agent"))
+    if client_user_agent:
+        user["user_agent"] = client_user_agent
+
+    ttclid = first_non_empty(metadata.get("ttclid"))
+    if ttclid:
+        user["ttclid"] = ttclid
+
+    if not user:
+        return None
+
+    # ── Contents ──────────────────────────────────────────────────────────────
+    items = order.get("items_json") or []
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except Exception:
+            items = []
+    if not isinstance(items, list):
+        items = []
+
+    contents = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        content_id = catalog_item_id_for_meta(item)
+        qty = max(1, int(to_float(item.get("quantity") or item.get("qty"), 1)))
+        contents.append({
+            "content_id":   content_id or str(item.get("product_id") or item.get("id") or ""),
+            "content_type": "product",
+            "content_name": str(item.get("name") or item.get("product_name") or item.get("title") or ""),
+            "price":        to_float(item.get("price")),
+            "quantity":     qty,
+        })
+
+    event_time = int((event_dict or {}).get("created") or datetime.now(timezone.utc).timestamp())
+    source_url = metadata.get("event_source_url") or f"{FRONTEND_URL.rstrip('/')}/success"
+
+    event = {
+        "event":      "Purchase",
+        "event_time": event_time,
+        "event_id":   f"purchase-{order.get('id')}",
+        "user":       user,
+        "properties": {
+            "contents": contents,
+            "currency": str(order.get("currency") or "EUR").upper(),
+            "value":    to_float(order.get("amount_total")),
+            "order_id": str(order.get("id")),
+        },
+        "page": {"url": source_url},
+    }
+    return {"pixel_code": TIKTOK_PIXEL_ID, "event": [event]}
+
+
+def send_tiktok_purchase_event(order: dict, event_dict: Optional[dict] = None) -> dict:
+    if not TIKTOK_PIXEL_ID or not TIKTOK_ACCESS_TOKEN:
+        return {"skipped": "tiktok_events_api_not_configured"}
+
+    payload = build_tiktok_purchase_payload(order, event_dict)
+    if not payload:
+        return {"skipped": "tiktok_payload_empty_or_consent_missing"}
+
+    if TIKTOK_TEST_EVENT_CODE:
+        payload["test_event_code"] = TIKTOK_TEST_EVENT_CODE
+
+    url = "https://business-api.tiktok.com/open_api/v1.3/event/track/"
+    try:
+        response = requests.post(
+            url,
+            headers={
+                "Authorization": f"Bearer {TIKTOK_ACCESS_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=5,
+        )
+        if response.status_code >= 400:
+            print(f"TikTok Events API purchase failed for order {order.get('id')}: {response.status_code} {response.text[:500]}")
+            return {"ok": False, "status_code": response.status_code}
+        resp_json = response.json()
+        if resp_json.get("code") != 0:
+            print(f"TikTok Events API error for order {order.get('id')}: {resp_json}")
+            return {"ok": False, "tiktok_code": resp_json.get("code"), "message": resp_json.get("message")}
+        return {"ok": True, "status_code": response.status_code}
+    except requests.RequestException as exc:
+        print(f"TikTok Events API purchase failed for order {order.get('id')}: {type(exc).__name__}: {exc}")
+        return {"ok": False, "error": type(exc).__name__}
 
 
 def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Optional[dict] = None) -> None:
@@ -2519,6 +2825,9 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         total_vol_weight += float(db_product.get("volumetric_weight") or 0.3) * qty
         normalized_item = {
             "id": int(item.id),
+            "slug": db_product.get("slug"),
+            "category": db_product.get("category"),
+            "color_group_id": db_product.get("color_group_id"),
             "name": product_name,
             "price": price,
             "quantity": qty,
@@ -2634,6 +2943,17 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             for k, v in payload.utm.items():
                 if k in allowed_utm and isinstance(v, str) and v:
                     metadata_json[k] = v[:200]
+        frontend_base = checkout_frontend_base(payload.success_url, http_request)
+        metadata_json["event_source_url"] = f"{frontend_base}/success"
+        meta_tracking = sanitize_meta_tracking(payload.meta)
+        if meta_tracking.get("consent") == "granted":
+            metadata_json["client_ip_address"] = _client_ip(http_request)[:100]
+            metadata_json["client_user_agent"] = (http_request.headers.get("user-agent") or "")[:500]
+        for key, value in meta_tracking.items():
+            if key == "consent":
+                metadata_json["meta_cookie_consent"] = value
+            elif meta_tracking.get("consent") == "granted":
+                metadata_json[f"meta_{key}"] = value
         if promo:
             metadata_json["promo_id"] = promo.get("id")
             metadata_json["promo_code"] = promo.get("code")
@@ -2681,7 +3001,6 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         # Shipping and customer contact details are collected before Stripe.
         # Do not force billing address collection in Checkout; wallets like
         # Apple Pay can otherwise ask for the same address again.
-        frontend_base = checkout_frontend_base(payload.success_url, http_request)
         stripe_session_params: dict = dict(
             payment_method_types=["card", "klarna", "paypal"],
             line_items=line_items,
@@ -2719,7 +3038,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "expires_at": expires_at_iso,
             "updated_at": now_iso(),
         }).eq("id", created_order["id"]).execute()
-        return {"url": session.url}
+        return {"url": session.url, "order_id": created_order.get("id")}
 
     except HTTPException as exc:
         if stock_reserved:
@@ -2865,6 +3184,8 @@ def process_checkout_session_event(event_type: str, data_obj: dict, event_dict: 
                 "items_count": len(order.get("items_json") or []),
             },
         )
+        send_meta_purchase_event(updated_order, event_dict)
+        send_tiktok_purchase_event(updated_order, event_dict)
 
     if send_confirmation:
         try:
