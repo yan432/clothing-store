@@ -108,6 +108,7 @@ export default function RootLayout({ children }) {
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
               gtag('config', 'G-CMVZYXVZ8Y');
+              gtag('config', 'AW-16809967064');
               window.__gaConfigured = true;
               window.dispatchEvent(new Event('ga-configured'));
             `}</Script>
