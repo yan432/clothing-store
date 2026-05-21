@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
+import { trackCompleteRegistration, trackNewsletterSignup } from '../lib/track'
 
 export default function AuthPage() {
   const [mode, setMode] = useState('signin')
@@ -68,8 +69,10 @@ export default function AuthPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: normalizedEmail, source: 'signup' }),
             })
+            trackNewsletterSignup({ source: 'signup' })
           } catch (_) {}
         }
+        trackCompleteRegistration({ source: 'account_signup' })
         setMessage('Verification link sent to your email. Open it to finish creating your account.')
       }
     }
@@ -126,6 +129,8 @@ export default function AuthPage() {
 
         <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:12}}>
           <input
+            id="auth-email"
+            name="email"
             type="email"
             placeholder="Email"
             value={email}
@@ -135,6 +140,8 @@ export default function AuthPage() {
           />
           <div style={{position:'relative'}}>
             <input
+              id="auth-password"
+              name="password"
               type={showPassword ? 'text' : 'password'}
               placeholder="Password"
               value={password}
@@ -164,6 +171,8 @@ export default function AuthPage() {
             <>
               <div style={{position:'relative'}}>
                 <input
+                  id="auth-confirm-password"
+                  name="confirm_password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm password"
                   value={confirmPassword}

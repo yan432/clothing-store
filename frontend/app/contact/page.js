@@ -1,7 +1,9 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { Mail, HelpCircle, Clock, CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
+import { trackContact } from '../lib/track'
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' })
@@ -27,6 +29,7 @@ export default function ContactPage() {
         const d = await res.json().catch(() => ({}))
         throw new Error(d.detail || 'Something went wrong')
       }
+      trackContact({ source: 'contact_form' })
       setSent(true)
     } catch (err) {
       setError(err.message)
@@ -46,22 +49,26 @@ export default function ContactPage() {
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '56px 24px 80px' }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Contact us</h1>
-      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>We're happy to help — choose how you'd like to reach us.</p>
+      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>We&apos;re happy to help — choose how you&apos;d like to reach us.</p>
 
       {/* Three options */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 56 }}>
         <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Mail size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>Email us</p>
-          <a href="mailto:sales@edmclothes.net" style={{ fontSize: 13, color: '#666', textDecoration: 'none', borderBottom: '1px solid #ccc' }}>
+          <a
+            href="mailto:sales@edmclothes.net"
+            onClick={() => trackContact({ source: 'mailto_link' })}
+            style={{ fontSize: 13, color: '#666', textDecoration: 'none', borderBottom: '1px solid #ccc' }}
+          >
             sales@edmclothes.net
           </a>
         </div>
-        <a href="/faq" style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center', textDecoration: 'none', color: 'inherit', display: 'block' }}>
+        <Link href="/faq" style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center', textDecoration: 'none', color: 'inherit', display: 'block' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><HelpCircle size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>FAQ</p>
           <p style={{ fontSize: 13, color: '#666', margin: 0 }}>Find quick answers</p>
-        </a>
+        </Link>
         <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Clock size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>Working hours</p>
@@ -79,29 +86,31 @@ export default function ContactPage() {
         <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '28px 24px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><CheckCircle2 size={32} strokeWidth={1.5} color="#16a34a" /></div>
           <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 6px', color: '#15803d' }}>Message sent!</p>
-          <p style={{ fontSize: 14, color: '#666', margin: 0 }}>We'll get back to you within 1–2 business days. Check your inbox for a confirmation.</p>
+          <p style={{ fontSize: 14, color: '#666', margin: 0 }}>We&apos;ll get back to you within 1–2 business days. Check your inbox for a confirmation.</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>Name *</label>
-              <input value={form.name} onChange={set('name')} required placeholder="Your name" style={input} />
+              <input id="contact-name" name="name" value={form.name} onChange={set('name')} required placeholder="Your name" style={input} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>Email *</label>
-              <input type="email" value={form.email} onChange={set('email')} required placeholder="Your email" style={input} />
+              <input id="contact-email" name="email" type="email" value={form.email} onChange={set('email')} required placeholder="Your email" style={input} />
             </div>
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>Subject</label>
-            <input value={form.subject} onChange={set('subject')} placeholder="What is this about?" style={input} />
+            <input id="contact-subject" name="subject" value={form.subject} onChange={set('subject')} placeholder="What is this about?" style={input} />
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#555', marginBottom: 6 }}>Message *</label>
             <textarea
+              id="contact-message"
+              name="message"
               value={form.message}
               onChange={set('message')}
               required
