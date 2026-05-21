@@ -15,18 +15,19 @@ const imageHosts = Array.from(new Set([
 
 const cspHeader = [
   "default-src 'self'",
-  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Meta Pixel + TikTok Pixel
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com",
+  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Google Ads + Meta Pixel + TikTok Pixel
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://connect.facebook.net https://analytics.tiktok.com",
   // Styles: self + inline (Next.js injects inline styles)
   "style-src 'self' 'unsafe-inline'",
-  // Images: self + data URIs + Supabase storage + bigcartel CDN + GA beacon + Meta Pixel beacon + TikTok
-  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com`,
+  // Images: self + data URIs + Supabase + bigcartel + GA + GTM + Meta + TikTok + Google Ads remarketing pixel
+  // Google Ads remarketing pixel comes from country-specific google.<tld>/ads/ga-audiences — list common EU/global TLDs
+  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca`,
   // Fonts: self
   "font-src 'self' data:",
   // Frames: Stripe payment iframe
-  "frame-src https://js.stripe.com https://hooks.stripe.com",
-  // Connect: self + backend API + Supabase + Stripe + Google Analytics + Meta Pixel + TikTok + ipapi
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://ipapi.co`,
+  "frame-src https://js.stripe.com https://hooks.stripe.com https://td.doubleclick.net",
+  // Connect: self + backend API + Supabase + Stripe + GA + Google Ads + Meta + TikTok + ipapi
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://ipapi.co`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
