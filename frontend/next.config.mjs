@@ -15,18 +15,18 @@ const imageHosts = Array.from(new Set([
 
 const cspHeader = [
   "default-src 'self'",
-  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Meta Pixel
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net",
+  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Meta Pixel + TikTok Pixel
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://connect.facebook.net https://analytics.tiktok.com",
   // Styles: self + inline (Next.js injects inline styles)
   "style-src 'self' 'unsafe-inline'",
-  // Images: self + data URIs + Supabase storage + bigcartel CDN + GA beacon + Meta Pixel beacon
-  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com`,
+  // Images: self + data URIs + Supabase storage + bigcartel CDN + GA beacon + Meta Pixel beacon + TikTok
+  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com`,
   // Fonts: self
   "font-src 'self' data:",
   // Frames: Stripe payment iframe
   "frame-src https://js.stripe.com https://hooks.stripe.com",
-  // Connect: self + backend API + Supabase + Stripe + Google Analytics + Meta Pixel + ipapi
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://ipapi.co`,
+  // Connect: self + backend API + Supabase + Stripe + Google Analytics + Meta Pixel + TikTok + ipapi
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://ipapi.co`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
@@ -37,10 +37,11 @@ const cspHeader = [
 
 const nextConfig = {
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/webp'],
     // Add 390px so mobile cards (50vw on 390px phone at 2× DPR)
     // get a 390px image instead of jumping straight to 640px.
     deviceSizes: [390, 640, 750, 828, 1080, 1200, 1920],
+    minimumCacheTTL: 2592000, // 30 days
     remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname })),
   },
 
