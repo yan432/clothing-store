@@ -12,7 +12,13 @@ const EEA_COUNTRIES = new Set([
 ])
 
 function updateGAConsent(granted) {
-  if (typeof window === 'undefined' || !window.gtag) return
+  if (typeof window === 'undefined') return
+  window.dataLayer = window.dataLayer || []
+  if (typeof window.gtag !== 'function') {
+    window.gtag = function gtag() {
+      window.dataLayer.push(arguments)
+    }
+  }
   const state = granted ? 'granted' : 'denied'
   window.gtag('consent', 'update', {
     ad_storage:           state,
@@ -20,6 +26,9 @@ function updateGAConsent(granted) {
     ad_user_data:         state,
     ad_personalization:   state,
   })
+  window.dispatchEvent(new CustomEvent('tracking-consent-change', {
+    detail: { granted },
+  }))
 }
 
 function updateMetaConsent(granted) {
@@ -31,9 +40,23 @@ function updateMetaConsent(granted) {
   }
 }
 
+function updateTikTokConsent(granted) {
+  if (typeof window === 'undefined' || !window.ttq) return
+  if (granted) {
+    window.ttq.grantConsent()
+    if (!window.__ttqPageViewTracked) {
+      window.ttq.page()
+      window.__ttqPageViewTracked = true
+    }
+  } else {
+    window.ttq.revokeConsent()
+  }
+}
+
 function updateTrackingConsent(granted) {
   updateGAConsent(granted)
   updateMetaConsent(granted)
+  updateTikTokConsent(granted)
 }
 
 async function isEEAVisitor() {
