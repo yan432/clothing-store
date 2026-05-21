@@ -3,6 +3,9 @@ import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.edmclothes.net'
 const BRAND = 'edm.clothes'
+const SHIPPING_PRICE_EUR = 30
+const FREE_SHIPPING_THRESHOLD_EUR = 120
+const SHIPPING_COUNTRIES = ['DE', 'FR', 'NL', 'AT', 'GB', 'US']
 
 // Exact strings from Google Product Taxonomy
 // https://www.google.com/basepages/producttype/taxonomy.en-US.txt
@@ -22,6 +25,15 @@ function esc(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+}
+
+function buildShipping(country) {
+  return `<g:shipping>
+        <g:country>${country}</g:country><g:service>Standard</g:service><g:price>${SHIPPING_PRICE_EUR.toFixed(2)} EUR</g:price>
+      </g:shipping>
+      <g:free_shipping_threshold>
+        <g:country>${country}</g:country><g:price_threshold>${FREE_SHIPPING_THRESHOLD_EUR.toFixed(2)} EUR</g:price_threshold>
+      </g:free_shipping_threshold>`
 }
 
 function buildItem(p, { id, size } = {}) {
@@ -59,24 +71,7 @@ function buildItem(p, { id, size } = {}) {
       <g:item_group_id>${esc(itemGroupId)}</g:item_group_id>
       <g:color>${esc(p.color_name || 'See product page')}</g:color>
       ${size ? `<g:size>${esc(size)}</g:size>` : ''}
-      <g:shipping>
-        <g:country>DE</g:country><g:service>Standard</g:service><g:price>30.00 EUR</g:price>
-      </g:shipping>
-      <g:shipping>
-        <g:country>FR</g:country><g:service>Standard</g:service><g:price>30.00 EUR</g:price>
-      </g:shipping>
-      <g:shipping>
-        <g:country>NL</g:country><g:service>Standard</g:service><g:price>30.00 EUR</g:price>
-      </g:shipping>
-      <g:shipping>
-        <g:country>AT</g:country><g:service>Standard</g:service><g:price>30.00 EUR</g:price>
-      </g:shipping>
-      <g:shipping>
-        <g:country>GB</g:country><g:service>Standard</g:service><g:price>30.00 EUR</g:price>
-      </g:shipping>
-      <g:shipping>
-        <g:country>US</g:country><g:service>Standard</g:service><g:price>30.00 EUR</g:price>
-      </g:shipping>
+      ${SHIPPING_COUNTRIES.map(buildShipping).join('\n      ')}
     </item>`
 }
 
