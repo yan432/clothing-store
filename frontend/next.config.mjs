@@ -47,10 +47,31 @@ const nextConfig = {
 
   async redirects() {
     return [
+      // Canonical host: edmclothes.net → www.edmclothes.net
       {
         source: '/:path*',
         has: [{ type: 'host', value: 'edmclothes.net' }],
         destination: 'https://www.edmclothes.net/:path*',
+        permanent: true,
+      },
+      // Legacy BigCartel URLs — preserve SEO equity and stop 404s
+      {
+        source: '/product/:slug',
+        destination: '/products/:slug',
+        permanent: true,
+      },
+      // Capitalised category names (product.category in DB is "Tops" not "tops")
+      { source: '/category/tops',        destination: '/products?category=Tops',        permanent: true },
+      { source: '/category/bottoms',     destination: '/products?category=Bottoms',     permanent: true },
+      { source: '/category/outerwear',   destination: '/products?category=Outerwear',   permanent: true },
+      { source: '/category/accessories', destination: '/products?category=Accessories', permanent: true },
+      { source: '/category/knitwear',    destination: '/products?category=Knitwear',    permanent: true },
+      { source: '/category/denim',       destination: '/products?category=Denim',       permanent: true },
+      { source: '/category/jackets',     destination: '/products?category=Jackets',     permanent: true },
+      // Fallback for any other /category/* — just send to the catalog page
+      {
+        source: '/category/:name',
+        destination: '/products',
         permanent: true,
       },
     ]
