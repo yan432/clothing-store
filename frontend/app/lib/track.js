@@ -6,6 +6,8 @@
 import { getApiUrl } from './api'
 import { getSessionId } from './session'
 
+const GA_MEASUREMENT_ID = 'G-CMVZYXVZ8Y'
+
 function hasTrackingConsent() {
   try {
     return typeof window !== 'undefined' && window.localStorage.getItem('cookie_consent') === 'granted'
@@ -20,7 +22,37 @@ function fbq(...args) {
   }
 }
 
-function gaEvent(name, params = {}) {
+function ttq(method, ...args) {
+  if (typeof window !== 'undefined' && typeof window.ttq === 'function' && hasTrackingConsent()) {
+    window.ttq[method]?.(...args)
+  }
+}
+
+function ttqItem(item = {}) {
+  return {
+    content_id:   catalogItemId({
+      id:           item.product_id || item.id,
+      slug:         item.slug || item.product_slug,
+      size:         item.size,
+      colorGroupId: item.color_group_id || item.colorGroupId,
+    }) || String(item.product_id || item.id || ''),
+    content_type: 'product',
+    content_name: item.name || item.product_name || item.title || 'Product',
+    price:        Number(item.price) || 0,
+    quantity:     Number(item.quantity || item.qty) || 1,
+  }
+}
+
+function ttqCartPayload(items = [], value = null) {
+  const safeItems = Array.isArray(items) ? items : []
+  return {
+    contents: safeItems.map(ttqItem),
+    value:    value == null ? cartValue(safeItems) : Number(value) || 0,
+    currency: 'EUR',
+  }
+}
+
+function ensureGtag() {
   if (typeof window === 'undefined') return
 
   window.dataLayer = window.dataLayer || []
@@ -29,7 +61,29 @@ function gaEvent(name, params = {}) {
       window.dataLayer.push(arguments)
     }
   }
-  window.gtag('event', name, params)
+}
+
+function syncGAConsentFromStorage() {
+  if (!hasTrackingConsent()) return
+
+  ensureGtag()
+  window.gtag('consent', 'update', {
+    ad_storage:           'granted',
+    analytics_storage:    'granted',
+    ad_user_data:         'granted',
+    ad_personalization:   'granted',
+  })
+}
+
+function gaEvent(name, params = {}) {
+  if (typeof window === 'undefined') return
+
+  ensureGtag()
+  syncGAConsentFromStorage()
+  window.gtag('event', name, {
+    send_to: GA_MEASUREMENT_ID,
+    ...params,
+  })
 }
 
 /**
@@ -138,6 +192,11 @@ export function trackProductView(productOrId, email = null) {
       content_ids:  [contentId],
       content_type: 'product',
     })
+    ttq('track', 'ViewContent', {
+      contents:  [ttqItem(product)],
+      value:     Number(product.price) || 0,
+      currency:  'EUR',
+    })
   }
 }
 
@@ -164,6 +223,11 @@ export function trackCartAdd(productOrId, email = null) {
       value:        (Number(product.price) || 0) * (Number(product.quantity || product.qty) || 1),
       currency:     'EUR',
     })
+    ttq('track', 'AddToCart', {
+      contents: [ttqItem(product)],
+      value:    (Number(product.price) || 0) * (Number(product.quantity || product.qty) || 1),
+      currency: 'EUR',
+    })
   }
 }
 
@@ -186,6 +250,7 @@ export function trackCheckoutStarted(opts = null) {
     items:    cartItems(items),
   })
   fbq('track', 'InitiateCheckout', metaCartPayload(items, options.value))
+  ttq('track', 'InitiateCheckout', ttqCartPayload(items, options.value))
 }
 
 /** User submitted shipping/contact details and moved to order review */
@@ -212,6 +277,7 @@ export function trackPaymentInfo({ email = null, cart = [], value = null, paymen
     ...metaCartPayload(cart, value),
     payment_type: paymentType,
   })
+  ttq('track', 'AddPaymentInfo', ttqCartPayload(cart, value))
 }
 
 /** User logged in */
@@ -228,6 +294,7 @@ export function trackNewsletterSignup({ source = 'unknown', alreadySubscribed = 
     content_name: source,
     status:       alreadySubscribed ? 'already_subscribed' : 'subscribed',
   })
+  ttq('track', 'CompleteRegistration', {})
 }
 
 export function trackCompleteRegistration({ source = 'account_signup', status = 'completed' } = {}) {
@@ -235,6 +302,7 @@ export function trackCompleteRegistration({ source = 'account_signup', status = 
     content_name: source,
     status,
   })
+  ttq('track', 'CompleteRegistration', {})
 }
 
 export function trackNewsletterPopupClose({ source = 'scroll_popup' } = {}) {
@@ -248,6 +316,11 @@ export function trackAddToWishlist(product = {}) {
     content_type: 'product',
     value:        Number(product.price) || 0,
     currency:     'EUR',
+  })
+  ttq('track', 'AddToWishlist', {
+    contents: [ttqItem(product)],
+    value:    Number(product.price) || 0,
+    currency: 'EUR',
   })
 }
 
@@ -276,6 +349,7 @@ export function trackSearch({ searchString = '', resultCount = null } = {}) {
     search_string: q,
     content_category: 'Products',
   })
+  ttq('track', 'Search', { search_string: q })
 }
 
 /**
@@ -301,8 +375,20 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
     fbq('track', 'Purchase', pixelPayload)
   }
 
+  // TikTok Pixel purchase events
+  const ttqPurchasePayload = {
+    contents: items.map(ttqItem),
+    value:    Number(total),
+    currency,
+  }
+  ttq('track', 'PlaceAnOrder', ttqPurchasePayload)
+  ttq('track', 'Purchase', ttqPurchasePayload)
+
   // GA4 e-commerce purchase event
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+  if (typeof window !== 'undefined') {
+    ensureGtag()
+    syncGAConsentFromStorage()
+
     // Set campaign params so GA4 attributes the purchase to the right source.
     // This overrides the session source for this hit only.
     if (utm?.utm_source) {
@@ -315,7 +401,7 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
       })
     }
 
-    window.gtag('event', 'purchase', {
+    gaEvent('purchase', {
       transaction_id: String(orderId),
       value:          Number(total),
       currency,
