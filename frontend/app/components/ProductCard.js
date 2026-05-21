@@ -84,7 +84,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   }
 
   return (
-    <article
+    <div
       style={{display:'flex',flexDirection:'column',gap:12}}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -100,7 +100,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
 
           {/* Wishlist heart button */}
           <div style={{position:'absolute',top:10,right:10,zIndex:4}}>
-            <WishlistButton productId={product.id} />
+            <WishlistButton productId={product.id} product={product} />
           </div>
 
           {/* Все бейджи вместе */}
@@ -165,9 +165,9 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
           <p style={{fontSize:11,color:'#8f8f87',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
             {product.category || 'Essentials'}
           </p>
-          <h2 style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>
+          <p style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>
             {product.name}
-          </h2>
+          </p>
 
           {/* Цена с зачёркнутой если есть скидка */}
           <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 8px'}}>
@@ -223,6 +223,6 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
           ))}
         </div>
       )}
-    </article>
+    </div>
   )
 }
