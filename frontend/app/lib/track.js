@@ -3,10 +3,33 @@
  * Fire-and-forget — never throws, never blocks UI.
  */
 
+import { getApiUrl } from './api'
+import { getSessionId } from './session'
+
+function hasTrackingConsent() {
+  try {
+    return typeof window !== 'undefined' && window.localStorage.getItem('cookie_consent') === 'granted'
+  } catch {
+    return false
+  }
+}
+
 function fbq(...args) {
-  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function' && hasTrackingConsent()) {
     window.fbq(...args)
   }
+}
+
+function gaEvent(name, params = {}) {
+  if (typeof window === 'undefined') return
+
+  window.dataLayer = window.dataLayer || []
+  if (typeof window.gtag !== 'function') {
+    window.gtag = function gtag() {
+      window.dataLayer.push(arguments)
+    }
+  }
+  window.gtag('event', name, params)
 }
 
 /**
@@ -22,8 +45,60 @@ export function catalogItemId({ slug, id, size, colorGroupId } = {}) {
   return colorGroupId || slug || String(id || '')
 }
 
-import { getApiUrl } from './api'
-import { getSessionId } from './session'
+function gaItem(item = {}, index = 0) {
+  const itemId = catalogItemId({
+    id:           item.product_id || item.id,
+    slug:         item.slug || item.product_slug,
+    size:         item.size,
+    colorGroupId: item.color_group_id || item.colorGroupId,
+  }) || String(item.product_id || item.id || index)
+
+  return {
+    item_id:       itemId,
+    item_name:     item.name || item.product_name || item.title || 'Product',
+    item_category: item.category || item.item_category || undefined,
+    item_variant:  item.size || item.color_name || undefined,
+    price:         Number(item.price) || 0,
+    quantity:      Number(item.quantity || item.qty) || 1,
+  }
+}
+
+function cartValue(items = []) {
+  return items.reduce((sum, item) => {
+    const price = Number(item.price) || 0
+    const qty = Number(item.quantity || item.qty) || 1
+    return sum + price * qty
+  }, 0)
+}
+
+function cartItems(items = []) {
+  return items.map((item, index) => gaItem(item, index))
+}
+
+function metaItemId(item = {}) {
+  return catalogItemId({
+    id:           item.product_id || item.id,
+    slug:         item.slug || item.product_slug,
+    size:         item.size,
+    colorGroupId: item.color_group_id || item.colorGroupId,
+  })
+}
+
+function metaCartPayload(items = [], value = null) {
+  const safeItems = Array.isArray(items) ? items : []
+  return {
+    value:        value == null ? cartValue(safeItems) : Number(value) || 0,
+    currency:     'EUR',
+    content_ids:  safeItems.map(metaItemId).filter(Boolean),
+    content_type: 'product',
+    num_items:    safeItems.reduce((sum, item) => sum + (Number(item.quantity || item.qty) || 1), 0),
+  }
+}
+
+function metaPurchaseEventId(orderId) {
+  const id = String(orderId || '').trim()
+  return id && id !== 'unknown' ? `purchase-${id}` : null
+}
 
 async function send(event_type, extra = {}) {
   if (typeof window === 'undefined') return
@@ -52,6 +127,11 @@ export function trackProductView(productOrId, email = null) {
     ? productOrId
     : { id: productOrId }
   send('product_view', { product_id: product.id, email })
+  gaEvent('view_item', {
+    currency: 'EUR',
+    value:    Number(product.price) || 0,
+    items:    [gaItem(product)],
+  })
   const contentId = catalogItemId(product)
   if (contentId) {
     fbq('track', 'ViewContent', {
@@ -71,23 +151,131 @@ export function trackCartAdd(productOrId, email = null) {
     ? productOrId
     : { id: productOrId }
   send('cart_add', { product_id: product.id, email })
+  gaEvent('add_to_cart', {
+    currency: 'EUR',
+    value:    (Number(product.price) || 0) * (Number(product.quantity || product.qty) || 1),
+    items:    [gaItem(product)],
+  })
   const contentId = catalogItemId(product)
   if (contentId) {
     fbq('track', 'AddToCart', {
       content_ids:  [contentId],
       content_type: 'product',
+      value:        (Number(product.price) || 0) * (Number(product.quantity || product.qty) || 1),
+      currency:     'EUR',
     })
   }
 }
 
-/** User reached the checkout confirmation step */
-export function trackCheckoutStarted(email = null) {
-  send('checkout_started', { email })
+export function trackViewCart(items = []) {
+  gaEvent('view_cart', {
+    currency: 'EUR',
+    value:    cartValue(items),
+    items:    cartItems(items),
+  })
+}
+
+/** User reached checkout details */
+export function trackCheckoutStarted(opts = null) {
+  const options = (opts && typeof opts === 'object') ? opts : { email: opts }
+  const items = options.cart || options.items || []
+  send('checkout_started', { email: options.email || null })
+  gaEvent('begin_checkout', {
+    currency: 'EUR',
+    value:    Number(options.value) || cartValue(items),
+    items:    cartItems(items),
+  })
+  fbq('track', 'InitiateCheckout', metaCartPayload(items, options.value))
+}
+
+/** User submitted shipping/contact details and moved to order review */
+export function trackShippingInfo({ email = null, cart = [], value = null, shippingTier = null } = {}) {
+  send('checkout_shipping_info', { email })
+  gaEvent('add_shipping_info', {
+    currency:      'EUR',
+    value:         value == null ? cartValue(cart) : Number(value),
+    shipping_tier: shippingTier || undefined,
+    items:         cartItems(cart),
+  })
+}
+
+/** User clicked the payment handoff button */
+export function trackPaymentInfo({ email = null, cart = [], value = null, paymentType = 'Stripe' } = {}) {
+  send('checkout_payment_info', { email })
+  gaEvent('add_payment_info', {
+    currency:     'EUR',
+    value:        value == null ? cartValue(cart) : Number(value),
+    payment_type: paymentType,
+    items:        cartItems(cart),
+  })
+  fbq('track', 'AddPaymentInfo', {
+    ...metaCartPayload(cart, value),
+    payment_type: paymentType,
+  })
 }
 
 /** User logged in */
 export function trackLogin(email) {
   send('login', { email })
+}
+
+export function trackNewsletterSignup({ source = 'unknown', alreadySubscribed = false } = {}) {
+  gaEvent('newsletter_signup', {
+    source,
+    already_subscribed: alreadySubscribed ? 'true' : 'false',
+  })
+  fbq('track', 'CompleteRegistration', {
+    content_name: source,
+    status:       alreadySubscribed ? 'already_subscribed' : 'subscribed',
+  })
+}
+
+export function trackCompleteRegistration({ source = 'account_signup', status = 'completed' } = {}) {
+  fbq('track', 'CompleteRegistration', {
+    content_name: source,
+    status,
+  })
+}
+
+export function trackNewsletterPopupClose({ source = 'scroll_popup' } = {}) {
+  gaEvent('newsletter_popup_close', { source })
+}
+
+export function trackAddToWishlist(product = {}) {
+  const contentId = metaItemId(product)
+  fbq('track', 'AddToWishlist', {
+    ...(contentId ? { content_ids: [contentId] } : {}),
+    content_type: 'product',
+    value:        Number(product.price) || 0,
+    currency:     'EUR',
+  })
+}
+
+export function trackLead({ source = 'unknown', product = null } = {}) {
+  fbq('track', 'Lead', {
+    content_name: source,
+    ...(product ? {
+      content_ids:  [metaItemId(product)].filter(Boolean),
+      content_type: 'product',
+    } : {}),
+  })
+}
+
+export function trackContact({ source = 'contact_form' } = {}) {
+  fbq('track', 'Contact', { content_name: source })
+}
+
+export function trackSearch({ searchString = '', resultCount = null } = {}) {
+  const q = String(searchString || '').trim()
+  if (!q) return
+  gaEvent('search', {
+    search_term: q,
+    results:     resultCount == null ? undefined : Number(resultCount),
+  })
+  fbq('track', 'Search', {
+    search_string: q,
+    content_category: 'Products',
+  })
 }
 
 /**
@@ -100,17 +288,18 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
   send('purchase', { order_id: orderId, total })
 
   // Meta Pixel purchase event
-  fbq('track', 'Purchase', {
+  const eventId = metaPurchaseEventId(orderId)
+  const pixelPayload = {
     value:        Number(total),
     currency,
-    content_ids:  items.map(i => catalogItemId({
-      id:            i.product_id || i.id,
-      slug:          i.slug || i.product_slug,
-      size:          i.size,
-      colorGroupId:  i.color_group_id,
-    })).filter(Boolean),
+    content_ids:  items.map(metaItemId).filter(Boolean),
     content_type: 'product',
-  })
+  }
+  if (eventId) {
+    fbq('track', 'Purchase', pixelPayload, { eventID: eventId })
+  } else {
+    fbq('track', 'Purchase', pixelPayload)
+  }
 
   // GA4 e-commerce purchase event
   if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
@@ -131,10 +320,7 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
       value:          Number(total),
       currency,
       items: items.map((item, i) => ({
-        item_id:   String(item.product_id || item.id || i),
-        item_name: item.name || item.product_name || 'Product',
-        quantity:  Number(item.quantity) || 1,
-        price:     Number(item.price) || 0,
+        ...gaItem(item, i),
       })),
     })
   }
