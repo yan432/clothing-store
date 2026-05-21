@@ -244,11 +244,20 @@ export function trackCheckoutStarted(opts = null) {
   const options = (opts && typeof opts === 'object') ? opts : { email: opts }
   const items = options.cart || options.items || []
   send('checkout_started', { email: options.email || null })
+  const cartTotal = Number(options.value) || cartValue(items)
   gaEvent('begin_checkout', {
     currency: 'EUR',
-    value:    Number(options.value) || cartValue(items),
+    value:    cartTotal,
     items:    cartItems(items),
   })
+  // Google Ads conversion (event-based) — matches Begin Checkout action in AW-16809967064
+  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+    window.gtag('event', 'conversion', {
+      send_to:  'AW-16809967064/aPB6CJGBirEcENj7zs8-',
+      value:    cartTotal,
+      currency: 'EUR',
+    })
+  }
   fbq('track', 'InitiateCheckout', metaCartPayload(items, options.value))
   ttq('track', 'InitiateCheckout', ttqCartPayload(items, options.value))
 }
@@ -400,6 +409,14 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
         campaign_term:    utm.utm_term     || undefined,
       })
     }
+
+    // Google Ads conversion (event-based) — matches Purchase action in AW-16809967064
+    window.gtag('event', 'conversion', {
+      send_to:        'AW-16809967064/3IMZCKaYibEcENj7zs8-',
+      value:          Number(total),
+      currency,
+      transaction_id: String(orderId || ''),
+    })
 
     gaEvent('purchase', {
       transaction_id: String(orderId),
