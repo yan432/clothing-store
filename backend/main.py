@@ -3998,12 +3998,46 @@ class ContactMessagePayload(BaseModel):
     email: str
     subject: Optional[str] = None
     message: str
+    # Honeypot: legitimate humans never fill this hidden field; bots autofill all inputs.
+    website: Optional[str] = None
+    # Cloudflare Turnstile token from cf-turnstile-response
+    turnstile_token: Optional[str] = None
+
+
+TURNSTILE_SECRET_KEY = os.getenv("TURNSTILE_SECRET_KEY", "")
+
+
+def _verify_turnstile(token: str, ip: str) -> bool:
+    """Verify a Cloudflare Turnstile token. Returns True on success.
+    If TURNSTILE_SECRET_KEY is not configured, verification is skipped (returns True)."""
+    if not TURNSTILE_SECRET_KEY:
+        return True
+    if not token:
+        return False
+    try:
+        resp = requests.post(
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            data={"secret": TURNSTILE_SECRET_KEY, "response": token, "remoteip": ip},
+            timeout=8,
+        )
+        return bool(resp.json().get("success"))
+    except (requests.RequestException, ValueError):
+        return False
+
 
 @app.post("/contact")
 def send_contact_message(payload: ContactMessagePayload, background_tasks: BackgroundTasks, request: Request):
-    # Cap at 5 contact submissions/IP/hour — prevents email-bombing the admin
+    # Cap at 3 contact submissions/IP/hour — prevents email-bombing the admin
     # inbox and spamming arbitrary victims via the confirmation reply.
-    rate_limit(request, "contact", max_requests=5, window_seconds=3600)
+    rate_limit(request, "contact", max_requests=3, window_seconds=3600)
+
+    # Honeypot: silently accept-and-drop so bots don't learn to bypass it.
+    if (payload.website or "").strip():
+        return {"ok": True}
+
+    if not _verify_turnstile((payload.turnstile_token or "").strip(), _client_ip(request)):
+        raise HTTPException(status_code=400, detail="Captcha verification failed. Please reload the page and try again.")
+
     name    = str(payload.name or "").strip()
     email   = normalize_email(payload.email)
     subject = str(payload.subject or "").strip() or "Contact form message"
