@@ -2,3 +2,9 @@ venv/
 .env
 __pycache__/
 *.pyc
+*service-account*.json
+*google-credentials*.json
+ga4-*.json
+edm-clothes-*.json
+client_secret_*.json
+ga4-token.json

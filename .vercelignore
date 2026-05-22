@@ -1,4 +1,6 @@
 .claude/
-.vercel
+.cursor/
+.git/
+.venv/
 .DS_Store
 exports/

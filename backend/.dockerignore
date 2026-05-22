@@ -6,6 +6,11 @@ venv/
 .env
 .env.*
 *.log
+*service-account*.json
+*google-credentials*.json
+ga4-*.json
+edm-clothes-*.json
+client_secret_*.json
 .git/
 .gitignore
 .DS_Store
