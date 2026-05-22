@@ -66,6 +66,7 @@
 - [x] SEO: metadata, Open Graph, Twitter Card для каждой страницы
 - [x] JSON-LD structured data (Schema.org Product + ItemList)
 - [x] Google Merchant Center XML фид на /feed.xml
+- [x] Meta Pixel + Conversions API Purchase через Stripe webhook (требует META_CONVERSIONS_API_ACCESS_TOKEN в backend env)
 - [x] Hover-эффекты на карточках товаров (через клиентский компонент)
 - [x] Код сохранён на GitHub: github.com/yan432/clothing-store
 
@@ -76,7 +77,7 @@
 4. **CMS** — админка для управления товарами без SQL
 5. **Карточки товаров** — размеры, цвета, галерея из нескольких фото
 6. **Статичные страницы** — About, Contact, FAQ
-7. **Facebook Pixel** — подключить после деплоя
+7. **Meta CAPI** — добавить backend env token из Meta Events Manager и протестировать Test Events
 8. **Оптимизация алгоритмов** — после запуска
 
 ## Как запускать локально

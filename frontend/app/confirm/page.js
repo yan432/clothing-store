@@ -1,11 +1,11 @@
 'use client'
 export const dynamic = 'force-dynamic'
 import { useCart } from '../context/CartContext'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
-import { trackCheckoutStarted } from '../lib/track'
-import { getStoredUtm } from '../components/UtmCapture'
+import { trackPaymentInfo } from '../lib/track'
+import { getStoredMetaAttribution, getStoredUtm } from '../components/UtmCapture'
 
 const DEFAULT_SHIPPING = 30
 const DEFAULT_THRESHOLD = 120
@@ -81,13 +81,13 @@ export default function ConfirmPage() {
   const [loading, setLoading] = useState(false)
   const [shippingCost, setShippingCost] = useState(DEFAULT_SHIPPING)
   const [freeThreshold, setFreeThreshold] = useState(DEFAULT_THRESHOLD)
+  const paymentTracked = useRef(false)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('checkout_details')
     if (!saved) { router.push('/checkout'); return }
     const parsed = JSON.parse(saved)
     setDetails(parsed)
-    trackCheckoutStarted(parsed.email || null)
 
     // Restore pre-calculated shipping from checkout page
     const savedShipping = sessionStorage.getItem('checkout_shipping')
@@ -162,6 +162,15 @@ export default function ConfirmPage() {
   }
 
   async function handlePay() {
+    if (!paymentTracked.current) {
+      paymentTracked.current = true
+      trackPaymentInfo({
+        email: details.email,
+        cart,
+        value: finalTotal,
+        paymentType: 'Stripe',
+      })
+    }
     setLoading(true)
     try {
       const origin = window.location.origin
@@ -190,6 +199,7 @@ export default function ConfirmPage() {
           success_url: `${origin}/success`,
           cancel_url: `${origin}/cart`,
           utm: getStoredUtm() || undefined,
+          meta: getStoredMetaAttribution() || undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -201,9 +211,12 @@ export default function ConfirmPage() {
             total: finalTotal,
             items: cart.map(item => ({
               product_id: item.id,
+              slug: item.slug || null,
               name: item.name,
               price: parseFloat(item.price),
               quantity: item.qty,
+              size: item.size || null,
+              category: item.category || null,
             })),
           }))
         } catch (_) {}

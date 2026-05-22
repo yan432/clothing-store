@@ -8,10 +8,10 @@ export default function PrivacyPage() {
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '56px 24px 80px' }}>
       <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Privacy Policy</h1>
-      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>Last updated: April 2026</p>
+      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>Last updated: May 2026</p>
 
       <Section title="1. Who we are">
-        <p>EDM Clothes ("we", "us", "our") operates the website edmclothes.net. We are responsible for the processing of your personal data as described in this policy.</p>
+        <p>EDM Clothes (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates the website edmclothes.net. We are responsible for the processing of your personal data as described in this policy.</p>
         <p>Contact: <a href="mailto:sales@edmclothes.net" style={linkStyle}>sales@edmclothes.net</a></p>
       </Section>
 
@@ -23,6 +23,7 @@ export default function PrivacyPage() {
           <li><strong>Account data:</strong> email address and order history if you create an account</li>
           <li><strong>Newsletter:</strong> email address if you subscribe</li>
           <li><strong>Analytics data:</strong> pages visited, device type, country — collected via Google Analytics (only with your consent)</li>
+          <li><strong>Marketing attribution data:</strong> Meta click/browser identifiers, device/browser data, and hashed contact details for ad measurement (only with your consent)</li>
         </ul>
       </Section>
 
@@ -32,6 +33,7 @@ export default function PrivacyPage() {
           <li>To send order confirmations and shipping updates</li>
           <li>To send newsletters (only if you opted in; you can unsubscribe at any time)</li>
           <li>To improve our website and product offering via analytics</li>
+          <li>To measure and improve Meta ads when you consent to marketing cookies</li>
           <li>To comply with legal obligations</li>
         </ul>
       </Section>
@@ -40,7 +42,7 @@ export default function PrivacyPage() {
         <ul style={listStyle}>
           <li><strong>Contract performance</strong> — processing your order (Art. 6(1)(b) GDPR)</li>
           <li><strong>Legitimate interest</strong> — fraud prevention, site security (Art. 6(1)(f) GDPR)</li>
-          <li><strong>Consent</strong> — analytics cookies, newsletter (Art. 6(1)(a) GDPR)</li>
+          <li><strong>Consent</strong> — analytics cookies, marketing cookies, newsletter (Art. 6(1)(a) GDPR)</li>
           <li><strong>Legal obligation</strong> — tax and accounting records (Art. 6(1)(c) GDPR)</li>
         </ul>
       </Section>
@@ -48,6 +50,7 @@ export default function PrivacyPage() {
       <Section title="5. Cookies and analytics">
         <p>We use cookies and similar technologies to analyse traffic and improve your experience. Analytics cookies are only set after you give your explicit consent via our cookie banner.</p>
         <p>We use <strong>Google Analytics 4</strong> with Consent Mode v2. If you decline cookies, GA operates in cookieless mode and no personal identifiers are stored.</p>
+        <p>We use <strong>Meta Pixel</strong> and <strong>Meta Conversions API</strong> to measure purchases from our ads. If you decline cookies, Meta purchase events are not sent from our server.</p>
         <p>You can withdraw your consent at any time by clearing your browser cookies or contacting us.</p>
       </Section>
 
@@ -55,6 +58,7 @@ export default function PrivacyPage() {
         <ul style={listStyle}>
           <li><strong>Stripe</strong> — payment processing (<a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer" style={linkStyle}>privacy policy</a>)</li>
           <li><strong>Google Analytics</strong> — website analytics (<a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" style={linkStyle}>privacy policy</a>)</li>
+          <li><strong>Meta</strong> — ad measurement and attribution (<a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener noreferrer" style={linkStyle}>privacy policy</a>)</li>
           <li><strong>Supabase</strong> — database and authentication</li>
           <li><strong>Resend / Zoho</strong> — transactional email delivery</li>
           <li><strong>Nova Poshta / Ukr Poshta</strong> — shipping (your name and address are shared for delivery)</li>
@@ -76,7 +80,7 @@ export default function PrivacyPage() {
         <ul style={listStyle}>
           <li><strong>Access</strong> — request a copy of the data we hold about you</li>
           <li><strong>Rectification</strong> — ask us to correct inaccurate data</li>
-          <li><strong>Erasure</strong> — ask us to delete your data ("right to be forgotten")</li>
+          <li><strong>Erasure</strong> — ask us to delete your data (&quot;right to be forgotten&quot;)</li>
           <li><strong>Restriction</strong> — ask us to limit how we use your data</li>
           <li><strong>Portability</strong> — receive your data in a machine-readable format</li>
           <li><strong>Object</strong> — object to processing based on legitimate interest</li>

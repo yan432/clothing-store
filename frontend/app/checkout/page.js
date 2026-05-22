@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
-import { trackCheckoutStarted, catalogItemId } from '../lib/track'
+import { trackCheckoutStarted, trackCompleteRegistration, trackNewsletterSignup, trackShippingInfo } from '../lib/track'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -252,21 +252,7 @@ function CheckoutPage() {
   useEffect(() => {
     if (!cart.length || initiateTracked.current) return
     initiateTracked.current = true
-    trackCheckoutStarted()
-    if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
-      window.fbq('track', 'InitiateCheckout', {
-        value:        cart.reduce((s, i) => s + i.price * i.qty, 0),
-        currency:     'EUR',
-        content_ids:  cart.map(i => catalogItemId({
-          id:            i.id,
-          slug:          i.slug,
-          size:          i.size,
-          colorGroupId:  i.color_group_id,
-        })).filter(Boolean),
-        content_type: 'product',
-        num_items:    cart.reduce((s, i) => s + i.qty, 0),
-      })
-    }
+    trackCheckoutStarted({ cart })
   }, [cart])
 
 
@@ -408,8 +394,10 @@ function CheckoutPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ email: normalizedEmail, source: 'signup_checkout' }),
             })
+            trackNewsletterSignup({ source: 'signup_checkout' })
           } catch (_) {}
         }
+        trackCompleteRegistration({ source: 'checkout_signup' })
         setAuthMessage('Verification link sent to your email. You can continue checkout while you verify your account.')
       }
     }
@@ -450,6 +438,12 @@ function CheckoutPage() {
     }
     sessionStorage.setItem('checkout_details', JSON.stringify(form))
     if (shippingResult) sessionStorage.setItem('checkout_shipping', JSON.stringify(shippingResult))
+    trackShippingInfo({
+      email:        form.email.trim().toLowerCase(),
+      cart,
+      value:        total + Number(shippingResult?.price_eur || 0),
+      shippingTier: form.country,
+    })
 
     // Fire-and-forget: save abandoned cart so we can follow up if they don't complete
     const cartTotal = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
@@ -520,7 +514,7 @@ function CheckoutPage() {
               </div>
               {(mode === 'login' || mode === 'register') && (
                 <>
-                <form onSubmit={handleAuth} style={{display:'flex',flexDirection:'column',gap:12,maxWidth:420,marginBottom:24}}>
+                <form id={`checkout-auth-${mode}-form`} name={`checkout_auth_${mode}`} onSubmit={handleAuth} style={{display:'flex',flexDirection:'column',gap:12,maxWidth:420,marginBottom:24}}>
                   {authError && (
                     <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,padding:'10px 16px',fontSize:13,color:'#dc2626'}}>
                       {authError}
@@ -619,7 +613,7 @@ function CheckoutPage() {
             </div>
           )}
 
-          <form autoComplete="on" onSubmit={e => { e.preventDefault(); handleContinue() }}>
+          <form id="checkout-details-form" name="checkout_details" autoComplete="on" onSubmit={e => { e.preventDefault(); handleContinue() }}>
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
             <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Contact</p>
             <div className="checkout-2col">
