@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { getApiUrl } from '../lib/api'
+import { trackLead } from '../lib/track'
 
 function pad(n) { return String(n).padStart(2, '0') }
 
@@ -55,6 +56,7 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
         const text = await res.text()
         throw new Error(text || `HTTP ${res.status}`)
       }
+      trackLead({ source: 'drop_timer' })
       setSubState('done')
     } catch (err) {
       setSubError(err.message || 'Something went wrong')
@@ -107,7 +109,7 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
       <div style={{ marginTop: 32, maxWidth: 380, margin: '32px auto 0' }}>
         {subState === 'done' ? (
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: 0 }}>
-            ✓ We'll let you know when it drops.
+            ✓ We&apos;ll let you know when it drops.
           </p>
         ) : (
           <form onSubmit={handleNotify} style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>

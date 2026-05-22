@@ -2,12 +2,13 @@
 import { useState } from 'react'
 import { useWishlist } from '../context/WishlistContext'
 import { useAuth } from '../context/AuthContext'
+import { trackAddToWishlist } from '../lib/track'
 
 /**
  * Heart button for product cards and product pages.
  * Shows a login prompt if the user is not signed in.
  */
-export default function WishlistButton({ productId, style = {} }) {
+export default function WishlistButton({ productId, product = null, style = {} }) {
   const { isWishlisted, toggle } = useWishlist()
   const { user } = useAuth()
   const [showPrompt, setShowPrompt] = useState(false)
@@ -25,7 +26,10 @@ export default function WishlistButton({ productId, style = {} }) {
     }
 
     setAnimating(true)
-    await toggle(productId)
+    const ok = await toggle(productId)
+    if (ok && !active) {
+      trackAddToWishlist({ ...(product || {}), id: productId })
+    }
     setTimeout(() => setAnimating(false), 300)
   }
 

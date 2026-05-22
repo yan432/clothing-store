@@ -1,5 +1,7 @@
 import ProductCard from '../components/ProductCard'
+import ProductSearchTracker from '../components/ProductSearchTracker'
 import SortSelect from './SortSelect'
+import Link from 'next/link'
 import { getApiUrl } from '../lib/api'
 import { safeJsonLd } from '../lib/safeJsonLd'
 
@@ -173,6 +175,7 @@ export default async function ProductsPage({ searchParams }) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}/>
+      <ProductSearchTracker search={q} resultCount={sorted.length} />
       <main className="products-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 28px' }}>
 
         {fetchError && (
@@ -250,7 +253,7 @@ export default async function ProductsPage({ searchParams }) {
           {/* Sort + Clear */}
           <div className="products-sort-group">
             {hasActiveFilters && (
-              <a href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>Clear ×</a>
+              <Link href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>Clear ×</Link>
             )}
             <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }} />
           </div>
@@ -261,7 +264,7 @@ export default async function ProductsPage({ searchParams }) {
         {sorted.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: '#aaa' }}>
             <p style={{ fontSize: 18, marginBottom: 8 }}>No products found</p>
-            <a href="/products" style={{ fontSize: 14, color: '#000', textDecoration: 'underline' }}>Clear filters</a>
+            <Link href="/products" style={{ fontSize: 14, color: '#000', textDecoration: 'underline' }}>Clear filters</Link>
           </div>
         ) : (
           <div className="products-grid">

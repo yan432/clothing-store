@@ -97,6 +97,10 @@ export function CartProvider({ children }) {
       slug:          product.slug,
       size:          product.size,
       colorGroupId:  product.color_group_id,
+      name:          product.name,
+      price:         product.price,
+      category:      product.category,
+      quantity:      1,
     })
     setDrawerOpen(true)
     return { ok: true }
@@ -149,6 +153,10 @@ export function CartProvider({ children }) {
         slug:         product.slug,
         size:         product.size,
         colorGroupId: product.color_group_id,
+        name:         product.name,
+        price:        product.price,
+        category:     product.category,
+        quantity:     Math.min(maxStock, desiredQty),
       })
     }
     save(next)

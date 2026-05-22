@@ -1,5 +1,6 @@
 'use client'
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { useCart } from '../context/CartContext'
 import { trackPurchase } from '../lib/track'
 import { getStoredUtm } from '../components/UtmCapture'
@@ -21,7 +22,8 @@ export default function SuccessPage() {
       // Only clear cart and track purchase if we actually came from checkout
       if (pendingOrder) {
         clearCart()
-        const alreadyTracked = sessionStorage.getItem('purchase_tracked')
+        const purchaseKey = `purchase_tracked:${pendingOrder.order_id || pendingOrder.id || sessionId || 'unknown'}`
+        const alreadyTracked = sessionStorage.getItem(purchaseKey)
         if (!alreadyTracked) {
           trackPurchase({
             orderId:  pendingOrder.order_id || pendingOrder.id || 'unknown',
@@ -30,7 +32,7 @@ export default function SuccessPage() {
             items:    pendingOrder.items || [],
             utm:      getStoredUtm(),
           })
-          sessionStorage.setItem('purchase_tracked', '1')
+          sessionStorage.setItem(purchaseKey, '1')
           localStorage.removeItem('pending_order')
         }
       }
@@ -44,9 +46,9 @@ export default function SuccessPage() {
       </div>
       <h1 style={{fontSize:32,fontWeight:600,marginBottom:8}}>Order confirmed!</h1>
       <p style={{color:'#aaa',marginBottom:32,maxWidth:400}}>Thank you for your purchase. You will receive a confirmation email shortly.</p>
-      <a href="/products" style={{background:'#000',color:'#fff',padding:'14px 32px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
+      <Link href="/products" style={{background:'#000',color:'#fff',padding:'14px 32px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
         Continue Shopping
-      </a>
+      </Link>
     </main>
   )
 }

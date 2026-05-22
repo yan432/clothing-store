@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
+import { trackLead } from '../lib/track'
 
 export default function NotifyMePopup({ product, size, initialEmail = '', onClose }) {
   const [email, setEmail]   = useState(initialEmail)
@@ -22,7 +23,12 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
           size,
         }),
       })
-      setStatus(res.ok ? 'done' : 'error')
+      if (res.ok) {
+        trackLead({ source: 'back_in_stock_waitlist', product: { ...product, size } })
+        setStatus('done')
+      } else {
+        setStatus('error')
+      }
     } catch {
       setStatus('error')
     }
@@ -64,9 +70,9 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
         {status === 'done' ? (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><CheckCircle2 size={48} strokeWidth={1.5} color="#16a34a" /></div>
-            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>You're on the list!</p>
+            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>You&apos;re on the list!</p>
             <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px', lineHeight: 1.5 }}>
-              We'll email you as soon as <strong>{product.name}</strong> in size <strong>{size}</strong> is back in stock.
+              We&apos;ll email you as soon as <strong>{product.name}</strong> in size <strong>{size}</strong> is back in stock.
             </p>
             <button
               onClick={onClose}
@@ -88,7 +94,7 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
             <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px' }}>Size: <strong>{size}</strong></p>
 
             <p style={{ fontSize: 14, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
-              Leave your email and we'll notify you the moment this size is back in stock.
+              Leave your email and we&apos;ll notify you the moment this size is back in stock.
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../lib/api'
+import { trackNewsletterSignup } from '../lib/track'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],
@@ -337,6 +338,7 @@ function NewsletterSection({ user }) {
       })
       if (!res.ok) throw new Error()
       setSubscribed(true)
+      trackNewsletterSignup({ source: 'account_settings' })
       setMsg({ ok: true, text: 'You\'re now subscribed!' })
       setTimeout(() => setMsg(null), 3000)
     } catch { setMsg({ ok: false, text: 'Failed to subscribe. Please try again.' }) }
@@ -364,7 +366,7 @@ function NewsletterSection({ user }) {
         <p style={{ fontSize: 14, color: '#aaa' }}>Loading...</p>
       ) : subscribed ? (
         <div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>You're subscribed to the newsletter</p>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>You&apos;re subscribed to the newsletter</p>
           <p style={{ margin: '4px 0 0', fontSize: 13, color: '#888' }}>You receive news and exclusive offers from edm.clothes</p>
           <button onClick={unsubscribe} disabled={loading}
             style={{ marginTop: 12, background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#aaa', textDecoration: 'underline', cursor: loading ? 'default' : 'pointer' }}>

@@ -1,9 +1,10 @@
 import AddToCartButton from '../../components/AddToCartButton'
 import WishlistButton from '../../components/WishlistButton'
 import ProductGallery from '../../components/ProductGallery'
-import ProductViewTracker from '../../components/ProductViewTracker'
 import ProductCard from '../../components/ProductCard'
 import RecommendationsCarousel from '../../components/RecommendationsCarousel'
+import GaViewItemEvent from '../../components/GaViewItemEvent'
+import Link from 'next/link'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 import { safeJsonLd } from '../../lib/safeJsonLd'
@@ -171,13 +172,16 @@ export default async function ProductPage({ params }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />
-      <ProductViewTracker
-        productId={product.id}
-        slug={product.slug || slug}
-        colorGroupId={product.color_group_id}
+      <GaViewItemEvent
+        item={{
+          item_id:       product.color_group_id || product.slug || slug || String(product.id),
+          item_name:     product.name || 'Product',
+          item_category: product.category || undefined,
+          price:         Number(product.price) || 0,
+        }}
       />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
-        <a href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</a>
+        <Link href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</Link>
 
         <div
           className="product-detail-grid"
@@ -242,7 +246,7 @@ export default async function ProductPage({ params }) {
 
             <AddToCartButton product={product} showSizeSelector sizeStock={sizeStock} />
             <div style={{display:'flex',alignItems:'center',gap:10,marginTop:4}}>
-              <WishlistButton productId={product.id} style={{
+              <WishlistButton productId={product.id} product={product} style={{
                 width:44,height:44,borderRadius:12,
                 background:'#f5f5f3',border:'1px solid #e5e5e3',
               }}/>
@@ -301,7 +305,7 @@ export default async function ProductPage({ params }) {
         <section style={{maxWidth:1220,margin:'0 auto',padding:'48px 24px 72px'}}>
           <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:28}}>
             <h2 style={{fontSize:18,fontWeight:700,margin:0,letterSpacing:'-0.01em'}}>You may also like</h2>
-            <a href="/products" style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>View all →</a>
+            <Link href="/products" style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>View all →</Link>
           </div>
           {/* Mobile + desktop: grid */}
           <div className="recommendations-grid">

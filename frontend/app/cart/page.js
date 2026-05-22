@@ -1,5 +1,7 @@
 'use client'
 import { useCart } from '../context/CartContext'
+import { useEffect, useRef } from 'react'
+import { trackViewCart } from '../lib/track'
 
 const steps = [
   { n: 1, label: 'Cart', active: true },
@@ -10,6 +12,13 @@ const steps = [
 
 export default function CartPage() {
   const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
+  const viewTracked = useRef(false)
+
+  useEffect(() => {
+    if (!cart.length || viewTracked.current) return
+    viewTracked.current = true
+    trackViewCart(cart)
+  }, [cart])
 
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>

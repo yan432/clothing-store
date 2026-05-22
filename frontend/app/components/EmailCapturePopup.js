@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Mail, Sparkles } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { trackNewsletterPopupClose, trackNewsletterSignup } from '../lib/track'
 
 const SESSION_KEY = 'email-popup-dismissed'
 
@@ -50,6 +51,7 @@ export default function EmailCapturePopup() {
   function closePopup() {
     setVisible(false)
     if (typeof window !== 'undefined') sessionStorage.setItem(SESSION_KEY, '1')
+    trackNewsletterPopupClose({ source: 'scroll_popup' })
   }
 
   async function submit(e) {
@@ -69,8 +71,10 @@ export default function EmailCapturePopup() {
       if (!res.ok) throw new Error()
       const data = await res.json()
       if (data.already_subscribed) {
+        trackNewsletterSignup({ source: 'scroll_popup', alreadySubscribed: true })
         setAlreadySubscribed(true)
       } else {
+        trackNewsletterSignup({ source: 'scroll_popup' })
         setDone(true)
       }
     } catch (_) {
@@ -131,7 +135,7 @@ export default function EmailCapturePopup() {
           <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666660' }}>
             Leave your email and get a discount code.
           </p>
-          <form onSubmit={submit} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
+          <form id="newsletter-popup-form" name="newsletter_popup" onSubmit={submit} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
             <input
               type="email"
               required
