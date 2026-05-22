@@ -48,6 +48,7 @@ export async function generateMetadata() {
     },
     other: {
       'facebook-domain-verification': 'nvr0bc6n44ihao3txijoyc3aunbvri',
+      'p:domain_verify': '92012999928bcf03c27cd43cee0f701a',
     },
   }
 }
