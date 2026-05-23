@@ -14,6 +14,7 @@
   color: #1a1a18;
   font-size: 14px;
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
 .root a { text-decoration: none; }

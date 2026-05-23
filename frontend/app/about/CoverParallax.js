@@ -8,6 +8,9 @@ export default function CoverParallax({ src, alt }) {
     const el = ref.current
     if (!el) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    // Parallax can be janky on mobile (small viewport + large transformed image
+    // = lots of compositor work per scroll frame). Skip it on touch-sized screens.
+    if (window.matchMedia('(max-width: 768px)').matches) return
 
     let raf = 0
     let lastY = window.scrollY
@@ -35,6 +38,8 @@ export default function CoverParallax({ src, alt }) {
       ref={ref}
       src={src}
       alt={alt}
+      fetchPriority="high"
+      decoding="async"
       style={{
         width: '100%',
         height: '120%',
