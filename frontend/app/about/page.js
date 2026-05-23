@@ -5,7 +5,6 @@ import CoverParallax from './CoverParallax'
 import StatCounter from './StatCounter'
 import Reveal from './Reveal'
 import MosaicReveal from './MosaicReveal'
-import SectionParallax from './SectionParallax'
 
 const secondaryCities = [
   'Madrid', 'Kaunas', 'Poznań', 'Odesa', 'Augsburg',
@@ -183,7 +182,6 @@ export default function AboutPage() {
       {/* ─── FACTS / CITIES ─── */}
       <Reveal as="section" className={s.facts} id="chronology">
         <div className={s.factsStatsBand}>
-          <SectionParallax src="/about/img/factory.jpg" />
           <div className={s.factsInner}>
             <div className={s.factsRow}>
               <div>
@@ -258,7 +256,6 @@ export default function AboutPage() {
 
       {/* ─── MANIFESTO ─── */}
       <Reveal as="section" className={s.fullDark}>
-        <SectionParallax src="/about/img/p-riot-bomber.jpg" />
         <div className={s.fullDarkInner}>
           <div className={s.fullDarkLabel}>Manifesto</div>
           <div className={s.pullquote}>

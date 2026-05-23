@@ -468,6 +468,9 @@
 .fullDark {
   position: relative;
   background-color: #0a0a0a;
+  background-image: url('/about/img/p-riot-bomber.jpg');
+  background-size: cover;
+  background-position: center;
   color: #fff;
   padding: 140px 24px;
   overflow: hidden;
@@ -624,6 +627,9 @@
 
 .factsStatsBand {
   background-color: #0a0a0a;
+  background-image: url('/about/img/factory.jpg');
+  background-size: cover;
+  background-position: center;
   color: #fff;
   overflow: hidden;
 }
