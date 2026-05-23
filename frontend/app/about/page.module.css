@@ -52,11 +52,97 @@
   background: linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.3) 45%, rgba(0,0,0,.5));
 }
 
+.coverGlow {
+  position: absolute;
+  inset: -28%;
+  z-index: 1;
+  pointer-events: none;
+  /* Metaball / "liquid" merging: blur softens edges, contrast threshold pushes
+     adjacent soft edges back to solid, so nearby blobs fuse together. The
+     hue-rotate animation slowly cycles every blob through the spectrum so the
+     palette keeps drifting on top of the positional movement. */
+  filter: blur(40px) contrast(3.5) hue-rotate(0deg);
+  mix-blend-mode: screen;
+  opacity: 0.075;
+  animation: coverGlowHue 38s linear infinite;
+}
+
+@keyframes coverGlowHue {
+  0%   { filter: blur(40px) contrast(3.5) hue-rotate(0deg); }
+  100% { filter: blur(40px) contrast(3.5) hue-rotate(360deg); }
+}
+
+.coverGlowA,
+.coverGlowB,
+.coverGlowC {
+  position: absolute;
+  width: 78%;
+  height: 80%;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.coverGlowA {
+  top: -8%;
+  left: -4%;
+  background: radial-gradient(circle, rgba(255, 170, 80, 1) 0%, rgba(255, 170, 80, 0) 60%);
+  animation: coverGlowA 16s ease-in-out infinite alternate;
+}
+
+.coverGlowB {
+  top: 18%;
+  left: 36%;
+  background: radial-gradient(circle, rgba(85, 150, 240, 1) 0%, rgba(85, 150, 240, 0) 60%);
+  animation: coverGlowB 21s ease-in-out infinite alternate;
+}
+
+.coverGlowC {
+  top: 42%;
+  left: 8%;
+  background: radial-gradient(circle, rgba(220, 100, 200, 1) 0%, rgba(220, 100, 200, 0) 60%);
+  animation: coverGlowC 26s ease-in-out infinite alternate;
+}
+
+/* Uneven keyframe positions create variable speed: short gaps = fast burst,
+   long gaps = slow drift. Each blob has its own rhythm so they desync. */
+@keyframes coverGlowA {
+  0%   { transform: translate(0%, 0%) scale(1) rotate(0deg); }
+  18%  { transform: translate(12%, -8%) scale(1.32) rotate(24deg); }
+  28%  { transform: translate(11%, -4%) scale(1.20) rotate(20deg); }
+  62%  { transform: translate(-10%, 7%) scale(0.82) rotate(-18deg); }
+  74%  { transform: translate(-11%, 11%) scale(0.9) rotate(-12deg); }
+  100% { transform: translate(4%, 13%) scale(1.18) rotate(8deg); }
+}
+
+@keyframes coverGlowB {
+  0%   { transform: translate(0%, 0%) scale(1) rotate(0deg); }
+  12%  { transform: translate(-9%, 3%) scale(1.25) rotate(-18deg); }
+  42%  { transform: translate(-13%, 5%) scale(1.42) rotate(-26deg); }
+  55%  { transform: translate(-7%, 0%) scale(1.30) rotate(-14deg); }
+  82%  { transform: translate(9%, -9%) scale(0.88) rotate(18deg); }
+  100% { transform: translate(-4%, 10%) scale(1.2) rotate(-8deg); }
+}
+
+@keyframes coverGlowC {
+  0%   { transform: translate(0%, 0%) scale(1.1) rotate(0deg); }
+  25%  { transform: translate(8%, -14%) scale(1.55) rotate(32deg); }
+  38%  { transform: translate(4%, -12%) scale(1.45) rotate(24deg); }
+  48%  { transform: translate(-3%, -7%) scale(1.20) rotate(8deg); }
+  88%  { transform: translate(-11%, 6%) scale(0.92) rotate(-22deg); }
+  100% { transform: translate(8%, 4%) scale(1.28) rotate(14deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coverGlow { animation: none; }
+  .coverGlowA, .coverGlowB, .coverGlowC { animation: none; }
+}
+
 .coverMetaTop {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   padding: 28px 32px;
@@ -68,6 +154,7 @@
 
 .coverInner {
   position: relative;
+  z-index: 2;
   width: 100%;
   max-width: var(--about-max, 1160px);
   margin: 0 auto;
@@ -142,6 +229,7 @@
 
 .coverScroll {
   position: absolute;
+  z-index: 2;
   bottom: 24px;
   right: 32px;
   font-size: 10px;
@@ -227,48 +315,62 @@
 }
 
 /* ─── CHRONOLOGY ─── */
-.chronoHead {
-  padding: 120px 0 60px;
-  text-align: center;
-}
-
-.chronoHead h2 {
-  font-size: clamp(40px, 6vw, 80px);
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  line-height: 1;
-  margin: 18px 0 22px;
-  color: #1a1a18;
-}
-
-.chronoHead h2 em {
-  font-style: normal;
-  font-weight: 600;
-}
-
-.chronoHead p {
-  max-width: 520px;
-  margin: 0 auto;
-  font-size: 15px;
-  line-height: 1.65;
-  color: #666;
-}
-
 .chrono {
   padding: 0 0 100px;
   border-bottom: 1px solid #ececea;
 }
 
+.chronoRowWrap {
+  border-top: 1px solid #ececea;
+}
+
+.chronoRowWrap:last-child { border-bottom: 1px solid #ececea; }
+
 .chronoRow {
+  max-width: var(--about-max, 1160px);
+  margin: 0 auto;
   display: grid;
   grid-template-columns: 80px 1fr 0.7fr;
   gap: 48px;
-  padding: 36px 0;
-  border-top: 1px solid #ececea;
+  padding: 36px 24px;
   align-items: start;
 }
 
-.chronoRow:last-child { border-bottom: 1px solid #ececea; }
+/* Even rows: swap so images sit on the left, number+text on the right */
+@media (min-width: 901px) {
+  .chronoRowReverse .chronoRow {
+    grid-template-columns: 0.7fr 80px 1fr;
+  }
+  .chronoRowReverse .chronoImgs { grid-column: 1; grid-row: 1; }
+  .chronoRowReverse .chronoNum  { grid-column: 2; grid-row: 1; }
+  .chronoRowReverse .chronoInfo { grid-column: 3; grid-row: 1; }
+}
+
+/* Full-bleed tinted bands tied to specific chapters */
+.tone_denim {
+  background: #dfe6ee;
+}
+.tone_denim .chronoNum { color: #3a4e69; }
+.tone_denim .chronoYr  { color: #56688a; }
+
+.tone_delirium {
+  background: #2a2a2a;
+  color: #fff;
+  border-top-color: #2a2a2a;
+}
+.tone_delirium .chronoNum            { color: rgba(255,255,255,0.55); }
+.tone_delirium .chronoYr             { color: rgba(255,255,255,0.45); }
+.tone_delirium .chronoInfo h3        { color: #fff; }
+.tone_delirium .chronoInfo h3 em     { color: rgba(255,255,255,0.5); }
+.tone_delirium .chronoInfo p         { color: rgba(255,255,255,0.82); }
+.tone_delirium .definition           { color: rgba(255,255,255,0.55) !important; border-left-color: rgba(255,255,255,0.25); }
+.tone_delirium .chronoCaption        { color: rgba(255,255,255,0.5); }
+.tone_delirium .chronoPh             { background: #1e1e1e; }
+
+.tone_denim .chronoRow,
+.tone_delirium .chronoRow {
+  padding: 56px 24px;
+}
 
 .chronoNum {
   font-size: 36px;
@@ -364,12 +466,24 @@
 
 /* ─── DARK PULL QUOTE ─── */
 .fullDark {
-  background: #0a0a0a;
+  position: relative;
+  background-color: #0a0a0a;
   color: #fff;
   padding: 140px 24px;
+  overflow: hidden;
+}
+
+.fullDark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 1;
 }
 
 .fullDarkInner {
+  position: relative;
+  z-index: 2;
   max-width: var(--about-max, 1160px);
   margin: 0 auto;
 }
@@ -495,22 +609,50 @@
 
 /* ─── FACTS / CITIES ─── */
 .facts {
-  padding: 100px 0;
-  background: #f5f5f3;
   border-bottom: 1px solid #ececea;
 }
 
+.factsStatsBand,
+.factsCitiesBand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  width: 100%;
+  position: relative;
+}
+
+.factsStatsBand {
+  background-color: #0a0a0a;
+  color: #fff;
+  overflow: hidden;
+}
+
+.factsStatsBand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1;
+}
+
+.factsCitiesBand {
+  background: #f5f5f3;
+}
+
 .factsInner {
+  width: 100%;
   max-width: var(--about-max, 1160px);
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 64px 24px;
+  position: relative;
+  z-index: 2;
 }
 
 .factsRow {
   display: flex;
   justify-content: center;
   gap: 100px;
-  margin-bottom: 80px;
   flex-wrap: wrap;
   align-items: baseline;
 }
@@ -539,6 +681,10 @@
   margin-top: 12px;
 }
 
+/* Stats inside the dark upper band */
+.factsStatsBand .statN { color: #fff; }
+.factsStatsBand .statL { color: rgba(255, 255, 255, 0.55); }
+
 .cities { text-align: center; }
 
 .cities h3 {
@@ -549,31 +695,56 @@
   margin: 18px 0 36px;
 }
 
-.citiesList {
+.cityMarquee {
+  position: relative;
+  overflow: hidden;
+  margin: 8px -24px 0;
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+
+.cityMarqueeTrack {
   display: flex;
-  justify-content: center;
-  gap: 48px;
-  flex-wrap: wrap;
+  gap: 64px;
+  width: max-content;
+  padding: 12px 32px;
   font-size: 17px;
   font-weight: 500;
   color: #1a1a18;
+  animation: cityMarqueeScroll 48s linear infinite;
 }
 
-.citiesList span {
+.cityMarqueeTrack:hover {
+  animation-play-state: paused;
+}
+
+.cityMarqueeTrack span {
   position: relative;
-  padding: 6px 0;
+  white-space: nowrap;
+  transition: color 0.2s ease;
 }
 
-.citiesList span::after {
-  content: "●";
+.cityMarqueeTrack span::after {
+  content: "·";
   position: absolute;
-  right: -30px;
-  top: 6px;
-  font-size: 7px;
-  color: #9a9a92;
+  right: -36px;
+  top: -2px;
+  font-size: 22px;
+  color: #c0c0b8;
 }
 
-.citiesList span:last-child::after { display: none; }
+.cityMarqueeTrack span:hover {
+  color: #888;
+}
+
+@keyframes cityMarqueeScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cityMarqueeTrack { animation: none; }
+}
 
 /* ─── EPILOGUE ─── */
 .epilogue {
@@ -662,26 +833,30 @@
   .chronoRow { grid-template-columns: 48px 1fr; gap: 20px; }
   .chronoImgs { grid-column: span 2; margin-top: 8px; }
   .mosaic { grid-auto-rows: 90px; gap: 8px; }
+  .factsStatsBand, .factsCitiesBand { min-height: 260px; }
+  .factsInner { padding: 44px 24px; }
   .factsRow { grid-template-columns: 1fr 1fr; }
-  .citiesList { gap: 20px; font-size: 15px; }
+  .cityMarqueeTrack { font-size: 15px; gap: 48px; }
 }
 
 @media (max-width: 560px) {
   .coverInner { padding: 0 20px 52px; }
   .preamble { padding: 48px 0; }
-  .chronoHead { padding: 48px 0 24px; }
   .chronoRow { padding: 20px 0; }
-  .chronoImgs { grid-template-columns: 1fr; }
+  /* Keep two-photo chapters as two columns on mobile; solo chapters stay
+     single-column via .chronoImgsSolo from the base rules. */
   .mosaic { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 140px; }
   .m1,.m2,.m3,.m4,.m5,.m6,.m7,.m8 { grid-column: span 2; grid-row: span 2; }
   .mosaicSection { padding: 56px 0; }
   .fullDark { padding: 52px 20px; }
-  .facts { padding: 40px 0; }
-  .factsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 32px; }
+  .facts { padding: 0; }
+  .factsStatsBand, .factsCitiesBand { min-height: 200px; }
+  .factsInner { padding: 32px 20px; }
+  .factsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 0; }
   .statN { font-size: 36px; }
   .statL { font-size: 10px; }
-  .citiesList { flex-direction: row; gap: 8px 16px; font-size: 13px; }
-  .citiesList span::after { display: none; }
+  .cityMarqueeTrack { font-size: 13px; gap: 36px; }
+  .cityMarqueeTrack span::after { right: -22px; }
   .cities h3 { font-size: 28px; margin: 12px 0 20px; }
   .epilogue { padding: 44px 20px 36px; }
 }

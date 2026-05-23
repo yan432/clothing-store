@@ -1,6 +1,16 @@
 import Link from 'next/link'
 import s from './page.module.css'
-import ChapterSlider from './ChapterSlider'
+import ChapterMosaic from './ChapterMosaic'
+import CoverParallax from './CoverParallax'
+import StatCounter from './StatCounter'
+import Reveal from './Reveal'
+import MosaicReveal from './MosaicReveal'
+import SectionParallax from './SectionParallax'
+
+const secondaryCities = [
+  'Madrid', 'Kaunas', 'Poznań', 'Odesa', 'Augsburg',
+  'Lviv', 'Kharkiv', 'Cortona', 'Ivano-Frankivsk', 'Toronto',
+]
 
 export const metadata = {
   title: 'About',
@@ -26,8 +36,8 @@ const chapters = [
       <p><em>Interception</em> was our first full-fledged collection — nine carefully crafted pieces. Before it, we had been experimenting with upcycling and producing basic items. Interception was our first real attempt at designing and manufacturing a cohesive set of garments at once.</p>
       <p>One of the standout pieces was the <em>Loose Fit Pants</em>, a design that has remained one of our most popular to this day. Lightweight fabric, a wide-leg cut, and classic tailoring details like pleats — that foundation was set then, and it still anchors the silhouette today.</p>
     </>,
-    // Добавь сюда 9 фото — по одной на каждую вещь коллекции
-    slides: [
+    // 9 фото — по одной на каждую вещь коллекции
+    mosaic: [
       { src: '/about/img/interception-1.jpg', caption: 'Interception — Item 1/9' },
       { src: '/about/img/interception-2.jpg', caption: 'Interception — Item 2/9' },
       { src: '/about/img/interception-3.jpg', caption: 'Interception — Item 3/9' },
@@ -49,6 +59,7 @@ const chapters = [
       { src: '/about/img/delirium-print.jpg', caption: 'Delirium print' },
     ],
     solo: true,
+    tone: 'delirium',
   },
   {
     num: '03',
@@ -79,6 +90,7 @@ const chapters = [
       { src: '/about/img/jeans-deconstructed.jpg', caption: 'Deconstructed jeans' },
       { src: '/about/img/denim-set.jpg', caption: 'Scars hoodie' },
     ],
+    tone: 'denim',
   },
   {
     num: '06',
@@ -119,7 +131,12 @@ export default function AboutPage() {
       {/* ─── COVER ─── */}
       <section className={s.cover}>
         <div className={s.coverPhoto}>
-          <img src="/about/cover-hero.jpg" alt="edm.clothes" />
+          <CoverParallax src="/about/cover-hero.jpg" alt="edm.clothes" />
+        </div>
+        <div className={s.coverGlow} aria-hidden="true">
+          <div className={s.coverGlowA} />
+          <div className={s.coverGlowB} />
+          <div className={s.coverGlowC} />
         </div>
         <div className={s.coverMetaTop}>
           <span>edm.clothes — The Journal</span>
@@ -147,7 +164,7 @@ export default function AboutPage() {
       </section>
 
       {/* ─── PREAMBLE ─── */}
-      <section className={`${s.preamble} ${s.page}`} id="preamble">
+      <Reveal as="section" className={`${s.preamble} ${s.page}`} id="preamble">
         <div className={s.preambleGrid}>
           <div className={s.labelRow}>
             <div className={s.label}>Preamble</div>
@@ -161,44 +178,87 @@ export default function AboutPage() {
             <div className={s.signature}>— Yan &amp; Ilya</div>
           </div>
         </div>
-      </section>
+      </Reveal>
 
-      {/* ─── CHRONOLOGY HEADER ─── */}
-      <section className={`${s.chronoHead} ${s.page}`} id="chronology">
-        <div className={s.label}>The Story</div>
-        <h2>Seven chapters,<br/><em>one story.</em></h2>
-        <p>Each chapter below is a milestone — a collection, a season, an idea that pushed us forward. The full text and photography lives in the printed journal.</p>
-      </section>
-
-      {/* ─── CHRONOLOGY ROWS ─── */}
-      <section className={`${s.chrono} ${s.page}`}>
-        {chapters.map((ch) => (
-          <div key={ch.num} className={s.chronoRow}>
-            <div className={s.chronoNum}>{ch.num}</div>
-            <div className={s.chronoInfo}>
-              <div className={s.chronoYr}>{ch.yr}</div>
-              <h3>{ch.title}</h3>
-              {ch.definition && <p className={s.definition}>{ch.definition}</p>}
-              {ch.bodyNode ?? <p>{ch.body}</p>}
-            </div>
-            <div className={`${s.chronoImgs} ${ch.solo || ch.slides ? s.chronoImgsSolo : ''}`}>
-              {ch.slides ? (
-                <ChapterSlider slides={ch.slides} />
-              ) : ch.imgs.map((img) => (
-                <figure key={img.src} className={s.chronoFigure}>
-                  <div className={`${s.chronoPh} ${ch.solo ? s.chronoSoloPh : ''}`}>
-                    <img src={img.src} alt={img.caption} loading="lazy" />
-                  </div>
-                  <figcaption className={s.chronoCaption}>{img.caption}</figcaption>
-                </figure>
-              ))}
+      {/* ─── FACTS / CITIES ─── */}
+      <Reveal as="section" className={s.facts} id="chronology">
+        <div className={s.factsStatsBand}>
+          <SectionParallax src="/about/img/factory.jpg" />
+          <div className={s.factsInner}>
+            <div className={s.factsRow}>
+              <div>
+                <div className={s.statN}><StatCounter value={6} /></div>
+                <div className={s.statL}>Years</div>
+              </div>
+              <div>
+                <div className={s.statN}><StatCounter value={12} suffix="k" /></div>
+                <div className={s.statL}>Garments shipped</div>
+              </div>
+              <div>
+                <div className={s.statN}><StatCounter value={42} /></div>
+                <div className={s.statL}>Countries</div>
+              </div>
             </div>
           </div>
-        ))}
+        </div>
+        <div className={s.factsCitiesBand}>
+          <div className={s.factsInner}>
+            <div className={s.cities}>
+              <div className={s.label}>Worn in</div>
+              <h3>Berlin · Kyiv · Tokyo · LA · Paris · Warsaw</h3>
+              <div className={s.cityMarquee} aria-label="Also worn in">
+                <div className={s.cityMarqueeTrack}>
+                  {[...secondaryCities, ...secondaryCities].map((c, i) => (
+                    <span key={i} aria-hidden={i >= secondaryCities.length ? 'true' : undefined}>{c}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
+      {/* ─── CHRONOLOGY ROWS ─── */}
+      <section className={s.chrono}>
+        {chapters.map((ch, i) => {
+          const reverse = i % 2 === 1
+          const toneClass = ch.tone ? s[`tone_${ch.tone}`] : ''
+          const wrapClass = [
+            s.chronoRowWrap,
+            reverse ? s.chronoRowReverse : '',
+            toneClass,
+          ].filter(Boolean).join(' ')
+          return (
+            <Reveal key={ch.num} className={wrapClass}>
+              <div className={s.chronoRow}>
+                <div className={s.chronoNum}>{ch.num}</div>
+                <div className={s.chronoInfo}>
+                  <div className={s.chronoYr}>{ch.yr}</div>
+                  <h3>{ch.title}</h3>
+                  {ch.definition && <p className={s.definition}>{ch.definition}</p>}
+                  {ch.bodyNode ?? <p>{ch.body}</p>}
+                </div>
+                <div className={`${s.chronoImgs} ${ch.solo || ch.mosaic ? s.chronoImgsSolo : ''}`}>
+                  {ch.mosaic ? (
+                    <ChapterMosaic items={ch.mosaic} idleCaption="Interception — 9 pieces · tap any to expand" />
+                  ) : ch.imgs.map((img) => (
+                    <figure key={img.src} className={s.chronoFigure}>
+                      <div className={`${s.chronoPh} ${ch.solo ? s.chronoSoloPh : ''}`}>
+                        <img src={img.src} alt={img.caption} loading="lazy" />
+                      </div>
+                      <figcaption className={s.chronoCaption}>{img.caption}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          )
+        })}
       </section>
 
       {/* ─── MANIFESTO ─── */}
-      <section className={s.fullDark}>
+      <Reveal as="section" className={s.fullDark}>
+        <SectionParallax src="/about/img/p-riot-bomber.jpg" />
         <div className={s.fullDarkInner}>
           <div className={s.fullDarkLabel}>Manifesto</div>
           <div className={s.pullquote}>
@@ -207,19 +267,13 @@ export default function AboutPage() {
           </div>
           <span className={s.pullquoteAttr}>— edm.clothes</span>
         </div>
-      </section>
+      </Reveal>
 
       {/* ─── MOSAIC ─── */}
-      <section className={`${s.mosaicSection} ${s.page}`}>
+      <Reveal as="section" className={`${s.mosaicSection} ${s.page}`}>
         <div className={s.labelCenter}>Visual essay</div>
         <h2>edm.clothes <em>in pictures.</em></h2>
-        <div className={s.mosaic}>
-          {mosaicImages.map((img) => (
-            <figure key={img.src} className={s[img.cls]}>
-              <img src={img.src} alt={img.alt} loading="lazy" />
-            </figure>
-          ))}
-        </div>
+        <MosaicReveal images={mosaicImages} />
         <div className={s.mosaicCta}>
           <a href="https://www.instagram.com/edm.clothes" target="_blank" rel="noopener noreferrer" className={s.mosaicInstaBtn}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -236,49 +290,13 @@ export default function AboutPage() {
             Follow on TikTok
           </a>
         </div>
-      </section>
-
-      {/* ─── FACTS / CITIES ─── */}
-      <section className={s.facts}>
-        <div className={s.factsInner}>
-          <div className={s.factsRow}>
-            <div>
-              <div className={s.statN}>7</div>
-              <div className={s.statL}>Chapters</div>
-            </div>
-            <div>
-              <div className={s.statN}>12<span style={{ fontSize: '0.45em', letterSpacing: '0.05em', verticalAlign: 'middle' }}>k</span></div>
-              <div className={s.statL}>Garments shipped</div>
-            </div>
-            <div>
-              <div className={s.statN}>42</div>
-              <div className={s.statL}>Countries</div>
-            </div>
-          </div>
-          <div className={s.cities}>
-            <div className={s.label}>Worn in</div>
-            <h3>Berlin · Kyiv · Tokyo · LA · Paris · Warsaw</h3>
-            <div className={s.citiesList}>
-              <span>Madrid</span>
-              <span>Kaunas</span>
-              <span>Poznań</span>
-              <span>Odesa</span>
-              <span>Augsburg</span>
-              <span>Lviv</span>
-              <span>Kharkiv</span>
-              <span>Cortona</span>
-              <span>Ivano-Frankivsk</span>
-              <span>Toronto</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      </Reveal>
 
       {/* ─── EPILOGUE ─── */}
-      <section>
+      <Reveal as="section">
         <div className={s.epilogue}>
           <div className={s.epilogueKicker}>The journal</div>
-          <h2>Read it the way it was meant to be read.</h2>
+          <h2>Learn more about us.</h2>
           <p>The full journal — 30 pages, photography, essays, sketches — is a free download. Print it, fold it, tear out a page and pin it to your wall.</p>
           <div className={s.epilogueCta}>
             <a href="/about/edm-journal.pdf" className={`${s.epilogueBtn} ${s.epilogueBtnPrimary}`} download style={{ background: '#000', color: '#fff' }}>
@@ -291,7 +309,7 @@ export default function AboutPage() {
           </div>
           <div className={s.epilogueMeta}>PDF · 30 pages · ~12 MB · Vol. I, Berlin 2025</div>
         </div>
-      </section>
+      </Reveal>
 
     </div>
   )
