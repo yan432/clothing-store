@@ -192,7 +192,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
 
       {/* Color swatches — only when there are siblings */}
       {colorSiblings.length > 0 && product.color_name && (
-        <div style={{display:'flex',gap:6,flexWrap:'wrap',paddingTop:2}}>
+        <div className="product-color-swatches" style={{display:'flex',gap:6,flexWrap:'wrap',paddingTop:2}}>
           {/* Current product swatch (always active) */}
           <div
             title={product.color_name}

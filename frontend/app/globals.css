@@ -448,7 +448,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 
 @media (max-width: 679px) {
   /* Stretch grid to full screen width */
-  .products-main { padding-left: 0 !important; padding-right: 0 !important; padding-top: 24px !important; }
+  .products-main { padding-left: 0 !important; padding-right: 0 !important; padding-top: 24px !important; padding-bottom: 0 !important; }
   .products-header-row { padding: 0 16px; }
   .products-filter-bar { padding: 0 16px; }
 
@@ -476,6 +476,10 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 
   /* Hide description on mobile (too cluttered) */
   .product-card-desc { display: none !important; }
+
+  /* Hide color swatches on mobile — too small to read reliably */
+  .product-color-swatches { display: none !important; }
+
 }
 
 /* ── Wishlist page grid ───────────────────────────── */
