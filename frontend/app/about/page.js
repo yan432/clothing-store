@@ -171,9 +171,9 @@ export default function AboutPage() {
             <div className={s.label} style={{ color: '#888' }}>Yan Yavorovych<br/>Ilya Habdrakhmanov</div>
           </div>
           <div className={s.preambleBody}>
-            <p>edm.clothes started as a project rooted in upcycling — long before it became a well-known movement — and has grown into a global brand. In the early days we sourced second-hand clothing, tailored and reimagined pieces, and gave them a new life.</p>
-            <p>From those humble beginnings we've grown into something much bigger, selling our creations worldwide and constantly exploring new ideas. Yet, even now, we are still in the process of discovering who we truly are. Like a river that carves its path over time, reshaping itself while always moving forward, we continue to evolve.</p>
-            <p>This page is a chronicle of that story — a mirror held up to our past, helping us understand where we are headed next.</p>
+            <p>edm.clothes began as an upcycling project — long before it became a movement — sourcing second-hand pieces, re-tailoring them, giving them new life. It has since grown into a global brand.</p>
+            <p>Yet we are still discovering who we truly are. Like a river carving its own path, we keep reshaping while moving forward.</p>
+            <p>This page is the chronicle of that story.</p>
             <div className={s.signature}>— Yan &amp; Ilya</div>
           </div>
         </div>

@@ -14,7 +14,10 @@
   color: #1a1a18;
   font-size: 14px;
   line-height: 1.5;
-  overflow-x: hidden;
+  /* `clip` prevents horizontal overflow without making this a scroll container,
+     so vertical touch swipes pass straight through to the document. */
+  overflow-x: clip;
+  touch-action: pan-y;
 }
 
 .root a { text-decoration: none; }
