@@ -6,14 +6,18 @@ import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
-import HeroCarousel from './components/HeroCarousel'
-import HomeArrivalsCarousel from './components/HomeArrivalsCarousel'
-import HomeCategoriesCarousel from './components/HomeCategoriesCarousel'
-import HomepagePhotoTiles from './components/HomepagePhotoTiles'
-import HomeInstagramFeed from './components/HomeInstagramFeed'
-import HomeAboutTeaser from './components/HomeAboutTeaser'
 import ProductCard from './components/ProductCard'
 import DropCountdown from './components/DropCountdown'
+// All below-fold sections are lazy-loaded via a 'use client' wrapper so
+// each gets its own JS chunk instead of bloating the initial bundle.
+import {
+  HeroCarousel,
+  HomeArrivalsCarousel,
+  HomeCategoriesCarousel,
+  HomepagePhotoTiles,
+  HomeInstagramFeed,
+  HomeAboutTeaser,
+} from './components/lazyHomeSections'
 
 async function getProducts() {
   try {

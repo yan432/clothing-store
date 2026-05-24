@@ -59,17 +59,13 @@ function updateTrackingConsent(granted) {
   updateTikTokConsent(granted)
 }
 
-async function isEEAVisitor() {
+function isEEAVisitor() {
+  // Timezone-based heuristic only — no external geo API.
+  // External lookups (ipapi.co) get rate-limited (429) and hurt LCP/CLS,
+  // and timezone covers virtually all real EEA visitors.
   try {
-    // Lightweight timezone-based heuristic (no external API needed)
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
-    // European timezones all start with 'Europe/'
-    if (tz.startsWith('Europe/')) return true
-    // Fallback: check via a fast geo endpoint
-    const res = await fetch('https://ipapi.co/country/', { signal: AbortSignal.timeout(2000) })
-    if (!res.ok) return true // fail safe: show banner
-    const country = (await res.text()).trim().toUpperCase()
-    return EEA_COUNTRIES.has(country)
+    return tz.startsWith('Europe/')
   } catch {
     return true // fail safe: show banner
   }
@@ -86,15 +82,13 @@ export default function CookieConsent() {
       return
     }
     // Only show banner to EEA visitors
-    isEEAVisitor().then(isEEA => {
-      if (isEEA) {
-        setVisible(true)
-      } else {
-        // Non-EEA: auto-grant tracking and mark it so we don't re-check on every page
-        localStorage.setItem(STORAGE_KEY, 'granted')
-        updateTrackingConsent(true)
-      }
-    })
+    if (isEEAVisitor()) {
+      setVisible(true)
+    } else {
+      // Non-EEA: auto-grant tracking and mark it so we don't re-check on every page
+      localStorage.setItem(STORAGE_KEY, 'granted')
+      updateTrackingConsent(true)
+    }
   }, [])
 
   function handleAccept() {

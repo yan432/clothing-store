@@ -80,6 +80,7 @@ export default function HomeInstagramFeed({ posts }) {
                   alt={post.caption || 'Instagram post'}
                   fill
                   sizes="(max-width: 679px) 70vw, (max-width: 1099px) 33vw, 22vw"
+                  quality={55}
                   className="ig-feed-img"
                   loading="lazy"
                   style={{ objectFit: 'cover' }}

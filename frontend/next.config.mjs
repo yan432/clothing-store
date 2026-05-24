@@ -21,13 +21,13 @@ const cspHeader = [
   "style-src 'self' 'unsafe-inline'",
   // Images: self + data URIs + Supabase + bigcartel + GA + GTM + Meta + TikTok + Google Ads remarketing pixel
   // Google Ads remarketing pixel comes from country-specific google.<tld>/ads/ga-audiences — list common EU/global TLDs
-  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca`,
+  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca`,
   // Fonts: self
   "font-src 'self' data:",
   // Frames: Stripe payment iframe
   "frame-src https://js.stripe.com https://hooks.stripe.com https://td.doubleclick.net",
   // Connect: self + backend API + Supabase + Stripe + GA + Google Ads + Meta + TikTok + ipapi
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://*.tiktokw.us https://ipapi.co`,
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://*.tiktokw.us`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
@@ -42,6 +42,10 @@ const nextConfig = {
     // Add 390px so mobile cards (50vw on 390px phone at 2× DPR)
     // get a 390px image instead of jumping straight to 640px.
     deviceSizes: [390, 640, 750, 828, 1080, 1200, 1920],
+    // Next 16 requires opting in to non-default qualities; without this,
+    // any `quality={...}` prop gets silently rounded to 75 (the default).
+    // Order: hero (65), photo tiles (60), IG feed (55), everything else (75).
+    qualities: [55, 60, 65, 75],
     minimumCacheTTL: 2592000, // 30 days
     remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname })),
   },

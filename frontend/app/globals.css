@@ -245,27 +245,27 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 
 /* ── Home page grids ────────────────────────────────── */
 
-/* Carousel: visible on mobile + tablet, hidden on desktop */
+/* Mobile default: horizontal swipe carousel with ~30% peek of the next card */
 .home-arrivals-carousel { display: block; }
-
-/* Grid: hidden on mobile + tablet, shown only on desktop */
 .home-arrivals-grid {
   display: none;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px 12px;
 }
 
-/* Carousel item width: 2-up on mobile, 3-up on tablet */
+/* Mobile peek: 76% of track per card → 1 full card + ~24% peek of next */
 .home-arrivals-carousel-item {
-  flex: 0 0 calc(50% - 10px);
+  flex: 0 0 76%;
 }
-@media (min-width: 640px) {
+
+/* Tablet: 3-up swipe carousel */
+@media (min-width: 640px) and (max-width: 1099px) {
   .home-arrivals-carousel-item {
     flex: 0 0 calc(33.333% - 14px);
   }
 }
 
-/* Desktop: show grid with auto columns */
+/* Desktop: auto-fill grid, hide carousel */
 @media (min-width: 1100px) {
   .home-arrivals-carousel { display: none; }
   .home-arrivals-grid {
@@ -426,6 +426,7 @@ a.ig-feed-tile:focus-visible .ig-feed-overlay {
   position: absolute;
   inset: -8% 0;
   z-index: 0;
+  will-change: transform;
 }
 .home-about-photo img {
   width: 100%;
@@ -433,7 +434,6 @@ a.ig-feed-tile:focus-visible .ig-feed-overlay {
   object-fit: cover;
   object-position: center 30%;
   filter: grayscale(0.25) contrast(1.04);
-  will-change: transform;
 }
 .home-about-overlay {
   position: absolute;

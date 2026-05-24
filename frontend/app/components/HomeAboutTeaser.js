@@ -1,15 +1,16 @@
 'use client'
 import { useEffect, useRef } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default function HomeAboutTeaser() {
   const sectionRef = useRef(null)
-  const imgRef = useRef(null)
+  const photoRef = useRef(null)
 
   useEffect(() => {
     const section = sectionRef.current
-    const img = imgRef.current
-    if (!section || !img) return
+    const photo = photoRef.current
+    if (!section || !photo) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     if (window.matchMedia('(max-width: 768px)').matches) return
 
@@ -22,7 +23,7 @@ export default function HomeAboutTeaser() {
       const rect = section.getBoundingClientRect()
       const center = rect.top + rect.height / 2 - window.innerHeight / 2
       const offset = -center * 0.18
-      img.style.transform = `translate3d(0, ${offset.toFixed(1)}px, 0)`
+      photo.style.transform = `translate3d(0, ${offset.toFixed(1)}px, 0)`
     }
 
     function onScroll() {
@@ -52,13 +53,14 @@ export default function HomeAboutTeaser() {
 
   return (
     <section ref={sectionRef} className="home-about-teaser" aria-labelledby="home-about-h">
-      <div className="home-about-photo">
-        <img
-          ref={imgRef}
+      <div ref={photoRef} className="home-about-photo">
+        <Image
           src="/about/cover-hero.jpg"
           alt=""
+          fill
+          sizes="100vw"
+          quality={65}
           loading="lazy"
-          decoding="async"
           aria-hidden="true"
         />
       </div>

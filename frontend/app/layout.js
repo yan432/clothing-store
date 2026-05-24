@@ -60,6 +60,9 @@ export default function RootLayout({ children }) {
         {/* Speed up Supabase-hosted hero image (LCP) by warming the TCP/TLS connection */}
         <link rel="preconnect" href="https://tlaagtvplzitmqwqbluq.supabase.co" crossOrigin="" />
         <link rel="dns-prefetch" href="https://tlaagtvplzitmqwqbluq.supabase.co" />
+        {/* Backend API — warming the connection saves ~300ms on first product/settings fetch */}
+        <link rel="preconnect" href="https://clothing-store-api-935987805883.europe-west3.run.app" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://clothing-store-api-935987805883.europe-west3.run.app" />
         {/* Consent Mode v2 — must run before GA loads */}
         <Script id="ga-consent-defaults" strategy="beforeInteractive">{`
           window.dataLayer = window.dataLayer || [];
