@@ -30,8 +30,9 @@ export default function HomeArrivalsCarousel({ products }) {
   }, [])
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="home-arrivals-carousel-wrap" style={{ position: 'relative' }}>
       <button
+        className="home-arrivals-carousel-arrow"
         onClick={() => scrollBy(-1)}
         aria-label="Previous"
         style={{
@@ -69,6 +70,7 @@ export default function HomeArrivalsCarousel({ products }) {
       </div>
 
       <button
+        className="home-arrivals-carousel-arrow"
         onClick={() => scrollBy(1)}
         aria-label="Next"
         style={{

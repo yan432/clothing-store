@@ -256,12 +256,27 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 /* Mobile peek: 76% of track per card → 1 full card + ~24% peek of next */
 .home-arrivals-carousel-item {
   flex: 0 0 76%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+/* Phantom margin on the last card so it can also snap to the left edge —
+   otherwise the final card snaps to the *right* edge of the track which
+   feels inconsistent vs the others. */
+.home-arrivals-carousel-item:last-child {
+  margin-right: 24%;
+}
+/* Hide round arrow buttons on mobile — swipe + peek is the affordance */
+@media (max-width: 639px) {
+  .home-arrivals-carousel-arrow { display: none !important; }
 }
 
 /* Tablet: 3-up swipe carousel */
 @media (min-width: 640px) and (max-width: 1099px) {
   .home-arrivals-carousel-item {
     flex: 0 0 calc(33.333% - 14px);
+  }
+  .home-arrivals-carousel-item:last-child {
+    margin-right: 0;
   }
 }
 
