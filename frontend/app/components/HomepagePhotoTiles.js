@@ -37,6 +37,7 @@ export default function HomepagePhotoTiles({ tiles }) {
                 sizes="(max-width: 680px) 50vw, 25vw"
                 className="photo-tile-img"
                 loading="lazy"
+                quality={60}
                 style={{objectFit:'cover',objectPosition:'center top'}}
               />
               <div className="photo-tile-cart-btn" aria-hidden="true">

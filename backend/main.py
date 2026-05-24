@@ -3993,6 +3993,78 @@ def delete_homepage_photo_tile(tile_id: int):
     return {"ok": True}
 
 
+# ── Instagram posts ("worn by you" wall) ─────────────────────────────────────
+
+class InstagramPostUpdate(BaseModel):
+    permalink: Optional[str] = None
+    caption: Optional[str] = None
+    author_handle: Optional[str] = None
+    sort_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class InstagramPostsReorder(BaseModel):
+    ids: list[int]
+
+@app.get("/instagram-posts")
+def get_instagram_posts():
+    data = supabase.table("instagram_posts").select("*").eq("is_active", True).order("sort_order").execute()
+    return data.data or []
+
+@app.get("/instagram-posts/admin", dependencies=[Depends(require_admin)])
+def get_instagram_posts_admin():
+    data = supabase.table("instagram_posts").select("*").order("sort_order").execute()
+    return data.data or []
+
+@app.post("/instagram-posts/upload", dependencies=[Depends(require_admin)])
+async def upload_instagram_post(
+    file: UploadFile = File(...),
+    permalink: str = Form(""),
+    caption: str = Form(""),
+    author_handle: str = Form(""),
+):
+    ext = _safe_image_ext(file.filename or "file.jpg")
+    path = f"homepage/instagram/{uuid.uuid4()}.{ext}"
+    content = await file.read()
+    supabase.storage.from_("product-images").upload(path, content, {"content-type": _EXT_CONTENT_TYPE[ext]})
+    url = supabase.storage.from_("product-images").get_public_url(path)
+    existing = supabase.table("instagram_posts").select("sort_order").order("sort_order", desc=True).limit(1).execute()
+    next_order = (existing.data[0]["sort_order"] + 1) if existing.data else 0
+    handle = (author_handle or "").lstrip("@").strip() or None
+    row = {
+        "image_url": url,
+        "permalink": permalink or None,
+        "caption": caption or None,
+        "author_handle": handle,
+        "sort_order": next_order,
+        "is_active": True,
+    }
+    data = supabase.table("instagram_posts").insert(row).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create instagram post")
+    return data.data[0]
+
+@app.put("/instagram-posts/reorder", dependencies=[Depends(require_admin)])
+def reorder_instagram_posts(payload: InstagramPostsReorder):
+    for order, post_id in enumerate(payload.ids):
+        supabase.table("instagram_posts").update({"sort_order": order}).eq("id", post_id).execute()
+    return {"ok": True}
+
+@app.put("/instagram-posts/{post_id}", dependencies=[Depends(require_admin)])
+def update_instagram_post(post_id: int, post: InstagramPostUpdate):
+    updates = post.dict(exclude_unset=True)
+    if "author_handle" in updates and updates["author_handle"]:
+        updates["author_handle"] = updates["author_handle"].lstrip("@").strip() or None
+    data = supabase.table("instagram_posts").update(updates).eq("id", post_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return data.data[0]
+
+@app.delete("/instagram-posts/{post_id}", dependencies=[Depends(require_admin)])
+def delete_instagram_post(post_id: int):
+    supabase.table("instagram_posts").delete().eq("id", post_id).execute()
+    return {"ok": True}
+
+
 class ContactMessagePayload(BaseModel):
     name: str
     email: str

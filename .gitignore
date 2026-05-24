@@ -4,3 +4,7 @@
 exports/
 .about-img-backup/
 /Factory.jpg
+# Original UGC photos uploaded to Supabase; kept locally only
+/@*.png
+# One-off seed scripts
+backend/seed_instagram_posts.py

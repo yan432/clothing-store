@@ -10,6 +10,8 @@ import HeroCarousel from './components/HeroCarousel'
 import HomeArrivalsCarousel from './components/HomeArrivalsCarousel'
 import HomeCategoriesCarousel from './components/HomeCategoriesCarousel'
 import HomepagePhotoTiles from './components/HomepagePhotoTiles'
+import HomeInstagramFeed from './components/HomeInstagramFeed'
+import HomeAboutTeaser from './components/HomeAboutTeaser'
 import ProductCard from './components/ProductCard'
 import DropCountdown from './components/DropCountdown'
 
@@ -33,6 +35,14 @@ async function getSlides() {
 async function getPhotoTiles() {
   try {
     const res = await fetch(getApiUrl('/homepage-photo-tiles'), { next: { revalidate: 300 } })
+    if (!res.ok) return []
+    return await res.json()
+  } catch { return [] }
+}
+
+async function getInstagramPosts() {
+  try {
+    const res = await fetch(getApiUrl('/instagram-posts'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     return await res.json()
   } catch { return [] }
@@ -95,7 +105,7 @@ export default async function Home({ searchParams }) {
     redirect(query ? `/auth/reset?${query}` : '/auth/reset')
   }
 
-  const [allProducts, slides, dropTimer, photoTiles, landingContent] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent()])
+  const [allProducts, slides, dropTimer, photoTiles, landingContent, instagramPosts] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent(), getInstagramPosts()])
   const hero = {
     ...homepageContent.hero,
     ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
@@ -144,7 +154,10 @@ export default async function Home({ searchParams }) {
             src={hero.image}
             alt=""
             fill
-            priority
+            preload
+            fetchPriority="high"
+            loading="eager"
+            quality={65}
             sizes="100vw"
             aria-hidden="true"
             style={{ objectFit: 'cover', objectPosition: 'center' }}
@@ -205,7 +218,13 @@ export default async function Home({ searchParams }) {
         </section>
       )}
 
-      {/* ── 6. CATEGORIES ─────────────────────────────── */}
+      {/* ── 6. INSTAGRAM FEED ──────────────────────────── */}
+      <HomeInstagramFeed posts={instagramPosts} />
+
+      {/* ── 7. LEARN MORE ABOUT US ─────────────────────── */}
+      <HomeAboutTeaser />
+
+      {/* ── 8. CATEGORIES ─────────────────────────────── */}
       <section style={{ maxWidth: W, margin: '0 auto', padding: '40px 24px 0' }}>
         <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>Shop by category</h2>
 
