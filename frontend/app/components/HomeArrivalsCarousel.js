@@ -51,11 +51,16 @@ export default function HomeArrivalsCarousel({ products }) {
           display: 'flex',
           gap: 20,
           overflowX: 'auto',
-          scrollSnapType: 'x mandatory',
+          // `proximity` (vs `mandatory`) lets vertical page scrolls pass
+          // through cleanly when the finger lands on the carousel — the
+          // browser only snaps if the user releases close to a snap point.
+          scrollSnapType: 'x proximity',
           scrollbarWidth: 'none',
           WebkitOverflowScrolling: 'touch',
           paddingBottom: 4,
-          touchAction: 'pan-x',
+          // Allow both axes so iOS Safari can route vertical pan to the
+          // page without first trying to lock to the carousel's x-axis.
+          touchAction: 'pan-x pan-y',
         }}
       >
         {products.map(p => (
