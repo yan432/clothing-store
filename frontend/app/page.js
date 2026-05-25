@@ -161,7 +161,7 @@ export default async function Home({ searchParams }) {
             preload
             fetchPriority="high"
             loading="eager"
-            quality={65}
+            quality={90}
             sizes="100vw"
             // 1x1 dark JPEG so the section never flashes flat black before
             // the full Supabase image lands — feels instant on mobile.

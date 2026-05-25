@@ -44,8 +44,8 @@ const nextConfig = {
     deviceSizes: [390, 640, 750, 828, 1080, 1200, 1920],
     // Next 16 requires opting in to non-default qualities; without this,
     // any `quality={...}` prop gets silently rounded to 75 (the default).
-    // Order: hero (65), photo tiles (60), IG feed (55), everything else (75).
-    qualities: [55, 60, 65, 75],
+    // Order: hero (90), photo tiles (60), IG feed (55), everything else (75).
+    qualities: [55, 60, 65, 75, 90],
     minimumCacheTTL: 2592000, // 30 days
     remotePatterns: imageHosts.map(hostname => ({ protocol: 'https', hostname })),
   },
