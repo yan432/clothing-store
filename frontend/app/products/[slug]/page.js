@@ -79,7 +79,10 @@ export async function generateMetadata({ params }) {
       title: product.name,
       description: desc,
       images: image ? [{ url: image, width: 800, height: 800, alt: product.name }] : [],
-      type: 'website',
+      // og:type is emitted as "product" via <meta> in the page body so Pinterest
+      // Rich Pins / Facebook can read product-extension tags. Next.js's openGraph
+      // type field has no 'product' case (only website/article/book/…), so omit it
+      // here to avoid a conflicting og:type tag.
     },
     twitter: {
       card: 'summary_large_image',
@@ -168,8 +171,22 @@ export default async function ProductPage({ params }) {
     ],
   }
 
+  const ogAvailability = isInStock ? 'instock' : 'out of stock'
+  const ogPrice = String(Number(product.price) || 0)
+
   return (
     <>
+      {/* Pinterest Product Rich Pin / OG product extension tags. Pinterest accepts
+          either Schema.org or Open Graph; we emit both. React 19 hoists <meta> to <head>. */}
+      <meta property="og:type" content="product" />
+      <meta property="product:price:amount" content={ogPrice} />
+      <meta property="product:price:currency" content="EUR" />
+      <meta property="product:availability" content={ogAvailability} />
+      <meta property="product:brand" content="edm.clothes" />
+      <meta property="product:condition" content="new" />
+      <meta property="og:price:amount" content={ogPrice} />
+      <meta property="og:price:currency" content="EUR" />
+      <meta property="og:availability" content={ogAvailability} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />
       <GaViewItemEvent
