@@ -660,15 +660,21 @@
 }
 
 .factsRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   justify-content: center;
-  gap: 100px;
-  flex-wrap: wrap;
-  align-items: baseline;
+  gap: clamp(36px, 8vw, 100px);
+  align-items: start;
+  max-width: 920px;
+  margin: 0 auto;
 }
 
 .factsRow > div {
+  min-width: 0;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .statN {
@@ -677,6 +683,7 @@
   line-height: 1;
   letter-spacing: -0.03em;
   color: #1a1a18;
+  min-height: 1em;
 }
 
 .statN sup {
@@ -686,9 +693,11 @@
 .statL {
   font-size: 11px;
   letter-spacing: 0.18em;
+  line-height: 1.35;
   text-transform: uppercase;
   color: #9a9a92;
   margin-top: 12px;
+  max-width: 18ch;
 }
 
 /* Stats inside the dark upper band */
@@ -850,7 +859,7 @@
   .mosaic { grid-auto-rows: 90px; gap: 8px; }
   .factsStatsBand, .factsCitiesBand { min-height: 260px; }
   .factsInner { padding: 44px 24px; }
-  .factsRow { grid-template-columns: 1fr 1fr; }
+  .factsRow { gap: 28px; }
   .cityMarqueeTrack { font-size: 15px; }
   .cityMarqueeTrack span::after { margin: 0 24px; }
 }
@@ -868,9 +877,9 @@
   .facts { padding: 0; }
   .factsStatsBand, .factsCitiesBand { min-height: 200px; }
   .factsInner { padding: 32px 20px; }
-  .factsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 0; }
+  .factsRow { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 0; }
   .statN { font-size: 36px; }
-  .statL { font-size: 10px; }
+  .statL { font-size: 9px; letter-spacing: 0.08em; line-height: 1.3; max-width: 12ch; }
   .cityMarqueeTrack { font-size: 13px; }
   .cityMarqueeTrack span::after { margin: 0 18px; }
   .cities h3 { font-size: 28px; margin: 12px 0 20px; }
