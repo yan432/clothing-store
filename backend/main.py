@@ -5285,7 +5285,9 @@ async def _notion_sync_loop():
     interval = NOTION_SYNC_INTERVAL_HOURS * 3600
     while True:
         await asyncio.sleep(interval)
-        if not os.getenv("NOTION_API_KEY") or not NOTION_PARENT_PAGE_ID:
+        if not os.getenv("NOTION_API_KEY"):
+            continue
+        if not NOTION_PARENT_PAGE_ID and not get_setting("notion_database_id"):
             continue
         try:
             result = await asyncio.to_thread(_notion_sync_once)
@@ -5302,8 +5304,10 @@ async def _notion_orders_sync_loop():
     interval = NOTION_ORDERS_SYNC_INTERVAL_HOURS * 3600
     while True:
         await asyncio.sleep(interval)
+        if not os.getenv("NOTION_API_KEY"):
+            continue
         orders_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
-        if not os.getenv("NOTION_API_KEY") or not orders_page_id:
+        if not orders_page_id and not get_setting("notion_orders_database_id"):
             continue
         try:
             result = await asyncio.to_thread(_notion_orders_sync_once)
@@ -5317,10 +5321,12 @@ async def _notion_orders_sync_loop():
 
 @app.on_event("startup")
 async def _start_notion_sync():
-    if os.getenv("NOTION_API_KEY") and NOTION_PARENT_PAGE_ID:
+    if not os.getenv("NOTION_API_KEY"):
+        return
+    if NOTION_PARENT_PAGE_ID or get_setting("notion_database_id"):
         asyncio.create_task(_notion_sync_loop())
     orders_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
-    if os.getenv("NOTION_API_KEY") and orders_page_id:
+    if orders_page_id or get_setting("notion_orders_database_id"):
         asyncio.create_task(_notion_orders_sync_loop())
 
 
@@ -5329,7 +5335,7 @@ def notion_sync():
     """Manually trigger a Notion products sync. Also creates the DB on first call."""
     if not os.getenv("NOTION_API_KEY"):
         raise HTTPException(status_code=400, detail="NOTION_API_KEY is not configured")
-    if not NOTION_PARENT_PAGE_ID:
+    if not get_setting("notion_database_id") and not NOTION_PARENT_PAGE_ID:
         raise HTTPException(status_code=400, detail="NOTION_PARENT_PAGE_ID is not configured")
 
     result = _notion_sync_once()
@@ -5344,7 +5350,7 @@ def notion_sync_orders():
     if not os.getenv("NOTION_API_KEY"):
         raise HTTPException(status_code=400, detail="NOTION_API_KEY is not configured")
     orders_page_id = NOTION_ORDERS_PARENT_PAGE_ID or NOTION_PARENT_PAGE_ID
-    if not orders_page_id:
+    if not get_setting("notion_orders_database_id") and not orders_page_id:
         raise HTTPException(status_code=400, detail="NOTION_ORDERS_PARENT_PAGE_ID is not configured")
 
     result = _notion_orders_sync_once()
