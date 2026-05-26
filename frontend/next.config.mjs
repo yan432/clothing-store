@@ -16,7 +16,7 @@ const imageHosts = Array.from(new Set([
 const cspHeader = [
   "default-src 'self'",
   // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Google Ads + Meta Pixel + TikTok Pixel + Microsoft Clarity
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://connect.facebook.net https://analytics.tiktok.com https://www.clarity.ms",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://connect.facebook.net https://analytics.tiktok.com https://*.clarity.ms",
   // Styles: self + inline (Next.js injects inline styles)
   "style-src 'self' 'unsafe-inline'",
   // Images: self + data URIs + Supabase + bigcartel + GA + GTM + Meta + TikTok + Google Ads remarketing pixel
