@@ -1,13 +1,11 @@
-export const metadata = {
-  alternates: { canonical: '/' },
-}
-
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
 import ProductCard from './components/ProductCard'
 import DropCountdown from './components/DropCountdown'
+import { getMessages, pathForLocale, translateCategory } from './lib/i18n'
+import { localizedAlternates } from './lib/seo'
 // All below-fold sections are lazy-loaded via a 'use client' wrapper so
 // each gets its own JS chunk instead of bloating the initial bundle.
 import {
@@ -18,6 +16,10 @@ import {
   HomeInstagramFeed,
   HomeAboutTeaser,
 } from './components/lazyHomeSections'
+
+export const metadata = {
+  alternates: localizedAlternates('/'),
+}
 
 async function getProducts() {
   try {
@@ -52,7 +54,16 @@ async function getInstagramPosts() {
   } catch { return [] }
 }
 
-async function getLandingContent() {
+function localizedSetting(map, key, locale) {
+  if (locale === 'uk') {
+    const ukValue = map[`${key}_uk`]
+    if (ukValue != null && String(ukValue).trim()) return ukValue
+    return null
+  }
+  return map[key] || null
+}
+
+async function getLandingContent(locale = 'en') {
   try {
     const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
     if (!res.ok) return null
@@ -62,10 +73,10 @@ async function getLandingContent() {
       : (raw && typeof raw === 'object' ? raw : {})
     return {
       hero: {
-        season:   map.landing_hero_season   || null,
-        title:    map.landing_hero_title    || null,
-        subtitle: map.landing_hero_subtitle || null,
-        cta:      map.landing_hero_cta      || null,
+        season:   localizedSetting(map, 'landing_hero_season', locale),
+        title:    localizedSetting(map, 'landing_hero_title', locale),
+        subtitle: localizedSetting(map, 'landing_hero_subtitle', locale),
+        cta:      localizedSetting(map, 'landing_hero_cta', locale),
         image:    map.landing_hero_image    || null,
         overlay:  map.landing_hero_overlay != null ? Number(map.landing_hero_overlay) : null,
       },
@@ -91,8 +102,9 @@ async function getDropTimer() {
 
 const W = 1160
 
-export default async function Home({ searchParams }) {
-  const params = searchParams || {}
+export default async function Home({ searchParams, locale = 'en' }) {
+  const d = getMessages(locale)
+  const params = await (searchParams || {})
   const recoveryType = String(params.type || '')
   const hasRecoveryPayload =
     recoveryType === 'recovery' || Boolean(params.token) ||
@@ -106,20 +118,31 @@ export default async function Home({ searchParams }) {
       else qp.set(key, String(value))
     })
     const query = qp.toString()
-    redirect(query ? `/auth/reset?${query}` : '/auth/reset')
+    const resetPath = pathForLocale('/auth/reset', locale)
+    redirect(query ? `${resetPath}?${query}` : resetPath)
   }
 
-  const [allProducts, slides, dropTimer, photoTiles, landingContent, instagramPosts] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent(), getInstagramPosts()])
+  const [allProducts, slides, dropTimer, photoTiles, landingContent, instagramPosts] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent(locale), getInstagramPosts()])
   const hero = {
     ...homepageContent.hero,
+    ...(locale === 'uk' ? d.home.hero : {}),
     ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
   }
   const promoTiles = landingContent?.promoTiles || homepageContent.promoTiles
+  const localizedPromoTiles = promoTiles.map(tile => ({
+    ...tile,
+    title: translateCategory(tile.title, locale),
+    href: pathForLocale(tile.href, locale),
+  }))
   const overlayPct = landingContent?.hero?.overlay ?? 72
   const ov = overlayPct / 100
   const newArrivals = allProducts
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
+  const localizeSlideCta = (label) => {
+    if (locale === 'uk' && (!label || String(label).trim().toLowerCase() === 'shop now')) return d.home.hero.cta
+    return label
+  }
 
   const organizationJsonLd = {
     '@context': 'https://schema.org',
@@ -185,7 +208,7 @@ export default async function Home({ searchParams }) {
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.72)', margin: '0 0 36px', lineHeight: 1.6 }}>
             {hero.subtitle}
           </p>
-          <a href="/products" className="hero-cta">{hero.cta}</a>
+          <a href={pathForLocale('/products', locale)} className="hero-cta">{hero.cta}</a>
         </div>
       </section>
 
@@ -198,7 +221,7 @@ export default async function Home({ searchParams }) {
       {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
         <section style={{ marginTop: 0 }}>
-          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: s.href, link_label: s.link_label, label: '' }))} fullWidth />
+          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: pathForLocale(s.href || '/products', locale), link_label: localizeSlideCta(s.link_label), label: '' }))} fullWidth />
         </section>
       )}
 
@@ -206,40 +229,40 @@ export default async function Home({ searchParams }) {
       {newArrivals.length > 0 && (
         <section style={{ maxWidth: W, margin: '0 auto', padding: '18px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>New Arrivals</h2>
-            <a href="/products?special=new" style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
-              View all →
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{d.home.newArrivals}</h2>
+            <a href={pathForLocale('/products?special=new', locale)} style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+              {d.home.viewAll} →
             </a>
           </div>
 
           {/* Mobile + desktop: regular grid */}
           <div className="home-arrivals-grid">
             {newArrivals.map(p => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} locale={locale} />
             ))}
           </div>
 
           {/* Tablet: 3-item carousel */}
           <div className="home-arrivals-carousel">
-            <HomeArrivalsCarousel products={newArrivals} />
+            <HomeArrivalsCarousel products={newArrivals} locale={locale} />
           </div>
         </section>
       )}
 
       {/* ── 6. INSTAGRAM FEED ──────────────────────────── */}
-      <HomeInstagramFeed posts={instagramPosts} />
+      <HomeInstagramFeed posts={instagramPosts} locale={locale} />
 
       {/* ── 7. LEARN MORE ABOUT US ─────────────────────── */}
-      <HomeAboutTeaser />
+      <HomeAboutTeaser locale={locale} />
 
       {/* ── 8. CATEGORIES ─────────────────────────────── */}
       <section style={{ maxWidth: W, margin: '0 auto', padding: '40px 24px 0' }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>Shop by category</h2>
+        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>{d.home.shopByCategory}</h2>
 
         {/* Mobile + desktop: grid */}
         <div className="home-categories-grid">
-          {promoTiles.map(tile => (
-            <a key={tile.title} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
+          {localizedPromoTiles.map(tile => (
+            <a key={`${tile.href}-${tile.title}`} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
               <div className="category-tile-img" style={{ position: 'relative', aspectRatio: '4/5' }} aria-label={tile.title}>
                 <Image
                   src={tile.image}
@@ -258,7 +281,7 @@ export default async function Home({ searchParams }) {
 
         {/* Tablet: carousel */}
         <div className="home-categories-carousel">
-          <HomeCategoriesCarousel tiles={promoTiles} />
+          <HomeCategoriesCarousel tiles={localizedPromoTiles} />
         </div>
       </section>
 

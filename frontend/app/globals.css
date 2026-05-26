@@ -195,6 +195,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 .nav-logo     { justify-self: start; }
 .nav-center-links { display: flex; gap: 36px; align-items: center; }
 .nav-right-icons  { display: flex; gap: 4px; align-items: center; justify-self: end; }
+.nav-locale-switch { display: flex; }
 .nav-hamburger    { display: none; }
 .nav-admin-btn    { display: block; }
 
@@ -218,6 +219,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   }
   .nav-center-links { display: none; }
   .nav-right-icons  { margin-left: auto; justify-self: unset; }
+  .nav-locale-switch { display: none !important; }
   .nav-admin-btn    { display: none; }
 }
 

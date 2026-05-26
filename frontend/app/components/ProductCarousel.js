@@ -1,8 +1,12 @@
 'use client'
 import { useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
+import { localeFromPathname, localizeProduct, pathForLocale } from '../lib/i18n'
 
 export default function ProductCarousel({ products }) {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
   const trackRef = useRef(null)
 
   function scroll(dir) {
@@ -47,14 +51,15 @@ export default function ProductCarousel({ products }) {
           scrollbarWidth: 'none', msOverflowStyle: 'none',
         }}
       >
-        {products.map((p) => {
+        {products.map((rawProduct) => {
+          const p = localizeProduct(rawProduct, locale)
           const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
           const price = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(p.price || 0))
           const slug = p.slug || p.id
           return (
             <a
               key={p.id}
-              href={`/products/${slug}`}
+              href={pathForLocale(`/products/${slug}`, locale)}
               className="carousel-card"
               style={{
                 flex: '0 0 200px', scrollSnapAlign: 'start',

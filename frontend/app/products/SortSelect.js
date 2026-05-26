@@ -1,6 +1,8 @@
 'use client'
 
-export default function SortSelect({ options, activeSort, hiddenFields }) {
+import { pathForLocale } from '../lib/i18n'
+
+export default function SortSelect({ options, activeSort, hiddenFields, locale = 'en' }) {
   function handleChange(e) {
     const sp = new URLSearchParams()
     for (const [k, v] of Object.entries(hiddenFields)) {
@@ -8,7 +10,7 @@ export default function SortSelect({ options, activeSort, hiddenFields }) {
       else if (v) sp.set(k, v)
     }
     if (e.target.value !== 'default') sp.set('sort', e.target.value)
-    window.location.href = `/products${sp.toString() ? '?' + sp.toString() : ''}`
+    window.location.href = pathForLocale(`/products${sp.toString() ? '?' + sp.toString() : ''}`, locale)
   }
 
   return (

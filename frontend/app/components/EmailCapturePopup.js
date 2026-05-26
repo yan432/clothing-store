@@ -1,14 +1,19 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Mail, Sparkles } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { trackNewsletterPopupClose, trackNewsletterSignup } from '../lib/track'
+import { getMessages, localeFromPathname } from '../lib/i18n'
 
 const SESSION_KEY = 'email-popup-dismissed'
 
 export default function EmailCapturePopup() {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const { user, loading: authLoading } = useAuth()
   const [visible, setVisible] = useState(false)
   const [email, setEmail] = useState('')
@@ -65,7 +70,8 @@ export default function EmailCapturePopup() {
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           source: 'scroll_popup',
-          metadata: { offer: 'discount_10_percent' },
+          preferred_locale: locale,
+          metadata: { offer: 'discount_10_percent', preferred_locale: locale },
         }),
       })
       if (!res.ok) throw new Error()
@@ -109,37 +115,37 @@ export default function EmailCapturePopup() {
       <button
         type="button"
         onClick={closePopup}
-        aria-label="Close popup"
+        aria-label={d.emailPopup.close}
         style={{ position: 'absolute', right: 10, top: 8, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#666' }}
       >×</button>
 
       {done ? (
         <div style={{ textAlign: 'center', padding: '8px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Mail size={32} strokeWidth={1.5} /></div>
-          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Check your email</p>
+          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>{d.emailPopup.doneTitle}</p>
           <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
-            We sent your personal discount code to your inbox.
+            {d.emailPopup.doneText}
           </p>
         </div>
       ) : alreadySubscribed ? (
         <div style={{ textAlign: 'center', padding: '8px 0' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Sparkles size={32} strokeWidth={1.5} /></div>
-          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>Already subscribed</p>
+          <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 6px' }}>{d.emailPopup.subscribedTitle}</p>
           <p style={{ fontSize: 13, color: '#888', margin: 0, lineHeight: 1.5 }}>
-            This email is already on the list — check your inbox for your discount code.
+            {d.emailPopup.subscribedText}
           </p>
         </div>
       ) : (
         <>
-          <p style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>Get 10% off</p>
+          <p style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>{d.emailPopup.title}</p>
           <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666660' }}>
-            Leave your email and get a discount code.
+            {d.emailPopup.text}
           </p>
           <form id="newsletter-popup-form" name="newsletter_popup" onSubmit={submit} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
             <input
               type="email"
               required
-              placeholder="Your email"
+              placeholder={d.emailPopup.placeholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={{ border: '1px solid #ddd', borderRadius: 10, padding: '10px 12px', fontSize: 14, minWidth: 0 }}
@@ -149,7 +155,7 @@ export default function EmailCapturePopup() {
               disabled={loading}
               style={{ border: 'none', background: '#111', color: '#fff', borderRadius: 10, padding: '10px 14px', fontSize: 13, cursor: 'pointer', opacity: loading ? 0.7 : 1, whiteSpace: 'nowrap' }}
             >
-              {loading ? '...' : 'Get code'}
+              {loading ? '...' : d.emailPopup.button}
             </button>
           </form>
         </>

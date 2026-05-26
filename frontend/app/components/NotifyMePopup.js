@@ -4,8 +4,10 @@ import { useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { trackLead } from '../lib/track'
+import { getMessages } from '../lib/i18n'
 
-export default function NotifyMePopup({ product, size, initialEmail = '', onClose }) {
+export default function NotifyMePopup({ product, size, initialEmail = '', locale = 'en', onClose }) {
+  const d = getMessages(locale)
   const [email, setEmail]   = useState(initialEmail)
   const [status, setStatus] = useState('idle') // idle | loading | done | error
 
@@ -21,6 +23,7 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
           email: email.trim().toLowerCase(),
           product_id: product.id,
           size,
+          preferred_locale: locale,
         }),
       })
       if (res.ok) {
@@ -70,9 +73,9 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
         {status === 'done' ? (
           <div style={{ textAlign: 'center', padding: '8px 0' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><CheckCircle2 size={48} strokeWidth={1.5} color="#16a34a" /></div>
-            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>You&apos;re on the list!</p>
+            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>{d.notify.doneTitle}</p>
             <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px', lineHeight: 1.5 }}>
-              We&apos;ll email you as soon as <strong>{product.name}</strong> in size <strong>{size}</strong> is back in stock.
+              {d.notify.doneTextPrefix} <strong>{product.name}</strong> {d.notify.doneTextMiddle} <strong>{size}</strong> {d.notify.doneTextSuffix}
             </p>
             <button
               onClick={onClose}
@@ -82,26 +85,26 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
                 fontSize: 13, fontWeight: 600, cursor: 'pointer',
               }}
             >
-              Close
+              {d.notify.close}
             </button>
           </div>
         ) : (
           <>
             <p style={{ fontSize: 11, fontWeight: 700, color: '#999', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 8px' }}>
-              Notify me when available
+              {d.notify.kicker}
             </p>
             <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>{product.name}</p>
-            <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px' }}>Size: <strong>{size}</strong></p>
+            <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px' }}>{d.notify.size}: <strong>{size}</strong></p>
 
             <p style={{ fontSize: 14, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
-              Leave your email and we&apos;ll notify you the moment this size is back in stock.
+              {d.notify.body}
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <input
                 type="email"
                 required
-                placeholder="Your email"
+                placeholder={d.notify.placeholder}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 autoFocus
@@ -121,11 +124,11 @@ export default function NotifyMePopup({ product, size, initialEmail = '', onClos
                   opacity: status === 'loading' ? 0.7 : 1,
                 }}
               >
-                {status === 'loading' ? 'Saving...' : 'Notify me'}
+                {status === 'loading' ? d.notify.saving : d.notify.button}
               </button>
               {status === 'error' && (
                 <p style={{ fontSize: 13, color: '#b91c1c', margin: 0, textAlign: 'center' }}>
-                  Something went wrong. Please try again.
+                  {d.notify.error}
                 </p>
               )}
             </form>

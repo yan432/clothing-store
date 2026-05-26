@@ -1,12 +1,17 @@
 'use client'
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useCart } from '../context/CartContext'
 import { trackPurchase } from '../lib/track'
 import { getStoredUtm } from '../components/UtmCapture'
 import { getApiUrl } from '../lib/api'
+import { getMessages, localeFromPathname, pathForLocale } from '../lib/i18n'
 
 export default function SuccessPage() {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const { clearCart } = useCart()
 
   useEffect(() => {
@@ -44,10 +49,10 @@ export default function SuccessPage() {
       <div style={{width:64,height:64,borderRadius:'50%',background:'#f0fdf4',border:'2px solid #bbf7d0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,marginBottom:24,color:'#16a34a'}}>
         ✓
       </div>
-      <h1 style={{fontSize:32,fontWeight:600,marginBottom:8}}>Order confirmed!</h1>
-      <p style={{color:'#aaa',marginBottom:32,maxWidth:400}}>Thank you for your purchase. You will receive a confirmation email shortly.</p>
-      <Link href="/products" style={{background:'#000',color:'#fff',padding:'14px 32px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
-        Continue Shopping
+      <h1 style={{fontSize:32,fontWeight:600,marginBottom:8}}>{d.success.title}</h1>
+      <p style={{color:'#aaa',marginBottom:32,maxWidth:400}}>{d.success.text}</p>
+      <Link href={pathForLocale('/products', locale)} style={{background:'#000',color:'#fff',padding:'14px 32px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
+        {d.success.continueShopping}
       </Link>
     </main>
   )

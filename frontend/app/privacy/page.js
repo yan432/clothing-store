@@ -1,7 +1,9 @@
+import { localizedAlternates } from '../lib/seo'
+
 export const metadata = {
   title: 'Privacy Policy — EDM Clothes',
   description: 'How EDM Clothes collects, uses, and protects your personal data.',
-  alternates: { canonical: '/privacy' },
+  alternates: localizedAlternates('/privacy'),
 }
 
 export default function PrivacyPage() {

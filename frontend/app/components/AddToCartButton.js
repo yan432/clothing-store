@@ -5,9 +5,11 @@ import { useMemo, useState } from 'react'
 import { Bell, AlertTriangle } from 'lucide-react'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
 import NotifyMePopup from './NotifyMePopup'
+import { getMessages, pathForLocale } from '../lib/i18n'
 
 // sizeStock: { S: 5, M: 0, L: 1 } — undefined key = not tracked (available)
-export default function AddToCartButton({ product, showSizeSelector = false, sizeStock = {} }) {
+export default function AddToCartButton({ product, showSizeSelector = false, sizeStock = {}, locale = 'en' }) {
+  const d = getMessages(locale)
   const { addToCart } = useCart()
   const { user } = useAuth()
   const [added, setAdded]           = useState(false)
@@ -85,7 +87,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
               padding: '9px 14px 0',
               textTransform: 'uppercase', letterSpacing: '0.08em',
             }}>
-              Size
+              {d.cart.size}
             </p>
             <select
               value={selectedSize}
@@ -105,15 +107,15 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
               }}
             >
               {mustSelectSize && (
-                <option value="" disabled>Select your size</option>
+                <option value="" disabled>{d.cart.selectSize}</option>
               )}
               {sizeOptions.map(size => {
                 const qty     = getSizeQty(size)
                 const soldOut = isSoldOut(size)
                 let label = size
-                if (soldOut)        label = `${size}  ·  sold out`
-                else if (qty === 1) label = `${size}  ·  last 1 left!`
-                else if (qty === 2) label = `${size}  ·  only 2 left`
+                if (soldOut)        label = `${size}  ·  ${d.cart.soldOut}`
+                else if (qty === 1) label = `${size}  ·  ${d.cart.lastOne}`
+                else if (qty === 2) label = `${size}  ·  ${d.cart.onlyTwo}`
                 return (
                   // Not disabled — user can select sold-out sizes to trigger "Notify me"
                   <option key={size} value={size}>
@@ -134,12 +136,12 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           {/* FOMO warning under the select */}
           {showLastOne && (
             <p style={{ margin: 0, fontSize: 12, color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <AlertTriangle size={13} strokeWidth={2} /> Only 1 unit left in size {selectedSize}!
+              <AlertTriangle size={13} strokeWidth={2} /> {d.cart.onlyOneLeft} {selectedSize}!
             </p>
           )}
           {showFewLeft && (
             <p style={{ margin: 0, fontSize: 12, color: '#d97706', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <AlertTriangle size={13} strokeWidth={2} /> Only 2 units left in size {selectedSize}
+              <AlertTriangle size={13} strokeWidth={2} /> {d.cart.onlyTwoLeft} {selectedSize}
             </p>
           )}
         </>
@@ -166,7 +168,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
             gap: 8,
           }}
         >
-          <Bell size={15} strokeWidth={1.8} /> Notify me when available
+          <Bell size={15} strokeWidth={1.8} /> {d.cart.notifyAvailable}
         </button>
       ) : (
         <button
@@ -187,15 +189,15 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           }}
         >
           {isInStock
-            ? maxReached   ? 'Max available quantity reached'
-            : added        ? 'Added to cart!'
-            : mustSelectSize && !selectedSize ? 'Select size first'
-            : 'Add to Cart'
-            : 'Out of stock'}
+            ? maxReached   ? d.cart.maxReached
+            : added        ? d.cart.added
+            : mustSelectSize && !selectedSize ? d.cart.selectSizeFirst
+            : d.cart.addToCart
+            : d.cart.outOfStock}
         </button>
       )}
 
-      <a href="/cart" style={{
+      <a href={pathForLocale('/cart', locale)} style={{
         border: '1px solid #e5e5e3',
         padding: '14px 24px',
         borderRadius: 999,
@@ -204,7 +206,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
         textDecoration: 'none',
         color: 'inherit',
       }}>
-        View Cart
+        {d.cart.viewCart}
       </a>
 
       {/* Notify me popup */}
@@ -213,6 +215,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           product={product}
           size={selectedSize}
           initialEmail={user?.email || ''}
+          locale={locale}
           onClose={() => setNotifyPopup(false)}
         />
       )}

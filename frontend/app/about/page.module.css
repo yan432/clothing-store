@@ -715,7 +715,8 @@
 
 .cityMarqueeTrack {
   display: flex;
-  gap: 64px;
+  align-items: center;
+  gap: 0;
   width: max-content;
   padding: 12px 32px;
   font-size: 17px;
@@ -730,17 +731,21 @@
 
 .cityMarqueeTrack span {
   position: relative;
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
   transition: color 0.2s ease;
 }
 
 .cityMarqueeTrack span::after {
-  content: "·";
-  position: absolute;
-  right: -36px;
-  top: -2px;
-  font-size: 22px;
-  color: #c0c0b8;
+  content: "";
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  border-radius: 999px;
+  margin: 0 32px;
+  background: #c0c0b8;
 }
 
 .cityMarqueeTrack span:hover {
@@ -846,7 +851,8 @@
   .factsStatsBand, .factsCitiesBand { min-height: 260px; }
   .factsInner { padding: 44px 24px; }
   .factsRow { grid-template-columns: 1fr 1fr; }
-  .cityMarqueeTrack { font-size: 15px; gap: 48px; }
+  .cityMarqueeTrack { font-size: 15px; }
+  .cityMarqueeTrack span::after { margin: 0 24px; }
 }
 
 @media (max-width: 560px) {
@@ -865,8 +871,8 @@
   .factsRow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 0; }
   .statN { font-size: 36px; }
   .statL { font-size: 10px; }
-  .cityMarqueeTrack { font-size: 13px; gap: 36px; }
-  .cityMarqueeTrack span::after { right: -22px; }
+  .cityMarqueeTrack { font-size: 13px; }
+  .cityMarqueeTrack span::after { margin: 0 18px; }
   .cities h3 { font-size: 28px; margin: 12px 0 20px; }
   .epilogue { padding: 44px 20px 36px; }
 }

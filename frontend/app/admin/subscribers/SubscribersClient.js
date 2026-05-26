@@ -63,6 +63,7 @@ export default function SubscribersClient() {
               <thead>
                 <tr style={{textAlign:'left',borderBottom:'1px solid #ecece8',background:'#fafaf8'}}>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Email</th>
+                  <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Language</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Source</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Subscribed</th>
                   <th style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>Last seen</th>
@@ -72,6 +73,7 @@ export default function SubscribersClient() {
                 {items.map((row) => (
                   <tr key={row.id} style={{borderBottom:'1px solid #f2f2ef'}}>
                     <td style={{padding:'12px 14px',fontSize:13}}>{row.email}</td>
+                    <td style={{padding:'12px 14px',fontSize:13,color:'#555',textTransform:'uppercase'}}>{row.preferred_locale || 'en'}</td>
                     <td style={{padding:'12px 14px',fontSize:13,color:'#555'}}>{row.first_source || '-'}</td>
                     <td style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>{formatDate(row.first_seen_at)}</td>
                     <td style={{padding:'12px 14px',fontSize:12,color:'#666660'}}>{formatDate(row.last_seen_at)}</td>
@@ -79,7 +81,7 @@ export default function SubscribersClient() {
                 ))}
                 {!items.length && (
                   <tr>
-                    <td colSpan={4} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No active subscribers</td>
+                    <td colSpan={5} style={{padding:'20px',textAlign:'center',fontSize:14,color:'#8b8b84'}}>No active subscribers</td>
                   </tr>
                 )}
               </tbody>

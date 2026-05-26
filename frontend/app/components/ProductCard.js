@@ -1,9 +1,15 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import WishlistButton from './WishlistButton'
+import { getMessages, localeFromPathname, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
 
-export default function ProductCard({ product, colorSiblings = [], imagePriority = false }) {
+export default function ProductCard({ product, colorSiblings = [], imagePriority = false, locale }) {
+  const pathname = usePathname() || '/'
+  const activeLocale = locale || localeFromPathname(pathname)
+  const d = getMessages(activeLocale)
+  const displayProduct = localizeProduct(product, activeLocale)
   const [hovered, setHovered] = useState(false)
   const [secondaryReadyFor, setSecondaryReadyFor] = useState(null)
   const [swatchVariant, setSwatchVariant] = useState(null) // hovered color variant
@@ -11,10 +17,10 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const leaveTimerRef = useRef(null)
 
   // When a swatch is hovered, show that variant's photo
-  const activeProduct = swatchVariant || product
-  const activeSlug = swatchVariant ? (swatchVariant.slug || swatchVariant.id) : (product.slug || product.id)
+  const activeProduct = swatchVariant || displayProduct
+  const activeSlug = swatchVariant ? (swatchVariant.slug || swatchVariant.id) : (displayProduct.slug || displayProduct.id)
 
-  const price = Number(product.price || 0)
+  const price = Number(displayProduct.price || 0)
   const images = Array.isArray(activeProduct.image_urls) && activeProduct.image_urls.length > 0
     ? activeProduct.image_urls
     : (activeProduct.image_url ? [activeProduct.image_url] : [])
@@ -23,28 +29,28 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const secondaryReady = secondaryReadyFor === secondaryImage
 
   const priceLabel = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price)
-  const comparePriceLabel = product.compare_price
-    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(product.compare_price)
+  const comparePriceLabel = displayProduct.compare_price
+    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(displayProduct.compare_price)
     : null
 
-  const availableStock = product.available_stock ?? product.stock ?? 0
-  const description = (product.description || '').trim()
+  const availableStock = displayProduct.available_stock ?? displayProduct.stock ?? 0
+  const description = (displayProduct.description || '').trim()
   const isLowStock = availableStock > 0 && availableStock <= 5
 
-  const tags = Array.isArray(product.tags) ? product.tags : []
-  const discount = Number.isFinite(Number(product.discount_percent))
-    ? Number(product.discount_percent)
-    : (product.compare_price && product.compare_price > product.price
-      ? Math.round((1 - product.price / product.compare_price) * 100)
+  const tags = Array.isArray(displayProduct.tags) ? displayProduct.tags : []
+  const discount = Number.isFinite(Number(displayProduct.discount_percent))
+    ? Number(displayProduct.discount_percent)
+    : (displayProduct.compare_price && displayProduct.compare_price > displayProduct.price
+      ? Math.round((1 - displayProduct.price / displayProduct.compare_price) * 100)
       : null)
   const badgeTags = new Set(tags)
   if (isLowStock) badgeTags.add('low_stock')
 
   const BADGE = {
-    new:       { label: 'New',           bg: '#000',    color: '#fff' },
+    new:       { label: d.products.badges.new, bg: '#000',    color: '#fff' },
     sale:      { label: `-${discount}%`, bg: '#ef4444', color: '#fff' },
-    low_stock: { label: 'Low stock',     bg: '#f59e0b', color: '#fff' },
-    sold_out:  { label: 'Sold out',      bg: '#6b6b6b', color: '#fff' },
+    low_stock: { label: d.products.badges.lowStock, bg: '#f59e0b', color: '#fff' },
+    sold_out:  { label: d.products.badges.soldOut, bg: '#6b6b6b', color: '#fff' },
   }
 
   const visibleTags = ['sold_out', 'sale', 'low_stock', 'new']
@@ -92,7 +98,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}>
-      <a href={'/products/' + activeSlug}
+      <a href={pathForLocale('/products/' + activeSlug, activeLocale)}
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 
@@ -100,7 +106,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
 
           {/* Wishlist heart button */}
           <div style={{position:'absolute',top:10,right:10,zIndex:4}}>
-            <WishlistButton productId={product.id} product={product} />
+            <WishlistButton productId={displayProduct.id} product={displayProduct} />
           </div>
 
           {/* Все бейджи вместе */}
@@ -129,7 +135,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
             }}>
               <Image
                 src={primaryImage}
-                alt={product.name}
+                alt={displayProduct.name}
                 fill
                 sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
                 loading={imagePriority ? 'eager' : 'lazy'}
@@ -157,16 +163,16 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
               )}
             </div>
           ) : (
-            <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#ccc'}}>No image</div>
+            <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#ccc'}}>{d.products.noImage}</div>
           )}
         </div>
 
         <div className="product-card-info">
           <p style={{fontSize:11,color:'#8f8f87',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
-            {product.category || 'Essentials'}
+            {displayProduct.category ? translateCategory(displayProduct.category, activeLocale) : d.products.essentials}
           </p>
           <p style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>
-            {product.name}
+            {displayProduct.name}
           </p>
 
           {/* Цена с зачёркнутой если есть скидка */}
@@ -185,20 +191,20 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
             fontSize:13,color:'#6d6d66',lineHeight:1.5,margin:0,
             display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',
           }}>
-            {description || 'Minimal everyday essential. Tap to view full details.'}
+            {description || d.products.fallbackDescription}
           </p>
         </div>
       </a>
 
       {/* Color swatches — only when there are siblings */}
-      {colorSiblings.length > 0 && product.color_name && (
+      {colorSiblings.length > 0 && displayProduct.color_name && (
         <div className="product-color-swatches" style={{display:'flex',gap:6,flexWrap:'wrap',paddingTop:2}}>
           {/* Current product swatch (always active) */}
           <div
-            title={product.color_name}
+            title={displayProduct.color_name}
             style={{
               width:20,height:20,borderRadius:'50%',
-              background: product.color_hex || '#ccc',
+              background: displayProduct.color_hex || '#ccc',
               border:'2px solid #111',
               boxShadow:'0 0 0 2px #fff inset',
               cursor:'default',flexShrink:0,
@@ -207,7 +213,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
           {colorSiblings.map(v => (
             <a
               key={v.id}
-              href={'/products/' + (v.slug || v.id)}
+              href={pathForLocale('/products/' + (v.slug || v.id), activeLocale)}
               title={v.color_name}
               onMouseEnter={() => setSwatchVariant(v)}
               onMouseLeave={() => setSwatchVariant(null)}

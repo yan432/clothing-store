@@ -4,6 +4,8 @@ import SortSelect from './SortSelect'
 import Link from 'next/link'
 import { getApiUrl } from '../lib/api'
 import { safeJsonLd } from '../lib/safeJsonLd'
+import { getMessages, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
+import { localizedAlternates } from '../lib/seo'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 
@@ -24,10 +26,10 @@ export async function generateMetadata() {
     return {
       title: s.seo_products_title || 'Shop',
       description: s.seo_products_description || 'Browse our full collection.',
-      alternates: { canonical: '/products' },
+      alternates: localizedAlternates('/products'),
     }
   } catch {
-    return { title: 'Shop', description: 'Browse our full collection.', alternates: { canonical: '/products' } }
+    return { title: 'Shop', description: 'Browse our full collection.', alternates: localizedAlternates('/products') }
   }
 }
 
@@ -66,7 +68,8 @@ function buildColorSiblingsMap(products) {
   return map
 }
 
-export default async function ProductsPage({ searchParams }) {
+export default async function ProductsPage({ searchParams, locale = 'en' }) {
+  const d = getMessages(locale)
   const { products, fetchError } = await getProducts()
   const colorSiblingsMap = buildColorSiblingsMap(products)
   const params = await searchParams
@@ -92,21 +95,22 @@ export default async function ProductsPage({ searchParams }) {
     })
 
   const sortOptions = [
-    { id: 'default',    label: 'Default order' },
-    { id: 'popular',    label: 'Popularity' },
-    { id: 'date_desc',  label: 'Newest first' },
-    { id: 'date_asc',   label: 'Oldest first' },
-    { id: 'price_asc',  label: 'Price: low → high' },
-    { id: 'price_desc', label: 'Price: high → low' },
+    { id: 'default',    label: d.products.defaultOrder },
+    { id: 'popular',    label: d.products.popularity },
+    { id: 'date_desc',  label: d.products.newestFirst },
+    { id: 'date_asc',   label: d.products.oldestFirst },
+    { id: 'price_asc',  label: d.products.priceLowHigh },
+    { id: 'price_desc', label: d.products.priceHighLow },
   ]
 
   const filtered = products.filter(p => {
+    const displayProduct = localizeProduct(p, locale)
     const tags = Array.isArray(p.tags) ? p.tags : []
     const matchCat     = !selectedCategory || p.category === selectedCategory
     const matchSpecial = selectedSpecials.length === 0 || selectedSpecials.some(s =>
       s === 'new' ? tags.includes('new') : tags.includes('sale') || (p.compare_price && p.compare_price > p.price)
     )
-    const matchQ = !q || p.name.toLowerCase().includes(q.toLowerCase()) || (p.description || '').toLowerCase().includes(q.toLowerCase())
+    const matchQ = !q || displayProduct.name.toLowerCase().includes(q.toLowerCase()) || (displayProduct.description || '').toLowerCase().includes(q.toLowerCase())
     return matchCat && matchSpecial && matchQ
   })
 
@@ -149,27 +153,29 @@ export default async function ProductsPage({ searchParams }) {
     if (nextCat) sp.append('category', nextCat)
     nextSpecials.forEach(s => sp.append('special', s))
     const qs = sp.toString()
-    return qs ? `/products?${qs}` : '/products'
+    return pathForLocale(qs ? `/products?${qs}` : '/products', locale)
   }
 
-  const activeSortLabel = sortOptions.find(o => o.id === activeSort)?.label || 'Default order'
   const hasActiveFilters = q || selectedCategory || selectedSpecials.length > 0 || activeSort !== 'default'
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    name: 'All Products',
+    name: d.products.allProducts,
     numberOfItems: sorted.length,
-    itemListElement: sorted.map((p, i) => ({
-      '@type': 'ListItem',
-      position: i + 1,
-      item: {
-        '@type': 'Product',
-        name: p.name,
-        image: p.image_url,
-        offers: { '@type': 'Offer', price: p.price, priceCurrency: 'EUR' },
-      },
-    })),
+    itemListElement: sorted.map((p, i) => {
+      const displayProduct = localizeProduct(p, locale)
+      return {
+        '@type': 'ListItem',
+        position: i + 1,
+        item: {
+          '@type': 'Product',
+          name: displayProduct.name,
+          image: p.image_url,
+          offers: { '@type': 'Offer', price: p.price, priceCurrency: 'EUR' },
+        },
+      }
+    }),
   }
 
   return (
@@ -180,16 +186,16 @@ export default async function ProductsPage({ searchParams }) {
 
         {fetchError && (
           <div style={{ marginBottom: 16, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
-            {fetchError}
+            {fetchError ? d.products.catalogUnavailable : ''}
           </div>
         )}
 
         {/* Title row */}
         <div className="products-header-row" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
           <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
-            {selectedCategory || 'All Products'}
+            {selectedCategory ? translateCategory(selectedCategory, locale) : d.products.allProducts}
           </h1>
-          <span style={{ fontSize: 13, color: '#aaa' }}>{sorted.length} items</span>
+          <span style={{ fontSize: 13, color: '#aaa' }}>{sorted.length} {d.products.items}</span>
         </div>
 
         {/* Filter bar: desktop = single row, mobile = search + scrollable pills */}
@@ -204,7 +210,7 @@ export default async function ProductsPage({ searchParams }) {
               <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#bbb', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
-              <input name="q" defaultValue={q} placeholder="Search…"
+              <input name="q" defaultValue={q} placeholder={d.products.search}
                 style={{ padding: '7px 14px 7px 34px', borderRadius: 999, border: '1.5px solid #e0e0de', fontSize: 13, outline: 'none', background: '#fff', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
@@ -218,7 +224,7 @@ export default async function ProductsPage({ searchParams }) {
               background: !selectedCategory ? '#111' : 'transparent',
               color: !selectedCategory ? '#fff' : '#555',
               border: '1.5px solid', borderColor: !selectedCategory ? '#111' : '#e0e0de',
-            }}>All</a>
+            }}>{translateCategory('All', locale)}</a>
 
             {categories.map(cat => {
               const isActive = selectedCategory === cat
@@ -229,7 +235,7 @@ export default async function ProductsPage({ searchParams }) {
                   background: isActive ? '#111' : 'transparent',
                   color: isActive ? '#fff' : '#555',
                   border: '1.5px solid', borderColor: isActive ? '#111' : '#e0e0de',
-                }}>{cat}</a>
+                }}>{translateCategory(cat, locale)}</a>
               )
             })}
 
@@ -245,7 +251,7 @@ export default async function ProductsPage({ searchParams }) {
                   background: isActive ? (special === 'sale' ? '#ef4444' : '#111') : 'transparent',
                   color: isActive ? '#fff' : '#888',
                   border: '1.5px solid', borderColor: isActive ? (special === 'sale' ? '#ef4444' : '#111') : '#e0e0de',
-                }}>{special}</a>
+                }}>{special === 'new' ? d.nav.newArrivals : d.nav.sale}</a>
               )
             })}
           </div>
@@ -253,9 +259,9 @@ export default async function ProductsPage({ searchParams }) {
           {/* Sort + Clear */}
           <div className="products-sort-group">
             {hasActiveFilters && (
-              <Link href="/products" style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>Clear ×</Link>
+              <Link href={pathForLocale('/products', locale)} style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>{d.products.clear}</Link>
             )}
-            <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }} />
+            <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }} locale={locale} />
           </div>
 
         </div>
@@ -263,8 +269,8 @@ export default async function ProductsPage({ searchParams }) {
         {/* Product grid */}
         {sorted.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0', color: '#aaa' }}>
-            <p style={{ fontSize: 18, marginBottom: 8 }}>No products found</p>
-            <Link href="/products" style={{ fontSize: 14, color: '#000', textDecoration: 'underline' }}>Clear filters</Link>
+            <p style={{ fontSize: 18, marginBottom: 8 }}>{d.products.noProducts}</p>
+            <Link href={pathForLocale('/products', locale)} style={{ fontSize: 14, color: '#000', textDecoration: 'underline' }}>{d.products.clearFilters}</Link>
           </div>
         ) : (
           <div className="products-grid">
@@ -274,6 +280,7 @@ export default async function ProductsPage({ searchParams }) {
                 product={product}
                 colorSiblings={colorSiblingsMap[product.id] || []}
                 imagePriority={index < 4}
+                locale={locale}
               />
             ))}
           </div>

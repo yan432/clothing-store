@@ -1,7 +1,9 @@
+import { localizedAlternates } from '../lib/seo'
+
 export const metadata = {
   title: 'Terms & Conditions — EDM Clothes',
   description: 'Terms and conditions for purchasing from EDM Clothes.',
-  alternates: { canonical: '/terms' },
+  alternates: localizedAlternates('/terms'),
 }
 
 export default function TermsPage() {

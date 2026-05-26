@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ProductCard from './ProductCard'
 
-export default function HomeArrivalsCarousel({ products }) {
+export default function HomeArrivalsCarousel({ products, locale = 'en' }) {
   const trackRef = useRef(null)
   const [canPrev, setCanPrev] = useState(false)
   const [canNext, setCanNext] = useState(true)
@@ -69,7 +69,7 @@ export default function HomeArrivalsCarousel({ products }) {
             className="home-arrivals-carousel-item"
             style={{ scrollSnapAlign: 'start', minWidth: 0 }}
           >
-            <ProductCard product={p} />
+            <ProductCard product={p} locale={locale} />
           </div>
         ))}
       </div>

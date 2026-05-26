@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { X } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { useCart } from '../context/CartContext'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
+import { getMessages, localeFromPathname, localizeProduct, pathForLocale } from '../lib/i18n'
 
 function sortSizes(arr) {
   return [...arr].sort((a, b) => {
@@ -21,7 +23,9 @@ function priceLabel(p) {
     .format(Number(p || 0))
 }
 
-function LookItem({ product }) {
+function LookItem({ product, locale }) {
+  const d = getMessages(locale)
+  const displayProduct = localizeProduct(product, locale)
   const { addToCart } = useCart()
   const productTags = product?.tags
   const sizes = useMemo(() => sortSizes(parseSizeOptionsFromTags(productTags)), [productTags])
@@ -29,10 +33,10 @@ function LookItem({ product }) {
   const [added, setAdded] = useState(false)
   const [error, setError] = useState('')
 
-  const sizeStock = product.size_stock || {}
+  const sizeStock = displayProduct.size_stock || {}
   const isSizeAvailable = (s) => sizeStock[s] === undefined ? true : sizeStock[s] > 0
   const allSizesUnavailable = sizes.length > 0 && sizes.every(s => !isSizeAvailable(s))
-  const totalStock = product.available_stock ?? product.stock ?? 0
+  const totalStock = displayProduct.available_stock ?? displayProduct.stock ?? 0
   const isOutOfStock = totalStock <= 0 || allSizesUnavailable
 
   const mustSelectSize = sizes.length > 1
@@ -41,9 +45,9 @@ function LookItem({ product }) {
   function handleAdd() {
     setError('')
     if (!canAdd) return
-    const result = addToCart({ ...product, size: size || sizes[0] || null })
+    const result = addToCart({ ...displayProduct, size: size || sizes[0] || null })
     if (!result?.ok) {
-      setError(result?.reason === 'max_reached' ? 'Max reached' : 'Out of stock')
+      setError(result?.reason === 'max_reached' ? d.cart.maxReachedShort : d.cart.outOfStock)
       return
     }
     setAdded(true)
@@ -58,21 +62,21 @@ function LookItem({ product }) {
       padding: '20px 0',
       borderBottom: '1px solid #eee',
     }}>
-      <a href={`/products/${product.slug || product.id}`}
+      <a href={pathForLocale(`/products/${displayProduct.slug || displayProduct.id}`, locale)}
         style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', borderRadius: 4, overflow: 'hidden' }}>
-        {product.image_url && (
-          <img src={product.image_url} alt={product.name}
+        {displayProduct.image_url && (
+          <img src={displayProduct.image_url} alt={displayProduct.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
       </a>
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
         <div>
-          <a href={`/products/${product.slug || product.id}`}
+          <a href={pathForLocale(`/products/${displayProduct.slug || displayProduct.id}`, locale)}
             style={{ fontSize: 15, fontWeight: 600, color: '#111', textDecoration: 'none', display: 'block', marginBottom: 4 }}>
-            {product.name}
+            {displayProduct.name}
           </a>
           <p style={{ fontSize: 14, color: '#444', margin: 0 }}>
-            {priceLabel(product.price)}
+            {priceLabel(displayProduct.price)}
           </p>
         </div>
 
@@ -89,10 +93,10 @@ function LookItem({ product }) {
                   appearance: 'none', WebkitAppearance: 'none',
                 }}
               >
-                <option value="" disabled>Size</option>
+                <option value="" disabled>{d.cart.size}</option>
                 {sizes.map(s => (
                   <option key={s} value={s} disabled={!isSizeAvailable(s)}>
-                    {isSizeAvailable(s) ? s : `${s} · sold out`}
+                    {isSizeAvailable(s) ? s : `${s} · ${d.cart.soldOut}`}
                   </option>
                 ))}
               </select>
@@ -108,7 +112,7 @@ function LookItem({ product }) {
                 cursor: (isOutOfStock || !canAdd) ? 'not-allowed' : 'pointer',
                 flex: '2 1 auto', whiteSpace: 'nowrap',
               }}>
-              {isOutOfStock ? 'Sold out' : canAdd ? 'Add to cart' : 'Select size'}
+              {isOutOfStock ? d.products.badges.soldOut : canAdd ? d.cart.addToCart : d.cart.selectSizeFirst}
             </button>
           </div>
         )}
@@ -118,7 +122,7 @@ function LookItem({ product }) {
             padding: '10px 16px', fontSize: 12, fontWeight: 700,
             letterSpacing: '0.06em', textTransform: 'uppercase', textAlign: 'center',
           }}>
-            Added to cart
+            {d.cart.added}
           </div>
         )}
         {error && <p style={{ fontSize: 12, color: '#dc2626', margin: 0 }}>{error}</p>}
@@ -128,6 +132,9 @@ function LookItem({ product }) {
 }
 
 export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onClose }) {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
 
@@ -181,9 +188,9 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
           padding: '20px 24px', borderBottom: '1px solid #eee',
         }}>
           <h2 style={{ fontSize: 22, fontWeight: 400, margin: 0 }}>
-            Shop the Look
+            {d.cart.shopLook}
           </h2>
-          <button onClick={onClose} aria-label="Close"
+          <button onClick={onClose} aria-label={d.cart.close}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
             <X size={22} />
           </button>
@@ -192,17 +199,17 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
         {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px' }}>
           {loading ? (
-            <p style={{ textAlign: 'center', color: '#888', padding: 40 }}>Loading...</p>
+            <p style={{ textAlign: 'center', color: '#888', padding: 40 }}>{d.cart.loading}</p>
           ) : products.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#888', padding: 40 }}>No products linked to this look yet.</p>
+            <p style={{ textAlign: 'center', color: '#888', padding: 40 }}>{d.cart.noLinkedProducts}</p>
           ) : (
-            products.map(p => <LookItem key={p.id} product={p} />)
+            products.map(p => <LookItem key={p.id} product={p} locale={locale} />)
           )}
         </div>
 
         {/* Footer */}
         <div style={{ padding: 24, borderTop: '1px solid #eee' }}>
-          <a href={shopHref || '/products'}
+          <a href={pathForLocale(shopHref || '/products', locale)}
             style={{
               display: 'block', textAlign: 'center',
               border: '1.5px solid #111', color: '#111',
@@ -210,7 +217,7 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
               letterSpacing: '0.08em', textTransform: 'uppercase',
               textDecoration: 'none',
             }}>
-            Continue shopping
+            {d.cart.continueShopping}
           </a>
         </div>
       </aside>

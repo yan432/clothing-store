@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import AdminOnly from '../../../components/AdminOnly'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
@@ -15,9 +16,13 @@ export default function NewProductClient({ inTab = false }) {
   const [form, setForm] = useState({
     name: '',
     description: '',
+    description_uk: '',
     material_care: '',
+    material_care_uk: '',
     product_details: '',
+    product_details_uk: '',
     fit_info: '',
+    fit_info_uk: '',
     category: '',
     image_url: '',
     price: '0',
@@ -54,9 +59,13 @@ export default function NewProductClient({ inTab = false }) {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
+        description_uk: form.description_uk.trim() || null,
         material_care: form.material_care.trim(),
+        material_care_uk: form.material_care_uk.trim() || null,
         product_details: form.product_details.trim(),
+        product_details_uk: form.product_details_uk.trim() || null,
         fit_info: form.fit_info.trim(),
+        fit_info_uk: form.fit_info_uk.trim() || null,
         category: form.category.trim(),
         image_url: form.image_url.trim() || null,
         price: nextPrice,
@@ -111,9 +120,13 @@ export default function NewProductClient({ inTab = false }) {
       setForm({
         name: '',
         description: '',
+        description_uk: '',
         material_care: '',
+        material_care_uk: '',
         product_details: '',
+        product_details_uk: '',
         fit_info: '',
+        fit_info_uk: '',
         category: '',
         image_url: '',
         price: '0',
@@ -126,6 +139,7 @@ export default function NewProductClient({ inTab = false }) {
         custom_sizes: '',
         order_mode: 'standard',
         order_priority: '0',
+        volumetric_weight: '',
       })
     } catch (e) {
       setError(e.message || 'Failed to create product')
@@ -169,6 +183,23 @@ export default function NewProductClient({ inTab = false }) {
           <label style={{fontSize:13,color:'#444'}}>Fit
             <textarea value={form.fit_info} onChange={(e) => setField('fit_info', e.target.value)} rows={3} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
           </label>
+
+          <div style={{border:'1px solid #dbeafe',borderRadius:10,padding:14,background:'#eff6ff'}}>
+            <p style={{fontSize:12,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'#2563eb',margin:'0 0 12px'}}>Українська версія</p>
+            <label style={{fontSize:13,color:'#1e3a8a'}}>Опис
+              <textarea value={form.description_uk} onChange={(e) => setField('description_uk', e.target.value)} rows={4} placeholder={form.description} style={{width:'100%',marginTop:6,border:'1px solid #bfdbfe',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+            </label>
+            <label style={{fontSize:13,color:'#1e3a8a',display:'block',marginTop:10}}>Матеріал і догляд
+              <textarea value={form.material_care_uk} onChange={(e) => setField('material_care_uk', e.target.value)} rows={3} placeholder={form.material_care} style={{width:'100%',marginTop:6,border:'1px solid #bfdbfe',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+            </label>
+            <label style={{fontSize:13,color:'#1e3a8a',display:'block',marginTop:10}}>Детальніше про товар
+              <textarea value={form.product_details_uk} onChange={(e) => setField('product_details_uk', e.target.value)} rows={3} placeholder={form.product_details} style={{width:'100%',marginTop:6,border:'1px solid #bfdbfe',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+            </label>
+            <label style={{fontSize:13,color:'#1e3a8a',display:'block',marginTop:10}}>Посадка
+              <textarea value={form.fit_info_uk} onChange={(e) => setField('fit_info_uk', e.target.value)} rows={3} placeholder={form.fit_info} style={{width:'100%',marginTop:6,border:'1px solid #bfdbfe',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
+            </label>
+            <p style={{fontSize:11,color:'#60a5fa',margin:'10px 0 0'}}>Можна заповнити пізніше: українська сторінка покаже англійський fallback.</p>
+          </div>
 
           <label style={{fontSize:13,color:'#444'}}>Category
             <input value={form.category} onChange={(e) => setField('category', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
@@ -314,7 +345,7 @@ export default function NewProductClient({ inTab = false }) {
   return (
     <AdminOnly>
       <main style={{maxWidth:760,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <a href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</a>
+        <Link href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</Link>
         <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Create product</h1>
         <AdminTopBar active="products-new" />
         {inner}

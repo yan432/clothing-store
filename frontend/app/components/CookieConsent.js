@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { getMessages, localeFromPathname } from '../lib/i18n'
 
 const STORAGE_KEY = 'cookie_consent'
 
@@ -72,6 +74,9 @@ function isEEAVisitor() {
 }
 
 export default function CookieConsent() {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
@@ -83,7 +88,8 @@ export default function CookieConsent() {
     }
     // Only show banner to EEA visitors
     if (isEEAVisitor()) {
-      setVisible(true)
+      const timer = setTimeout(() => setVisible(true), 0)
+      return () => clearTimeout(timer)
     } else {
       // Non-EEA: auto-grant tracking and mark it so we don't re-check on every page
       localStorage.setItem(STORAGE_KEY, 'granted')
@@ -117,6 +123,8 @@ export default function CookieConsent() {
       padding:      '28px 32px',
       zIndex:       9999,
       boxShadow:    '0 -8px 24px rgba(0,0,0,0.06)',
+      maxHeight:    '72vh',
+      overflowY:    'auto',
     }}>
       <div style={{
         maxWidth:   1400,
@@ -134,7 +142,7 @@ export default function CookieConsent() {
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
           }}>
-            Cookie consent
+            {d.cookie.title}
           </h2>
           <p style={{
             margin:    0,
@@ -143,11 +151,9 @@ export default function CookieConsent() {
             color:     '#555',
             maxWidth:  720,
           }}>
-            We and our partners use cookies and similar technologies to personalise your
-            experience, show you relevant content, measure ads and run analytics. We only use
-            them with your consent. Read more in our{' '}
+            {d.cookie.body}{' '}
             <a href="/privacy" style={{ color: '#1a1a18', textDecoration: 'underline' }}>
-              Privacy Policy
+              {d.cookie.privacy}
             </a>.
           </p>
         </div>
@@ -172,7 +178,7 @@ export default function CookieConsent() {
               minWidth:      180,
             }}
           >
-            Accept
+            {d.cookie.accept}
           </button>
           <button
             onClick={handleDecline}
@@ -187,7 +193,7 @@ export default function CookieConsent() {
               padding:        0,
             }}
           >
-            Decline
+            {d.cookie.decline}
           </button>
         </div>
       </div>

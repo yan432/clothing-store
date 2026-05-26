@@ -4,9 +4,89 @@ import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackCompleteRegistration, trackNewsletterSignup } from '../lib/track'
+import { normalizeLocale, pathForLocale } from '../lib/i18n'
 
-export default function AuthPage() {
-  const [mode, setMode] = useState('signin')
+const AUTH_COPY = {
+  en: {
+    welcome: 'Welcome back',
+    create: 'Create account',
+    signInSubtitle: 'Sign in to your account',
+    signUpSubtitle: 'Join us today',
+    password: 'Password',
+    confirmPassword: 'Confirm password',
+    show: 'Show',
+    hide: 'Hide',
+    forgot: 'Forgot password?',
+    passwordRequired: 'Password does not meet security requirements',
+    passwordMismatch: 'Passwords do not match',
+    existingUser: 'This email is already registered. Please sign in or reset your password.',
+    verificationSent: 'Verification link sent to your email. Open it to finish creating your account.',
+    enterEmail: 'Enter your email first',
+    resetSent: 'Password reset link sent to your email. If you don\'t see it, check your spam folder.',
+    newVerification: 'New verification link sent.',
+    passwordStrength: 'Password strength',
+    strength: { weak: 'Weak', medium: 'Medium', strong: 'Strong' },
+    checks: {
+      length: 'At least 8 characters',
+      lower: 'At least one lowercase letter',
+      upper: 'At least one uppercase letter',
+      digit: 'At least one number',
+    },
+    newsletter: 'I want to receive newsletter updates',
+    loading: 'Loading...',
+    signIn: 'Sign in',
+    signUp: 'Sign up',
+    sentTo: 'Verification link sent to',
+    openInbox: 'Open the link in your inbox to verify your account. If you do not see it, check your spam folder.',
+    resend: 'Resend link',
+    noAccount: "Don't have an account? ",
+    hasAccount: 'Already have an account? ',
+  },
+  uk: {
+    welcome: 'З поверненням',
+    create: 'Створити акаунт',
+    signInSubtitle: 'Увійди у свій акаунт',
+    signUpSubtitle: 'Приєднуйся до edm.clothes',
+    password: 'Пароль',
+    confirmPassword: 'Підтвердь пароль',
+    show: 'Показати',
+    hide: 'Сховати',
+    forgot: 'Забув пароль?',
+    passwordRequired: 'Пароль не відповідає вимогам безпеки',
+    passwordMismatch: 'Паролі не збігаються',
+    existingUser: 'Цей email вже зареєстрований. Увійди або скинь пароль.',
+    verificationSent: 'Посилання для підтвердження надіслано на email. Відкрий його, щоб завершити створення акаунта.',
+    enterEmail: 'Спочатку введи email',
+    resetSent: 'Посилання для скидання пароля надіслано на email. Якщо не бачиш листа, перевір спам.',
+    newVerification: 'Нове посилання для підтвердження надіслано.',
+    passwordStrength: 'Надійність пароля',
+    strength: { weak: 'Слабкий', medium: 'Середній', strong: 'Надійний' },
+    checks: {
+      length: 'Мінімум 8 символів',
+      lower: 'Хоча б одна мала літера',
+      upper: 'Хоча б одна велика літера',
+      digit: 'Хоча б одна цифра',
+    },
+    newsletter: 'Хочу отримувати новини та пропозиції',
+    loading: 'Завантаження...',
+    signIn: 'Увійти',
+    signUp: 'Зареєструватися',
+    sentTo: 'Посилання для підтвердження надіслано на',
+    openInbox: 'Відкрий посилання у пошті, щоб підтвердити акаунт. Якщо листа немає, перевір спам.',
+    resend: 'Надіслати ще раз',
+    noAccount: 'Ще немає акаунта? ',
+    hasAccount: 'Вже є акаунт? ',
+  },
+}
+
+export default function AuthPage({ locale = 'en' }) {
+  const preferredLocale = normalizeLocale(locale)
+  const t = AUTH_COPY[preferredLocale]
+  const [mode, setMode] = useState(() => {
+    if (typeof window === 'undefined') return 'signin'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('tab') === 'register' ? 'signup' : 'signin'
+  })
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -21,18 +101,18 @@ export default function AuthPage() {
   const router = useRouter()
 
   useEffect(() => {
-    if (user) router.push('/')
-  }, [router, user])
+    if (user) router.push(pathForLocale('/', preferredLocale))
+  }, [preferredLocale, router, user])
 
   const passwordChecks = [
-    { id: 'length', label: 'At least 8 characters', valid: password.length >= 8 },
-    { id: 'lower', label: 'At least one lowercase letter', valid: /[a-z]/.test(password) },
-    { id: 'upper', label: 'At least one uppercase letter', valid: /[A-Z]/.test(password) },
-    { id: 'digit', label: 'At least one number', valid: /\d/.test(password) },
+    { id: 'length', label: t.checks.length, valid: password.length >= 8 },
+    { id: 'lower', label: t.checks.lower, valid: /[a-z]/.test(password) },
+    { id: 'upper', label: t.checks.upper, valid: /[A-Z]/.test(password) },
+    { id: 'digit', label: t.checks.digit, valid: /\d/.test(password) },
   ]
   const isPasswordValid = passwordChecks.every((rule) => rule.valid)
   const passwordScore = passwordChecks.filter((rule) => rule.valid).length
-  const passwordStrength = passwordScore <= 2 ? 'Weak' : passwordScore === 3 ? 'Medium' : 'Strong'
+  const passwordStrength = passwordScore <= 2 ? t.strength.weak : passwordScore === 3 ? t.strength.medium : t.strength.strong
   const passwordStrengthColor = passwordScore <= 2 ? '#b91c1c' : passwordScore === 3 ? '#b45309' : '#15803d'
 
   async function handleSubmit(e) {
@@ -44,21 +124,24 @@ export default function AuthPage() {
     if (mode === 'signin') {
       const { error } = await signIn(email, password)
       if (error) setError(error.message)
-      else router.push('/')
+      else router.push(pathForLocale('/', preferredLocale))
     } else {
       if (!isPasswordValid) {
-        setError('Password does not meet security requirements')
+        setError(t.passwordRequired)
         setLoading(false)
         return
       }
       if (password !== confirmPassword) {
-        setError('Passwords do not match')
+        setError(t.passwordMismatch)
         setLoading(false)
         return
       }
-      const { error, isExistingUser } = await signUp(email, password)
+      const { error, isExistingUser } = await signUp(email, password, {
+        preferredLocale,
+        redirectPath: pathForLocale('/auth', preferredLocale),
+      })
       if (error) setError(error.message)
-      else if (isExistingUser) setError('This email is already registered. Please sign in or reset your password.')
+      else if (isExistingUser) setError(t.existingUser)
       else {
         const normalizedEmail = email.trim().toLowerCase()
         setPendingVerificationEmail(normalizedEmail)
@@ -67,13 +150,18 @@ export default function AuthPage() {
             await fetch(getApiUrl('/email-subscribers/capture'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: normalizedEmail, source: 'signup' }),
+              body: JSON.stringify({
+                email: normalizedEmail,
+                source: 'signup',
+                preferred_locale: preferredLocale,
+                metadata: { preferred_locale: preferredLocale },
+              }),
             })
             trackNewsletterSignup({ source: 'signup' })
           } catch (_) {}
         }
         trackCompleteRegistration({ source: 'account_signup' })
-        setMessage('Verification link sent to your email. Open it to finish creating your account.')
+        setMessage(t.verificationSent)
       }
     }
     setLoading(false)
@@ -84,13 +172,13 @@ export default function AuthPage() {
     setMessage('')
     const targetEmail = email.trim().toLowerCase()
     if (!targetEmail) {
-      setError('Enter your email first')
+      setError(t.enterEmail)
       return
     }
     setLoading(true)
     const { error } = await requestPasswordReset(targetEmail)
     if (error) setError(error.message)
-    else setMessage('Password reset link sent to your email. If you don\'t see it, check your spam folder.')
+    else setMessage(t.resetSent)
     setLoading(false)
   }
 
@@ -101,7 +189,7 @@ export default function AuthPage() {
     setLoading(true)
     const { error } = await resendSignUpVerification(pendingVerificationEmail)
     if (error) setError(error.message)
-    else setMessage('New verification link sent.')
+    else setMessage(t.newVerification)
     setLoading(false)
   }
 
@@ -109,10 +197,10 @@ export default function AuthPage() {
     <main style={{minHeight:'80vh',display:'flex',alignItems:'center',justifyContent:'center',padding:24}}>
       <div style={{width:'100%',maxWidth:400}}>
         <h1 style={{fontSize:28,fontWeight:600,marginBottom:8,textAlign:'center'}}>
-          {mode === 'signin' ? 'Welcome back' : 'Create account'}
+          {mode === 'signin' ? t.welcome : t.create}
         </h1>
         <p style={{textAlign:'center',color:'#aaa',fontSize:14,marginBottom:32}}>
-          {mode === 'signin' ? 'Sign in to your account' : 'Join us today'}
+          {mode === 'signin' ? t.signInSubtitle : t.signUpSubtitle}
         </p>
 
         {error && (
@@ -143,7 +231,7 @@ export default function AuthPage() {
               id="auth-password"
               name="password"
               type={showPassword ? 'text' : 'password'}
-              placeholder="Password"
+              placeholder={t.password}
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -154,7 +242,7 @@ export default function AuthPage() {
               onClick={() => setShowPassword((v) => !v)}
               style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
             >
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? t.hide : t.show}
             </button>
           </div>
           {mode === 'signin' && (
@@ -164,7 +252,7 @@ export default function AuthPage() {
               disabled={loading}
               style={{background:'none',border:'none',padding:0,textAlign:'left',fontSize:13,color:'#555',textDecoration:'underline',cursor:'pointer',width:'fit-content'}}
             >
-              Forgot password?
+              {t.forgot}
             </button>
           )}
           {mode === 'signup' && (
@@ -174,7 +262,7 @@ export default function AuthPage() {
                   id="auth-confirm-password"
                   name="confirm_password"
                   type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="Confirm password"
+                  placeholder={t.confirmPassword}
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
@@ -185,11 +273,11 @@ export default function AuthPage() {
                   onClick={() => setShowConfirmPassword((v) => !v)}
                   style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
                 >
-                  {showConfirmPassword ? 'Hide' : 'Show'}
+                  {showConfirmPassword ? t.hide : t.show}
                 </button>
               </div>
               <div style={{border:'1px solid #ecece8',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#666'}}>
-                <p style={{margin:'0 0 6px',fontWeight:600,color:passwordStrengthColor}}>Password strength: {passwordStrength}</p>
+                <p style={{margin:'0 0 6px',fontWeight:600,color:passwordStrengthColor}}>{t.passwordStrength}: {passwordStrength}</p>
                 {passwordChecks.map((rule) => (
                   <p key={rule.id} style={{margin:'2px 0',color:rule.valid ? '#15803d' : '#666'}}>
                     {rule.valid ? '✓' : '•'} {rule.label}
@@ -202,7 +290,7 @@ export default function AuthPage() {
                   checked={newsletterOptIn}
                   onChange={(e) => setNewsletterOptIn(e.target.checked)}
                 />
-                I want to receive newsletter updates
+                {t.newsletter}
               </label>
             </>
           )}
@@ -210,15 +298,15 @@ export default function AuthPage() {
             type="submit"
             disabled={loading}
             style={{background:'#000',color:'#fff',padding:'14px',borderRadius:999,fontSize:14,fontWeight:500,border:'none',cursor:'pointer',marginTop:4,opacity: loading ? 0.6 : 1}}>
-            {loading ? 'Loading...' : mode === 'signin' ? 'Sign in' : 'Create account'}
+            {loading ? t.loading : mode === 'signin' ? t.signIn : t.create}
           </button>
         </form>
 
         {mode === 'signup' && pendingVerificationEmail && (
           <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:10,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
-            <p style={{margin:0,fontSize:13,color:'#555'}}>Verification link sent to <strong>{pendingVerificationEmail}</strong></p>
+            <p style={{margin:0,fontSize:13,color:'#555'}}>{t.sentTo} <strong>{pendingVerificationEmail}</strong></p>
             <p style={{margin:0,fontSize:13,color:'#777',lineHeight:1.5}}>
-              Open the link in your inbox to verify your account. If you do not see it, check your spam folder.
+              {t.openInbox}
             </p>
             <div style={{display:'flex',gap:8}}>
               <button
@@ -227,14 +315,14 @@ export default function AuthPage() {
                 disabled={loading}
                 style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
               >
-                Resend link
+                {t.resend}
               </button>
             </div>
           </div>
         )}
 
         <p style={{textAlign:'center',fontSize:14,color:'#aaa',marginTop:24}}>
-          {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
+          {mode === 'signin' ? t.noAccount : t.hasAccount}
           <button
             onClick={() => {
               setMode(mode === 'signin' ? 'signup' : 'signin')
@@ -247,7 +335,7 @@ export default function AuthPage() {
               setShowConfirmPassword(false)
             }}
             style={{background:'none',border:'none',color:'#000',fontWeight:500,cursor:'pointer',fontSize:14}}>
-            {mode === 'signin' ? 'Sign up' : 'Sign in'}
+            {mode === 'signin' ? t.signUp : t.signIn}
           </button>
         </p>
       </div>

@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { createClient } from '../lib/supabase'
 import { isAdminEmail } from '../lib/admin'
 import { trackLogin } from '../lib/track'
+import { localeFromPathname, normalizeLocale, pathForLocale } from '../lib/i18n'
 
 const AuthContext = createContext()
 
@@ -36,15 +37,30 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [setAdmCookie, supabase.auth])
 
-  async function signUp(email, password) {
+  useEffect(() => {
+    const rawLocale = user?.user_metadata?.preferred_locale
+    if (!user?.email || !rawLocale) return
+    fetch('/api/user-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferred_locale: normalizeLocale(rawLocale) }),
+    }).catch(() => {})
+  }, [user?.email, user?.user_metadata?.preferred_locale])
+
+  async function signUp(email, password, opts = {}) {
+    const preferredLocale = normalizeLocale(opts.preferredLocale || opts.locale)
+    const redirectPath = opts.redirectPath || pathForLocale('/auth', preferredLocale)
     const emailRedirectTo =
       typeof window !== 'undefined'
-        ? `${window.location.origin}/auth`
+        ? `${window.location.origin}${redirectPath}`
         : undefined
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo },
+      options: {
+        emailRedirectTo,
+        data: { preferred_locale: preferredLocale },
+      },
     })
     const identities = Array.isArray(data?.user?.identities) ? data.user.identities : null
     const isExistingUser = !error && identities !== null && identities.length === 0
@@ -70,9 +86,13 @@ export function AuthProvider({ children }) {
   }
 
   async function requestPasswordReset(email) {
+    const locale =
+      typeof window !== 'undefined'
+        ? localeFromPathname(window.location.pathname)
+        : 'en'
     const redirectTo =
       typeof window !== 'undefined'
-        ? `${window.location.origin}/auth/reset`
+        ? `${window.location.origin}${pathForLocale('/auth/reset', locale)}`
         : undefined
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
     return { error }
@@ -84,9 +104,13 @@ export function AuthProvider({ children }) {
   }
 
   async function updateEmail(nextEmail) {
+    const locale =
+      typeof window !== 'undefined'
+        ? localeFromPathname(window.location.pathname)
+        : 'en'
     const emailRedirectTo =
       typeof window !== 'undefined'
-        ? `${window.location.origin}/account`
+        ? `${window.location.origin}${pathForLocale('/account', locale)}`
         : undefined
     const { error } = await supabase.auth.updateUser({ email: nextEmail }, { emailRedirectTo })
     return { error }

@@ -1,10 +1,11 @@
 'use client'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackCheckoutStarted, trackCompleteRegistration, trackNewsletterSignup, trackShippingInfo } from '../lib/track'
+import { getMessages, pathForLocale } from '../lib/i18n'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -49,13 +50,6 @@ const COUNTRIES = [
   ['VU','Vanuatu'],['VE','Venezuela'],['VN','Vietnam'],['YE','Yemen'],['ZM','Zambia'],['ZW','Zimbabwe'],
 ]
 
-const steps = [
-  { n: 1, label: 'Cart', done: true, href: '/cart' },
-  { n: 2, label: 'Details', active: true },
-  { n: 3, label: 'Confirm', disabled: true },
-  { n: 4, label: 'Payment', disabled: true },
-]
-
 const AUTOCOMPLETE_MAP = {
   firstName: 'given-name',
   lastName:  'family-name',
@@ -93,7 +87,14 @@ function FormField({ placeholder, fieldKey, type = 'text', value, onChange, erro
   )
 }
 
-function StepBar() {
+function StepBar({ locale = 'en' }) {
+  const d = getMessages(locale)
+  const steps = [
+    { n: 1, label: d.checkout.steps[0], done: true, href: pathForLocale('/cart', locale) },
+    { n: 2, label: d.checkout.steps[1], active: true },
+    { n: 3, label: d.checkout.steps[2], disabled: true },
+    { n: 4, label: d.checkout.steps[3], disabled: true },
+  ]
   return (
     <div style={{display:'flex',alignItems:'center',marginBottom:40}}>
       {steps.map((s, i) => (
@@ -213,7 +214,8 @@ function BuyParamEffect({ addToCartRef, addManyToCartRef, setDrawerOpen }) {
   return null
 }
 
-function CheckoutPage() {
+function CheckoutPage({ locale = 'en' }) {
+  const d = getMessages(locale)
   const { cart, total, addToCart, addManyToCart, setDrawerOpen } = useCart()
   const addToCartRef = useRef(addToCart)
   useEffect(() => { addToCartRef.current = addToCart }, [addToCart])
@@ -334,28 +336,33 @@ function CheckoutPage() {
   }, [form.country, cart])
 
   const registerPasswordChecks = [
-    { id: 'length', label: 'At least 8 characters', valid: authPassword.length >= 8 },
-    { id: 'lower', label: 'At least one lowercase letter', valid: /[a-z]/.test(authPassword) },
-    { id: 'upper', label: 'At least one uppercase letter', valid: /[A-Z]/.test(authPassword) },
-    { id: 'digit', label: 'At least one number', valid: /\d/.test(authPassword) },
+    { id: 'length', label: d.checkout.auth.checks[0], valid: authPassword.length >= 8 },
+    { id: 'lower', label: d.checkout.auth.checks[1], valid: /[a-z]/.test(authPassword) },
+    { id: 'upper', label: d.checkout.auth.checks[2], valid: /[A-Z]/.test(authPassword) },
+    { id: 'digit', label: d.checkout.auth.checks[3], valid: /\d/.test(authPassword) },
   ]
   const isRegisterPasswordValid = registerPasswordChecks.every((rule) => rule.valid)
   const registerPasswordScore = registerPasswordChecks.filter((rule) => rule.valid).length
-  const registerPasswordStrength = registerPasswordScore <= 2 ? 'Weak' : registerPasswordScore === 3 ? 'Medium' : 'Strong'
+  const registerPasswordStrength = registerPasswordScore <= 2 ? d.checkout.auth.strengths.weak : registerPasswordScore === 3 ? d.checkout.auth.strengths.medium : d.checkout.auth.strengths.strong
   const registerStrengthColor = registerPasswordScore <= 2 ? '#b91c1c' : registerPasswordScore === 3 ? '#b45309' : '#15803d'
+  const regionNames = useMemo(() => {
+    try { return new Intl.DisplayNames([locale === 'uk' ? 'uk' : 'en'], { type: 'region' }) }
+    catch { return null }
+  }, [locale])
+  const countryName = (code, fallback) => regionNames?.of(code) || fallback
 
   function validate() {
     const e = {}
-    if (!form.firstName.trim()) e.firstName = 'Required'
-    if (!form.lastName.trim()) e.lastName = 'Required'
-    if (!form.email.trim()) e.email = 'Required'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = 'Enter a valid email address'
-    if (!form.phone.trim()) e.phone = 'Required'
-    else if (!/^[+]?[\d][\d\s\-(). ]{5,}$/.test(form.phone.trim())) e.phone = 'Enter a valid phone number (e.g. +49 151 23456789)'
-    if (!form.address.trim()) e.address = 'Required'
-    if (!form.city.trim()) e.city = 'Required'
-    if (!form.zip.trim()) e.zip = 'Required'
-    else if (!/^[A-Z0-9][A-Z0-9\s\-]{2,9}$/i.test(form.zip.trim())) e.zip = 'Enter a valid postal code'
+    if (!form.firstName.trim()) e.firstName = d.checkout.errors.required
+    if (!form.lastName.trim()) e.lastName = d.checkout.errors.required
+    if (!form.email.trim()) e.email = d.checkout.errors.required
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = d.checkout.errors.email
+    if (!form.phone.trim()) e.phone = d.checkout.errors.required
+    else if (!/^[+]?[\d][\d\s\-(). ]{5,}$/.test(form.phone.trim())) e.phone = d.checkout.errors.phone
+    if (!form.address.trim()) e.address = d.checkout.errors.required
+    if (!form.city.trim()) e.city = d.checkout.errors.required
+    if (!form.zip.trim()) e.zip = d.checkout.errors.required
+    else if (!/^[A-Z0-9][A-Z0-9\s\-]{2,9}$/i.test(form.zip.trim())) e.zip = d.checkout.errors.zip
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -371,18 +378,21 @@ function CheckoutPage() {
       else { setForm(f => ({...f, email: authEmail})); setMode('guest') }
     } else {
       if (!isRegisterPasswordValid) {
-        setAuthError('Password does not meet security requirements')
+        setAuthError(d.checkout.auth.passwordRequirements)
         setLoading(false)
         return
       }
       if (authPassword !== authConfirmPassword) {
-        setAuthError('Passwords do not match')
+        setAuthError(d.checkout.auth.passwordMismatch)
         setLoading(false)
         return
       }
-      const { error, isExistingUser } = await signUp(authEmail, authPassword)
+      const { error, isExistingUser } = await signUp(authEmail, authPassword, {
+        preferredLocale: locale,
+        redirectPath: pathForLocale('/auth', locale),
+      })
       if (error) setAuthError(error.message)
-      else if (isExistingUser) setAuthError('This email is already registered. Please sign in or reset your password.')
+      else if (isExistingUser) setAuthError(d.checkout.auth.existingUser)
       else {
         const normalizedEmail = authEmail.trim().toLowerCase()
         setPendingVerifyEmail(normalizedEmail)
@@ -392,13 +402,18 @@ function CheckoutPage() {
             await fetch(getApiUrl('/email-subscribers/capture'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: normalizedEmail, source: 'signup_checkout' }),
+              body: JSON.stringify({
+                email: normalizedEmail,
+                source: 'signup_checkout',
+                preferred_locale: locale,
+                metadata: { preferred_locale: locale },
+              }),
             })
             trackNewsletterSignup({ source: 'signup_checkout' })
           } catch (_) {}
         }
         trackCompleteRegistration({ source: 'checkout_signup' })
-        setAuthMessage('Verification link sent to your email. You can continue checkout while you verify your account.')
+        setAuthMessage(d.checkout.auth.verificationSent)
       }
     }
     setLoading(false)
@@ -409,13 +424,13 @@ function CheckoutPage() {
     setAuthMessage('')
     const targetEmail = authEmail.trim().toLowerCase() || form.email.trim().toLowerCase()
     if (!targetEmail) {
-      setAuthError('Enter your email first')
+      setAuthError(d.checkout.auth.enterEmailFirst)
       return
     }
     setLoading(true)
     const { error } = await requestPasswordReset(targetEmail)
     if (error) setAuthError(error.message)
-    else setAuthMessage('Password reset link sent to your email.')
+    else setAuthMessage(d.checkout.auth.passwordResetSent)
     setLoading(false)
   }
 
@@ -426,14 +441,14 @@ function CheckoutPage() {
     setLoading(true)
     const { error } = await resendSignUpVerification(pendingVerifyEmail)
     if (error) setAuthError(error.message)
-    else setAuthMessage('New verification link sent.')
+    else setAuthMessage(d.checkout.auth.newVerificationSent)
     setLoading(false)
   }
 
   function handleContinue() {
     if (!validate()) return
     if (shippingResult?.zone === 'unavailable') {
-      setErrors(e => ({...e, country: 'We don\'t ship to this country yet'}))
+      setErrors(e => ({...e, country: d.checkout.deliveryUnavailable}))
       return
     }
     sessionStorage.setItem('checkout_details', JSON.stringify(form))
@@ -454,6 +469,7 @@ function CheckoutPage() {
         email:      form.email.trim().toLowerCase(),
         first_name: form.firstName.trim(),
         total_eur:  Math.round(cartTotal * 100) / 100,
+        preferred_locale: locale,
         items: cart.map(item => ({
           id:        item.id,
           name:      item.name,
@@ -466,7 +482,7 @@ function CheckoutPage() {
       }),
     }).catch(() => {})
 
-    router.push('/confirm')
+    router.push(pathForLocale('/confirm', locale))
   }
 
   const inputStyle = (key) => ({
@@ -484,15 +500,19 @@ function CheckoutPage() {
           setDrawerOpen={setDrawerOpen}
         />
       </Suspense>
-      <StepBar />
+      <StepBar locale={locale} />
       <div className="checkout-layout">
         <div>
-          <h1 style={{fontSize:24,fontWeight:600,margin:'0 0 24px'}}>Details</h1>
+          <h1 style={{fontSize:24,fontWeight:600,margin:'0 0 24px'}}>{d.checkout.details}</h1>
 
           {!user && (
             <div style={{marginBottom:28}}>
               <div style={{display:'flex',gap:8,marginBottom:20}}>
-                {[['guest','Continue as guest'],['login','Sign in'],['register','Register']].map(([m,label]) => (
+                {[
+                  ['guest', d.checkout.auth.guest],
+                  ['login', d.checkout.auth.login],
+                  ['register', d.checkout.auth.register],
+                ].map(([m,label]) => (
                   <button key={m} onClick={() => {
                     setMode(m)
                     setAuthError('')
@@ -528,14 +548,14 @@ function CheckoutPage() {
                   <input type="email" placeholder="Email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required
                     style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none'}}/>
                   <div style={{position:'relative'}}>
-                    <input type={showAuthPassword ? 'text' : 'password'} placeholder="Password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} required
+                    <input type={showAuthPassword ? 'text' : 'password'} placeholder={d.checkout.auth.password} value={authPassword} onChange={e => setAuthPassword(e.target.value)} required
                       style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
                     <button
                       type="button"
                       onClick={() => setShowAuthPassword((v) => !v)}
                       style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
                     >
-                      {showAuthPassword ? 'Hide' : 'Show'}
+                      {showAuthPassword ? d.checkout.auth.hide : d.checkout.auth.show}
                     </button>
                   </div>
                   {mode === 'login' && (
@@ -545,24 +565,24 @@ function CheckoutPage() {
                       disabled={loading}
                       style={{background:'none',border:'none',padding:0,textAlign:'left',fontSize:13,color:'#555',textDecoration:'underline',cursor:'pointer',width:'fit-content'}}
                     >
-                      Forgot password?
+                      {d.checkout.auth.forgotPassword}
                     </button>
                   )}
                   {mode === 'register' && (
                     <>
                       <div style={{position:'relative'}}>
-                        <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder="Confirm password" value={authConfirmPassword} onChange={e => setAuthConfirmPassword(e.target.value)} required
+                        <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder={d.checkout.auth.confirmPassword} value={authConfirmPassword} onChange={e => setAuthConfirmPassword(e.target.value)} required
                           style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
                         <button
                           type="button"
                           onClick={() => setShowAuthConfirmPassword((v) => !v)}
                           style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
                         >
-                          {showAuthConfirmPassword ? 'Hide' : 'Show'}
+                          {showAuthConfirmPassword ? d.checkout.auth.hide : d.checkout.auth.show}
                         </button>
                       </div>
                       <div style={{border:'1px solid #ecece8',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#666'}}>
-                        <p style={{margin:'0 0 6px',fontWeight:600,color:registerStrengthColor}}>Password strength: {registerPasswordStrength}</p>
+                        <p style={{margin:'0 0 6px',fontWeight:600,color:registerStrengthColor}}>{d.checkout.auth.passwordStrength}: {registerPasswordStrength}</p>
                         {registerPasswordChecks.map((rule) => (
                           <p key={rule.id} style={{margin:'2px 0',color:rule.valid ? '#15803d' : '#666'}}>
                             {rule.valid ? '✓' : '•'} {rule.label}
@@ -575,20 +595,20 @@ function CheckoutPage() {
                           checked={authNewsletterOptIn}
                           onChange={(e) => setAuthNewsletterOptIn(e.target.checked)}
                         />
-                        I want to receive newsletter updates
+                        {d.checkout.auth.newsletter}
                       </label>
                     </>
                   )}
                   <button type="submit" disabled={loading}
                     style={{background:'#000',color:'#fff',border:'none',padding:'13px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',opacity:loading?0.6:1}}>
-                    {loading ? 'Loading...' : mode === 'login' ? 'Sign in' : 'Create account'}
+                    {loading ? d.checkout.auth.loading : mode === 'login' ? d.checkout.auth.login : d.checkout.auth.createAccount}
                   </button>
                 </form>
               {mode === 'register' && pendingVerifyEmail && (
                 <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:420,marginBottom:24,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
-                  <p style={{margin:0,fontSize:13,color:'#555'}}>Verification link sent to <strong>{pendingVerifyEmail}</strong></p>
+                  <p style={{margin:0,fontSize:13,color:'#555'}}>{d.checkout.auth.verificationLinkSentTo} <strong>{pendingVerifyEmail}</strong></p>
                   <p style={{margin:0,fontSize:13,color:'#777',lineHeight:1.5}}>
-                    Open the link in your inbox to verify your account. You can keep checking out with this email.
+                    {d.checkout.auth.verificationHelp}
                   </p>
                   <div style={{display:'flex',gap:8}}>
                     <button
@@ -597,7 +617,7 @@ function CheckoutPage() {
                       disabled={loading}
                       style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
                     >
-                      Resend link
+                      {d.checkout.auth.resendLink}
                     </button>
                   </div>
                 </div>
@@ -609,16 +629,16 @@ function CheckoutPage() {
 
           {user && (
             <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:12,padding:'10px 16px',fontSize:14,color:'#166534',marginBottom:24}}>
-              Signed in as {user.email}
+              {d.checkout.auth.signedInAs} {user.email}
             </div>
           )}
 
           <form id="checkout-details-form" name="checkout_details" autoComplete="on" onSubmit={e => { e.preventDefault(); handleContinue() }}>
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
-            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Contact</p>
+            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>{d.checkout.contact}</p>
             <div className="checkout-2col">
               <FormField
-                placeholder="First name *"
+                placeholder={d.checkout.firstName}
                 fieldKey="firstName"
                 value={form.firstName}
                 error={errors.firstName}
@@ -626,7 +646,7 @@ function CheckoutPage() {
                 onChange={e => { set('firstName', e.target.value); setErrors(err => ({...err, firstName: null})) }}
               />
               <FormField
-                placeholder="Last name *"
+                placeholder={d.checkout.lastName}
                 fieldKey="lastName"
                 value={form.lastName}
                 error={errors.lastName}
@@ -635,7 +655,7 @@ function CheckoutPage() {
               />
             </div>
             <FormField
-              placeholder="Email *"
+              placeholder={d.checkout.email}
               fieldKey="email"
               type="email"
               value={form.email}
@@ -644,7 +664,7 @@ function CheckoutPage() {
               onChange={e => { set('email', e.target.value); setErrors(err => ({...err, email: null})) }}
             />
             <FormField
-              placeholder="Phone * e.g. +49 151 23456789"
+              placeholder={d.checkout.phone}
               fieldKey="phone"
               type="tel"
               value={form.phone}
@@ -655,9 +675,9 @@ function CheckoutPage() {
           </div>
 
           <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:32}}>
-            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Shipping address</p>
+            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>{d.checkout.shippingAddress}</p>
             <FormField
-              placeholder="Street address *"
+              placeholder={d.checkout.streetAddress}
               fieldKey="address"
               value={form.address}
               error={errors.address}
@@ -666,7 +686,7 @@ function CheckoutPage() {
             />
             <div className="checkout-2col">
               <FormField
-                placeholder="City *"
+                placeholder={d.checkout.city}
                 fieldKey="city"
                 value={form.city}
                 error={errors.city}
@@ -674,7 +694,7 @@ function CheckoutPage() {
                 onChange={e => { set('city', e.target.value); setErrors(err => ({...err, city: null})) }}
               />
               <FormField
-                placeholder="ZIP / Postal code *"
+                placeholder={d.checkout.zip}
                 fieldKey="zip"
                 value={form.zip}
                 error={errors.zip}
@@ -687,7 +707,7 @@ function CheckoutPage() {
                 name="country" autoComplete="country"
                 style={{display:'block',padding:'13px 40px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',height:50,appearance:'none',WebkitAppearance:'none',cursor:'pointer'}}>
                 {COUNTRIES.map(([code, name]) => (
-                  <option key={code} value={code}>{name}</option>
+                  <option key={code} value={code}>{countryName(code, name)}</option>
                 ))}
               </select>
               <svg style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',color:'#888'}} width="12" height="8" viewBox="0 0 12 8" fill="none">
@@ -698,9 +718,9 @@ function CheckoutPage() {
 
           {/* Order note */}
           <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>Order note <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>(optional)</span></p>
+            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>{d.checkout.orderNote} <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>{d.checkout.optional}</span></p>
             <textarea
-              placeholder="E.g. please deliver after 15 Jan, leave with neighbour, gift — no invoice, etc."
+              placeholder={d.checkout.orderNotePlaceholder}
               value={form.comment}
               onChange={e => set('comment', e.target.value)}
               rows={3}
@@ -709,23 +729,23 @@ function CheckoutPage() {
           </div>
 
           <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <button type="button" onClick={() => router.push('/cart')}
+            <button type="button" onClick={() => router.push(pathForLocale('/cart', locale))}
               style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
-              ← Back
+              {d.checkout.back}
             </button>
             <button
               type="submit"
               disabled={cart.length === 0 || shippingResult?.zone === 'unavailable' || shippingLoading}
-              title={shippingResult?.zone === 'unavailable' ? 'Delivery not available to this country' : undefined}
+              title={shippingResult?.zone === 'unavailable' ? d.checkout.deliveryUnavailableTitle : undefined}
               style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 'not-allowed' : 'pointer',opacity: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 0.4 : 1}}>
-              Continue to confirm
+              {d.checkout.continueToConfirm}
             </button>
           </div>
           </form>
         </div>
 
         <div className="checkout-sidebar" style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>
-          <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>Order summary</h2>
+          <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>{d.checkout.orderSummary}</h2>
           <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
             {cart.map(item => (
               <div key={item.id+(item.size||'')} style={{display:'flex',gap:12,alignItems:'center'}}>
@@ -742,20 +762,20 @@ function CheckoutPage() {
           </div>
           <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Subtotal</span><span>€{total.toFixed(2)}</span>
+              <span>{d.checkout.subtotal}</span><span>€{total.toFixed(2)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>Shipping</span>
+              <span>{d.checkout.shipping}</span>
               <span style={{color: shippingResult?.zone === 'unavailable' ? '#ef4444' : '#555'}}>
                 {shippingLoading ? '…' :
-                  shippingResult?.zone === 'unavailable' ? 'Not available' :
+                  shippingResult?.zone === 'unavailable' ? d.checkout.notAvailable :
                   shippingResult?.price_eur != null ? `€${shippingResult.price_eur.toFixed(2)}` :
                   '—'}
               </span>
             </div>
             {shippingResult?.zone === 'unavailable' && (
               <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0',textAlign:'right'}}>
-                We don&apos;t ship to this country yet
+                {d.checkout.deliveryUnavailable}
               </p>
             )}
             {shippingResult?.label && shippingResult?.zone !== 'unavailable' && (
@@ -765,7 +785,7 @@ function CheckoutPage() {
             )}
           </div>
           <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:16,lineHeight:1.5}}>
-            Payment details are entered securely on external checkout.
+            {d.checkout.externalPayment}
           </p>
         </div>
       </div>
@@ -773,10 +793,10 @@ function CheckoutPage() {
   )
 }
 
-export default function CheckoutPageWrapper() {
+export default function CheckoutPageWrapper({ locale = 'en' }) {
   return (
     <Suspense>
-      <CheckoutPage />
+      <CheckoutPage locale={locale} />
     </Suspense>
   )
 }

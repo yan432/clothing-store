@@ -1,14 +1,19 @@
 'use client'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useWishlist } from '../context/WishlistContext'
 import { useAuth } from '../context/AuthContext'
 import { trackAddToWishlist } from '../lib/track'
+import { getMessages, localeFromPathname, pathForLocale } from '../lib/i18n'
 
 /**
  * Heart button for product cards and product pages.
  * Shows a login prompt if the user is not signed in.
  */
 export default function WishlistButton({ productId, product = null, style = {} }) {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const { isWishlisted, toggle } = useWishlist()
   const { user } = useAuth()
   const [showPrompt, setShowPrompt] = useState(false)
@@ -37,7 +42,7 @@ export default function WishlistButton({ productId, product = null, style = {} }
     <>
       <button
         onClick={handleClick}
-        title={active ? 'Remove from wishlist' : 'Save to wishlist'}
+        title={active ? d.wishlistPrompt.remove : d.wishlistPrompt.save}
         style={{
           background: 'rgba(255,255,255,0.9)',
           border: 'none',
@@ -95,14 +100,14 @@ export default function WishlistButton({ productId, product = null, style = {} }
 
             <p style={{ fontSize: 28, margin: '0 0 12px' }}>♡</p>
             <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 8px' }}>
-              Save to your wishlist
+              {d.wishlistPrompt.title}
             </p>
             <p style={{ fontSize: 14, color: '#888', margin: '0 0 24px', lineHeight: 1.5 }}>
-              Sign in or create an account to save items and get notified about sales and restocks.
+              {d.wishlistPrompt.body}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <a
-                href="/account"
+                href={pathForLocale('/auth', locale)}
                 style={{
                   background: '#111', color: '#fff',
                   padding: '13px 24px', borderRadius: 999,
@@ -110,10 +115,10 @@ export default function WishlistButton({ productId, product = null, style = {} }
                   textDecoration: 'none', display: 'block',
                 }}
               >
-                Sign in
+                {d.wishlistPrompt.signIn}
               </a>
               <a
-                href="/account"
+                href={pathForLocale('/auth?tab=register', locale)}
                 style={{
                   background: '#fff', color: '#111',
                   border: '1.5px solid #e5e5e3',
@@ -122,7 +127,7 @@ export default function WishlistButton({ productId, product = null, style = {} }
                   textDecoration: 'none', display: 'block',
                 }}
               >
-                Create account
+                {d.wishlistPrompt.create}
               </a>
             </div>
           </div>

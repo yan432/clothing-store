@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import { getMessages } from '../lib/i18n'
 
-export default function ProductGallery({ product }) {
+export default function ProductGallery({ product, locale = 'en' }) {
+  const d = getMessages(locale)
   const images = useMemo(() => {
     if (Array.isArray(product.image_urls) && product.image_urls.length > 0) {
       return product.image_urls
@@ -75,7 +77,7 @@ export default function ProductGallery({ product }) {
               onClick={() => setActiveIndex(index)}
               onMouseEnter={() => setActiveIndex(index)}
               onFocus={() => setActiveIndex(index)}
-              aria-label={`Show image ${index + 1}`}
+              aria-label={`${d.products.showImage || 'Show image'} ${index + 1}`}
               style={{
                 border:'2px solid ' + (activeIndex === index ? '#111' : 'transparent'),
                 background:'#f5f5f3',
@@ -134,13 +136,13 @@ export default function ProductGallery({ product }) {
             ))}
           </div>
         ) : (
-          'No image'
+          d.products.noImage
         )}
 
         {images.length > 1 && (
           <>
-            <button className="product-gallery-arrow left" onClick={goPrev} aria-label="Previous image">‹</button>
-            <button className="product-gallery-arrow right" onClick={goNext} aria-label="Next image">›</button>
+            <button className="product-gallery-arrow left" onClick={goPrev} aria-label={d.products.previousImage || 'Previous image'}>‹</button>
+            <button className="product-gallery-arrow right" onClick={goNext} aria-label={d.products.nextImage || 'Next image'}>›</button>
             <div className="product-gallery-counter">{activeIndex + 1} / {images.length}</div>
           </>
         )}

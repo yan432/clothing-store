@@ -1,12 +1,14 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useWishlist } from '../context/WishlistContext'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { getApiUrl } from '../lib/api'
 import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
+import { getMessages, localeFromPathname, pathForLocale } from '../lib/i18n'
 
-function WishlistItem({ product, onRemove }) {
+function WishlistItem({ product, onRemove, locale, labels }) {
   const { addToCart, setDrawerOpen: openCart } = useCart()
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
   const sizeStock = product.size_stock || {}
@@ -47,7 +49,7 @@ function WishlistItem({ product, onRemove }) {
   return (
     <div style={{ display: 'flex', gap: 12, padding: '16px 0', borderBottom: '1px solid #f0f0ee' }}>
       {/* Image */}
-      <a href={`/products/${product.slug || product.id}`}
+      <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)}
         style={{ flexShrink: 0, width: 72, height: 90, borderRadius: 8, overflow: 'hidden', background: '#f5f5f3', display: 'block' }}>
         {img
           ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -58,12 +60,12 @@ function WishlistItem({ product, onRemove }) {
       {/* Info */}
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <a href={`/products/${product.slug || product.id}`}
+          <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)}
             style={{ fontSize: 13, fontWeight: 600, color: '#111', textDecoration: 'none', lineHeight: 1.3, flex: 1 }}>
             {product.name}
           </a>
           {/* Remove button */}
-          <button onClick={() => onRemove(product.id)} title="Remove from wishlist"
+          <button onClick={() => onRemove(product.id)} title={labels.remove}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, color: '#bbb', flexShrink: 0, lineHeight: 1 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -116,7 +118,7 @@ function WishlistItem({ product, onRemove }) {
             color: (isOutOfStock || !selectedSizeAvailable) ? '#999' : '#fff',
             transition: 'background 0.2s',
           }}>
-          {added ? '✓ Added' : isOutOfStock ? 'Out of stock' : !selectedSizeAvailable ? 'Out of stock' : 'Add to cart'}
+          {added ? labels.added : isOutOfStock ? labels.outOfStock : !selectedSizeAvailable ? labels.outOfStock : labels.addToCart}
         </button>
       </div>
     </div>
@@ -124,6 +126,9 @@ function WishlistItem({ product, onRemove }) {
 }
 
 export default function WishlistDrawer() {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const { drawerOpen, setDrawerOpen, ids, toggle } = useWishlist()
   const { user } = useAuth()
   const { setDrawerOpen: openCart } = useCart()
@@ -207,7 +212,7 @@ export default function WishlistDrawer() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Wishlist</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{d.wishlistPage.title}</h2>
             {products.length > 0 && (
               <span style={{ fontSize: 12, color: '#aaa' }}>({products.length})</span>
             )}
@@ -220,31 +225,31 @@ export default function WishlistDrawer() {
           {!user ? (
             <div style={{ textAlign: 'center', padding: '60px 24px' }}>
               <p style={{ fontSize: 32, margin: '0 0 12px' }}>♡</p>
-              <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>Sign in to view your wishlist</p>
-              <p style={{ fontSize: 13, color: '#888', margin: '0 0 24px' }}>Save items you love across devices.</p>
-              <a href="/auth" onClick={close}
+              <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>{d.wishlistPage.drawerSignInTitle}</p>
+              <p style={{ fontSize: 13, color: '#888', margin: '0 0 24px' }}>{d.wishlistPage.drawerSignInBody}</p>
+              <a href={pathForLocale('/auth', locale)} onClick={close}
                 style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 999, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
-                Sign in
+                {d.wishlistPage.signIn}
               </a>
             </div>
           ) : loading ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: '#aaa', fontSize: 14 }}>Loading…</div>
+            <div style={{ padding: '40px 0', textAlign: 'center', color: '#aaa', fontSize: 14 }}>{d.wishlistPage.loading}</div>
           ) : products.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 24px' }}>
               <p style={{ fontSize: 32, margin: '0 0 12px' }}>♡</p>
-              <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>Your wishlist is empty</p>
+              <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>{d.wishlistPage.emptyTitle}</p>
               <p style={{ fontSize: 13, color: '#888', margin: '0 0 24px' }}>
-                Tap the heart on any product to save it here.
+                {d.wishlistPage.drawerEmptyBody}
               </p>
-              <a href="/products" onClick={close}
+              <a href={pathForLocale('/products', locale)} onClick={close}
                 style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 999, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
-                Browse products
+                {d.wishlistPage.browseProducts}
               </a>
             </div>
           ) : (
             <div>
               {products.map(p => (
-                <WishlistItem key={p.id} product={p} onRemove={handleRemove} />
+                <WishlistItem key={p.id} product={p} onRemove={handleRemove} locale={locale} labels={d.wishlistPage} />
               ))}
             </div>
           )}
@@ -253,9 +258,9 @@ export default function WishlistDrawer() {
         {/* Footer */}
         {products.length > 0 && (
           <div style={{ borderTop: '1px solid #f0f0ee', padding: '16px 20px', flexShrink: 0 }}>
-            <a href="/account?tab=wishlist" onClick={close}
+            <a href={pathForLocale('/wishlist', locale)} onClick={close}
               style={{ display: 'block', textAlign: 'center', fontSize: 13, color: '#888', textDecoration: 'none' }}>
-              View full wishlist →
+              {d.wishlistPage.drawerViewFull}
             </a>
           </div>
         )}

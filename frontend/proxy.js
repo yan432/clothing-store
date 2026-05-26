@@ -9,8 +9,18 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean)
 
+function nextWithPathHeader(request) {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-edm-pathname', request.nextUrl.pathname)
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
+}
+
 export async function proxy(request) {
-  const { pathname } = request.nextUrl
+  const { pathname, searchParams } = request.nextUrl
 
   // Пропускаем статику и системные пути
   if (
@@ -21,12 +31,21 @@ export async function proxy(request) {
     return NextResponse.next()
   }
 
+  // Googlebot ate the JSON-LD SearchAction template literally and indexed
+  // /products?search={search_term_string} (and ?q=...). Tell it the URL is gone.
+  if (pathname === '/products') {
+    const q = searchParams.get('search') || searchParams.get('q')
+    if (q === '{search_term_string}') {
+      return new NextResponse(null, { status: 410 })
+    }
+  }
+
   // Если maintenance mode выключен — пропускаем всё
-  if (!MAINTENANCE) return NextResponse.next()
+  if (!MAINTENANCE) return nextWithPathHeader(request)
 
   // Страница /maintenance и /auth всегда доступны
   if (pathname.startsWith('/maintenance') || pathname.startsWith('/auth')) {
-    return NextResponse.next()
+    return nextWithPathHeader(request)
   }
 
   // Проверяем Supabase сессию на сервере
@@ -52,7 +71,7 @@ export async function proxy(request) {
     (user.app_metadata?.role === 'admin' ||
       ADMIN_EMAILS.includes(user.email?.toLowerCase()))
 
-  if (isAdmin) return NextResponse.next()
+  if (isAdmin) return nextWithPathHeader(request)
 
   // Не админ → на страницу обслуживания
   return NextResponse.redirect(new URL('/maintenance', request.url))

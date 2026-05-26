@@ -77,6 +77,14 @@ def checkout_frontend_base(payload_url: Optional[str], request: Optional[Request
     return "https://www.edmclothes.net"
 
 
+def checkout_frontend_url(payload_url: Optional[str], request: Optional[Request], fallback_path: str) -> str:
+    raw = str(payload_url or "").strip()
+    origin = _frontend_origin_from_url(raw)
+    if origin and _is_allowed_frontend_origin(origin):
+        return raw
+    return f"{checkout_frontend_base(payload_url, request)}{fallback_path}"
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -237,9 +245,13 @@ ZOHO_SMTP_PASSWORD = os.getenv("ZOHO_SMTP_PASSWORD", "")
 class Product(BaseModel):
     name: str
     description: Optional[str] = None
+    description_uk: Optional[str] = None
     material_care: Optional[str] = None
+    material_care_uk: Optional[str] = None
     product_details: Optional[str] = None
+    product_details_uk: Optional[str] = None
     fit_info: Optional[str] = None
+    fit_info_uk: Optional[str] = None
     price: float
     compare_price: Optional[float] = None
     image_url: Optional[str] = None
@@ -260,9 +272,13 @@ class Product(BaseModel):
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    description_uk: Optional[str] = None
     material_care: Optional[str] = None
+    material_care_uk: Optional[str] = None
     product_details: Optional[str] = None
+    product_details_uk: Optional[str] = None
     fit_info: Optional[str] = None
+    fit_info_uk: Optional[str] = None
     price: Optional[float] = None
     compare_price: Optional[float] = None
     image_url: Optional[str] = None
@@ -309,6 +325,8 @@ class CheckoutRequest(BaseModel):
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
     meta: Optional[dict] = None  # Meta Pixel/CAPI attribution: fbp, fbc, consent
+    preferred_locale: Optional[str] = None
+    locale: Optional[str] = None
 
 
 class PromoCodeCreate(BaseModel):
@@ -343,6 +361,8 @@ class SubscriberCaptureRequest(BaseModel):
     email: str
     source: Optional[str] = "unknown"
     metadata: Optional[dict] = None
+    preferred_locale: Optional[str] = None
+    locale: Optional[str] = None
 
 
 def now_iso() -> str:
@@ -361,6 +381,29 @@ def stripe_obj_to_dict(obj: Any) -> dict:
 
 def as_dict(value: Any) -> dict:
     return value if isinstance(value, dict) else {}
+
+
+def normalize_preferred_locale(value: Any) -> Optional[str]:
+    if value is None:
+        return None
+    raw = str(value).strip().lower().replace("_", "-")
+    if raw in {"uk", "ua", "uk-ua", "ua-ua"}:
+        return "uk"
+    if raw in {"en", "en-us", "en-gb"}:
+        return "en"
+    return None
+
+
+def locale_from_metadata(metadata: Optional[dict]) -> Optional[str]:
+    data = as_dict(metadata)
+    return normalize_preferred_locale(data.get("preferred_locale")) or normalize_preferred_locale(data.get("locale"))
+
+
+def with_preferred_locale_metadata(metadata: Optional[dict], preferred_locale: Optional[str]) -> dict:
+    data = dict(as_dict(metadata))
+    if preferred_locale:
+        data["preferred_locale"] = preferred_locale
+    return data
 
 
 def to_float(value: Any, default: float = 0.0) -> float:
@@ -454,6 +497,29 @@ def normalize_promo_code(value: Optional[str]) -> str:
 
 def normalize_email(value: Optional[str]) -> str:
     return str(value or "").strip().lower()
+
+
+def preferred_locale_for_email(email: str, default: str = "en") -> str:
+    normalized = normalize_email(email)
+    fallback = normalize_preferred_locale(default) or "en"
+    if not normalized:
+        return fallback
+    for table in ("user_profiles", "email_subscribers"):
+        try:
+            result = (
+                supabase.table(table)
+                .select("preferred_locale")
+                .eq("email", normalized)
+                .limit(1)
+                .execute()
+            )
+            row = result.data[0] if result.data else None
+            locale = normalize_preferred_locale(row.get("preferred_locale") if row else None)
+            if locale:
+                return locale
+        except Exception:
+            pass
+    return fallback
 
 
 def normalize_meta_graph_api_version(value: str) -> str:
@@ -749,14 +815,22 @@ def send_tiktok_purchase_event(order: dict, event_dict: Optional[dict] = None) -
         return {"ok": False, "error": type(exc).__name__}
 
 
-def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Optional[dict] = None) -> None:
+def capture_subscriber_email(
+    raw_email: Optional[str],
+    source: str,
+    metadata: Optional[dict] = None,
+    preferred_locale: Optional[str] = None,
+) -> None:
     email = normalize_email(raw_email)
     if not email:
         return
     source_name = str(source or "unknown").strip() or "unknown"
+    locale = normalize_preferred_locale(preferred_locale) or locale_from_metadata(metadata)
+    metadata_payload = with_preferred_locale_metadata(metadata, locale)
     existing = supabase.table("email_subscribers").select("*").eq("email", email).limit(1).execute()
     row = existing.data[0] if existing.data else None
     now = now_iso()
+    locale_payload = {"preferred_locale": locale} if locale else {}
     if not row:
         supabase.table("email_subscribers").insert({
             "email": email,
@@ -767,16 +841,17 @@ def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Op
             "last_seen_at": now,
             "events_count": 1,
             "is_active": True,
-            "metadata_json": metadata or {},
+            "metadata_json": metadata_payload,
             "created_at": now,
             "updated_at": now,
+            **locale_payload,
         }).execute()
-        sync_to_klaviyo(email, source_name)
+        sync_to_klaviyo(email, source_name, preferred_locale=locale or "")
         return
     source_counts = as_dict(row.get("source_counts"))
     source_counts[source_name] = int(source_counts.get(source_name) or 0) + 1
     merged_metadata = as_dict(row.get("metadata_json"))
-    merged_metadata.update(metadata or {})
+    merged_metadata.update(metadata_payload)
     supabase.table("email_subscribers").update({
         "last_source": source_name,
         "source_counts": source_counts,
@@ -785,11 +860,18 @@ def capture_subscriber_email(raw_email: Optional[str], source: str, metadata: Op
         "is_active": True,
         "metadata_json": merged_metadata,
         "updated_at": now,
+        **locale_payload,
     }).eq("id", row["id"]).execute()
-    sync_to_klaviyo(email, source_name)
+    sync_to_klaviyo(email, source_name, preferred_locale=locale or "")
 
 
-def sync_to_klaviyo(email: str, source: str = "", first_name: str = "", last_name: str = "") -> None:
+def sync_to_klaviyo(
+    email: str,
+    source: str = "",
+    first_name: str = "",
+    last_name: str = "",
+    preferred_locale: str = "",
+) -> None:
     """Subscribe email to Klaviyo list as SUBSCRIBED (real opt-in).
     Uses subscription bulk-create job which sets proper marketing consent.
     Auto-pulls name from user_profiles if not supplied."""
@@ -798,12 +880,14 @@ def sync_to_klaviyo(email: str, source: str = "", first_name: str = "", last_nam
     try:
         import requests as req
         # Auto-lookup name from user_profiles if caller didn't pass it
+        locale = normalize_preferred_locale(preferred_locale)
         if not first_name and not last_name:
             try:
-                p = supabase.table("user_profiles").select("first_name,last_name").eq("email", email).limit(1).execute()
+                p = supabase.table("user_profiles").select("first_name,last_name,preferred_locale").eq("email", email).limit(1).execute()
                 if p.data:
                     first_name = (p.data[0].get("first_name") or "").strip()
                     last_name  = (p.data[0].get("last_name")  or "").strip()
+                    locale = locale or normalize_preferred_locale(p.data[0].get("preferred_locale"))
             except Exception:
                 pass
         headers = {
@@ -811,14 +895,12 @@ def sync_to_klaviyo(email: str, source: str = "", first_name: str = "", last_nam
             "revision": "2024-10-15",
             "Content-Type": "application/json",
         }
-        now = datetime.now(timezone.utc).isoformat()
         profile_attrs = {
             "email": email,
             "subscriptions": {
                 "email": {
                     "marketing": {
                         "consent": "SUBSCRIBED",
-                        "consented_at": now,
                     }
                 }
             },
@@ -845,7 +927,7 @@ def sync_to_klaviyo(email: str, source: str = "", first_name: str = "", last_nam
         else:
             print(f"Klaviyo subscribe error ({res.status_code}): {res.text[:200]}")
         # update name separately if provided
-        if first_name or last_name:
+        if first_name or last_name or locale:
             search = req.get(
                 "https://a.klaviyo.com/api/profiles/",
                 headers=headers,
@@ -858,6 +940,11 @@ def sync_to_klaviyo(email: str, source: str = "", first_name: str = "", last_nam
                 attrs = {}
                 if first_name: attrs["first_name"] = first_name
                 if last_name:  attrs["last_name"]  = last_name
+                if locale:
+                    attrs["properties"] = {
+                        "preferred_locale": locale,
+                        "language": locale,
+                    }
                 req.patch(
                     f"https://a.klaviyo.com/api/profiles/{pid}/",
                     headers=headers,
@@ -1141,15 +1228,18 @@ def send_email_sync_debug(to_email: str, subject: str, html: str, text: str) -> 
     return result
 
 
-def order_items_html(items: list[dict]) -> str:
+def order_items_html(items: list[dict], locale: str = "en") -> str:
+    is_uk = normalize_preferred_locale(locale) == "uk"
+    item_fallback = "Товар" if is_uk else "Item"
+    size_label = "розмір" if is_uk else "size"
     lines = []
     for item in items:
-        name = _html.escape(str(item.get("name") or "Item"))
+        name = _html.escape(str(item.get("name") or item_fallback))
         qty = max(1, int(item.get("quantity") or 1))
         size = _html.escape(str(item.get("size") or "").strip())
         price = to_float(item.get("price"))
         line_total = price * qty
-        size_suffix = f" (size: {size})" if size else ""
+        size_suffix = f" ({size_label}: {size})" if size else ""
         lines.append(
             f"<tr><td style='padding:6px 0'>{name}{size_suffix}</td>"
             f"<td style='padding:6px 0;text-align:center'>{qty}</td>"
@@ -1158,15 +1248,18 @@ def order_items_html(items: list[dict]) -> str:
     return "".join(lines)
 
 
-def order_items_text(items: list[dict]) -> str:
+def order_items_text(items: list[dict], locale: str = "en") -> str:
+    is_uk = normalize_preferred_locale(locale) == "uk"
+    item_fallback = "Товар" if is_uk else "Item"
+    size_label = "розмір" if is_uk else "size"
     text_lines = []
     for item in items:
-        name = str(item.get("name") or "Item")
+        name = str(item.get("name") or item_fallback)
         qty = int(item.get("quantity") or 0)
         size = str(item.get("size") or "").strip()
         price = to_float(item.get("price"))
         line_total = price * qty
-        size_suffix = f" (size: {size})" if size else ""
+        size_suffix = f" ({size_label}: {size})" if size else ""
         text_lines.append(f"- {name}{size_suffix} x{qty}: {money_eur(line_total)}")
     return "\n".join(text_lines)
 
@@ -1188,6 +1281,25 @@ def send_order_confirmation_emails(order: dict) -> None:
         str(order.get("shipping_postal_code") or "").strip(),
         str(order.get("shipping_country") or "").strip(),
     ]).strip(", ").strip())
+    preferred_locale = (
+        normalize_preferred_locale(order.get("preferred_locale"))
+        or locale_from_metadata(metadata)
+        or "en"
+    )
+    is_uk = preferred_locale == "uk"
+    labels = {
+        "discount": "Знижка" if is_uk else "Discount",
+        "order": "Замовлення" if is_uk else "Order",
+        "item": "Товар" if is_uk else "Item",
+        "qty": "К-сть" if is_uk else "Qty",
+        "price": "Ціна" if is_uk else "Price",
+        "subtotal": "Сума" if is_uk else "Subtotal",
+        "shipping": "Доставка" if is_uk else "Shipping",
+        "total": "Разом" if is_uk else "Total",
+        "shipping_address": "Адреса доставки" if is_uk else "Shipping address",
+        "not_provided": "Не вказано" if is_uk else "Not provided",
+        "ref": "Код" if is_uk else "Ref",
+    }
 
     # Загружаем настройки из БД
     cfg = get_settings_bulk([
@@ -1195,17 +1307,19 @@ def send_order_confirmation_emails(order: dict) -> None:
         "email_order_message", "email_order_footer", "email_admin_subject",
     ])
 
-    items_html = order_items_html(items)
-    items_text = order_items_text(items)
+    items_html = order_items_html(items, preferred_locale)
+    items_text = order_items_text(items, preferred_locale)
+    admin_items_html = order_items_html(items, "en")
+    admin_items_text = order_items_text(items, "en")
     promo_row_html = ""
     promo_row_text = ""
     if promo_discount > 0:
-        promo_row_html = f"<tr><td style='padding:4px 0'>Discount</td><td></td><td style='text-align:right'>-{money_eur(promo_discount)}</td></tr>"
-        promo_row_text = f"Discount: -{money_eur(promo_discount)}\n"
+        promo_row_html = f"<tr><td style='padding:4px 0'>{labels['discount']}</td><td></td><td style='text-align:right'>-{money_eur(promo_discount)}</td></tr>"
+        promo_row_text = f"{labels['discount']}: -{money_eur(promo_discount)}\n"
 
-    subject_tpl = cfg.get("email_order_subject") or "Order confirmation #{order_id} — EDM Clothes"
-    greeting_tpl = cfg.get("email_order_greeting") or "Thanks for your order, {customer_name}!"
-    message_tpl = cfg.get("email_order_message") or "We received your order and started processing it."
+    subject_tpl = "Підтвердження замовлення #{order_id} — EDM Clothes" if is_uk else (cfg.get("email_order_subject") or "Order confirmation #{order_id} — EDM Clothes")
+    greeting_tpl = "Дякуємо за замовлення, {customer_name}!" if is_uk else (cfg.get("email_order_greeting") or "Thanks for your order, {customer_name}!")
+    message_tpl = "Ми отримали твоє замовлення і вже почали його обробляти." if is_uk else (cfg.get("email_order_message") or "We received your order and started processing it.")
     footer_tpl = cfg.get("email_order_footer") or "EDM Clothes"
 
     def fmt(s):
@@ -1220,38 +1334,38 @@ def send_order_confirmation_emails(order: dict) -> None:
       <div style="font-family:Arial,sans-serif;color:#111;max-width:560px;margin:0 auto">
         <h2 style="margin-bottom:4px">{greeting}</h2>
         <p style="color:#555">{message}</p>
-        <p><strong>Order #{order_id}</strong> &nbsp;·&nbsp; Ref: {order_ref or '-'}</p>
+        <p><strong>{labels['order']} #{order_id}</strong> &nbsp;·&nbsp; {labels['ref']}: {order_ref or '-'}</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0">
           <thead><tr style="border-bottom:2px solid #eee">
-            <th align="left" style="padding:6px 0">Item</th>
-            <th align="center" style="padding:6px 0">Qty</th>
-            <th align="right" style="padding:6px 0">Price</th>
+            <th align="left" style="padding:6px 0">{labels['item']}</th>
+            <th align="center" style="padding:6px 0">{labels['qty']}</th>
+            <th align="right" style="padding:6px 0">{labels['price']}</th>
           </tr></thead>
           <tbody>{items_html}</tbody>
         </table>
         <table style="width:100%;margin-bottom:16px">
-          <tr><td style="color:#888">Subtotal</td><td align="right">{money_eur(subtotal)}</td></tr>
+          <tr><td style="color:#888">{labels['subtotal']}</td><td align="right">{money_eur(subtotal)}</td></tr>
           {promo_row_html}
-          <tr><td style="color:#888">Shipping</td><td align="right">{money_eur(shipping)}</td></tr>
+          <tr><td style="color:#888">{labels['shipping']}</td><td align="right">{money_eur(shipping)}</td></tr>
           <tr style="font-weight:700;font-size:16px">
-            <td style="padding-top:8px">Total</td>
+            <td style="padding-top:8px">{labels['total']}</td>
             <td align="right" style="padding-top:8px">{money_eur(total)}</td>
           </tr>
         </table>
-        <p><strong>Shipping address:</strong><br/>{shipping_address or 'Not provided'}</p>
+        <p><strong>{labels['shipping_address']}:</strong><br/>{shipping_address or labels['not_provided']}</p>
         <hr style="margin:24px 0;border:none;border-top:1px solid #eee"/>
         <p style="font-size:12px;color:#aaa">{footer}</p>
       </div>
     """
     customer_text = (
         f"{greeting}\n\n{message}\n\n"
-        f"Order #{order_id} · Ref: {order_ref or '-'}\n\n"
+        f"{labels['order']} #{order_id} · {labels['ref']}: {order_ref or '-'}\n\n"
         f"{items_text}\n\n"
-        f"Subtotal: {money_eur(subtotal)}\n"
+        f"{labels['subtotal']}: {money_eur(subtotal)}\n"
         f"{promo_row_text}"
-        f"Shipping: {money_eur(shipping)}\n"
-        f"Total: {money_eur(total)}\n\n"
-        f"Shipping address: {shipping_address or 'Not provided'}\n\n"
+        f"{labels['shipping']}: {money_eur(shipping)}\n"
+        f"{labels['total']}: {money_eur(total)}\n\n"
+        f"{labels['shipping_address']}: {shipping_address or labels['not_provided']}\n\n"
         f"{footer}"
     )
     send_email(customer_email, customer_subject, customer_html, customer_text)
@@ -1293,7 +1407,7 @@ def send_order_confirmation_emails(order: dict) -> None:
             {carrier_row_html}
             <table style="width:100%;border-collapse:collapse">
               <thead><tr><th align="left">Item</th><th align="center">Qty</th><th align="right">Total</th></tr></thead>
-              <tbody>{items_html}</tbody>
+              <tbody>{admin_items_html}</tbody>
             </table>
             <hr/>
             <p>Subtotal: {money_eur(subtotal)} &nbsp;·&nbsp; Shipping: {money_eur(shipping)} &nbsp;·&nbsp; <strong>Total: {money_eur(total)}</strong></p>
@@ -1303,7 +1417,7 @@ def send_order_confirmation_emails(order: dict) -> None:
             f"New order #{order_id}\nCustomer: {customer_email}\n"
             f"Shipping address: {shipping_address or '-'}\n"
             f"{carrier_row_text}\n\n"
-            f"{items_text}\n\n"
+            f"{admin_items_text}\n\n"
             f"Subtotal: {money_eur(subtotal)} | Shipping: {money_eur(shipping)} | Total: {money_eur(total)}"
         )
         send_email(admin_target, admin_subject, admin_html, admin_text)
@@ -1876,7 +1990,11 @@ def duplicate_product(product_id: int):
     # Using a denylist on select("*") is fragile because Supabase may return
     # generated/computed columns that are rejected on INSERT.
     copy_fields = [
-        "description", "material_care", "product_details", "fit_info", "faq",
+        "description", "description_uk",
+        "material_care", "material_care_uk",
+        "product_details", "product_details_uk",
+        "fit_info", "fit_info_uk",
+        "faq",
         "price", "compare_price", "category",
         "tags", "color_name", "color_hex", "color_group_id",
         "volumetric_weight",
@@ -2050,15 +2168,37 @@ def join_waitlist(payload: dict = Body(...)):
     email      = normalize_email(str(payload.get("email") or ""))
     product_id = int(payload.get("product_id") or 0)
     size       = str(payload.get("size") or "").strip()
+    preferred_locale = (
+        normalize_preferred_locale(payload.get("preferred_locale"))
+        or normalize_preferred_locale(payload.get("locale"))
+        or "en"
+    )
     if not email or not product_id or not size:
         raise HTTPException(status_code=400, detail="email, product_id and size are required")
 
-    # Upsert — ignore duplicate (already on waitlist)
-    supabase.table("waitlist").upsert(
-        {"email": email, "product_id": product_id, "size": size, "status": "pending"},
-        on_conflict="email,product_id,size",
-        ignore_duplicates=True,
-    ).execute()
+    waitlist_payload = {
+        "email": email,
+        "product_id": product_id,
+        "size": size,
+        "status": "pending",
+        "preferred_locale": preferred_locale,
+    }
+    try:
+        # Upsert — ignore duplicate (already on waitlist)
+        supabase.table("waitlist").upsert(
+            waitlist_payload,
+            on_conflict="email,product_id,size",
+            ignore_duplicates=True,
+        ).execute()
+    except Exception as exc:
+        if "preferred_locale" not in str(exc):
+            raise
+        waitlist_payload.pop("preferred_locale", None)
+        supabase.table("waitlist").upsert(
+            waitlist_payload,
+            on_conflict="email,product_id,size",
+            ignore_duplicates=True,
+        ).execute()
     return {"ok": True}
 
 
@@ -2078,15 +2218,28 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
     try:
         entries = (
             supabase.table("waitlist")
-            .select("id,email")
+            .select("id,email,preferred_locale")
             .eq("product_id", product_id)
             .eq("size", size)
             .eq("status", "pending")
             .execute()
             .data or []
         )
-    except Exception:
-        return
+    except Exception as exc:
+        if "preferred_locale" not in str(exc):
+            return
+        try:
+            entries = (
+                supabase.table("waitlist")
+                .select("id,email")
+                .eq("product_id", product_id)
+                .eq("size", size)
+                .eq("status", "pending")
+                .execute()
+                .data or []
+            )
+        except Exception:
+            return
     if not entries:
         return
 
@@ -2103,13 +2256,25 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
     image_urls   = product.get("image_urls") or []
     image_url    = (image_urls[0] if image_urls else None) or product.get("image_url") or ""
     site_url     = get_setting("site_url", "https://edmclothes.net")
-    shop_url     = f"{site_url}/products/{product_slug}"
 
     ids_to_fulfill = []
     for entry in entries:
         email = entry["email"]
+        locale = normalize_preferred_locale(entry.get("preferred_locale")) or preferred_locale_for_email(email)
+        is_uk = locale == "uk"
+        shop_url = f"{site_url}/ua/products/{product_slug}" if is_uk else f"{site_url}/products/{product_slug}"
+        html_lang = "uk" if is_uk else "en"
+        kicker = "Знову в наявності" if is_uk else "Back in stock"
+        body = (
+            f"Гарна новина — <strong>розмір {size}</strong> знову в наявності. Забирай, поки він не розпродався."
+            if is_uk
+            else f"Good news — <strong>size {size}</strong> is back in stock! Grab yours before it sells out again."
+        )
+        cta = f"До магазину — розмір {size}" if is_uk else f"Shop now — Size {size}"
+        requested = "Ти залишив(-ла) запит на це сповіщення." if is_uk else "You requested this notification."
+        unsub_label = "Відписатися" if is_uk else "Unsubscribe"
         html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html_lang}">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
 <body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
@@ -2120,15 +2285,15 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
         </td></tr>
         {'<tr><td style="padding:0"><img src="' + image_url + '" width="480" style="display:block;width:100%;max-height:320px;object-fit:cover;" alt="' + product_name + '"/></td></tr>' if image_url else ''}
         <tr><td style="padding:36px 40px 28px;">
-          <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">Back in stock</p>
+          <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">{kicker}</p>
           <h1 style="margin:0 0 10px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">{product_name}</h1>
           <p style="margin:0 0 24px;font-size:15px;color:#6b6b66;line-height:1.6;">
-            Good news — <strong>size {size}</strong> is back in stock! Grab yours before it sells out again.
+            {body}
           </p>
           <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
             <a href="{shop_url}"
                style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 40px;border-radius:999px;">
-              Shop now — Size {size}
+              {cta}
             </a>
           </td></tr></table>
         </td></tr>
@@ -2138,7 +2303,7 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
             © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
           </p>
           <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
-            You requested this notification. <a href="{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+            {requested} <a href="{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}" style="color:#c8c8c0;text-decoration:underline;">{unsub_label}</a>
           </p>
         </td></tr>
       </table>
@@ -2146,12 +2311,18 @@ def _notify_waitlist(product_id: int, size: str, stock: int, bg: BackgroundTasks
   </table>
 </body></html>"""
         text = (
+            f"Гарна новина! {product_name} — розмір {size} знову в наявності.\n\n"
+            f"До магазину: {shop_url}\n\n"
+            f"---\nТи залишив(-ла) запит на це сповіщення від EDM Clothes.\n"
+            f"Відписатися: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
+            if is_uk else
             f"Good news! {product_name} — size {size} is back in stock.\n\n"
             f"Shop now: {shop_url}\n\n"
             f"---\nYou requested this notification from EDM Clothes.\n"
             f"Unsubscribe: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
         )
-        bg.add_task(send_email, email, f"Back in stock: {product_name} — size {size}", html, text)
+        subject = f"Знову в наявності: {product_name} — розмір {size}" if is_uk else f"Back in stock: {product_name} — size {size}"
+        bg.add_task(send_email, email, subject, html, text)
         ids_to_fulfill.append(entry["id"])
 
     if ids_to_fulfill:
@@ -2793,6 +2964,12 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
     if not payload.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
 
+    preferred_locale = (
+        normalize_preferred_locale(payload.preferred_locale)
+        or normalize_preferred_locale(payload.locale)
+        or "en"
+    )
+
     try:
         cleanup_expired_pending_orders(limit=10)
     except Exception as exc:
@@ -2936,15 +3113,16 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         reserve_stock(normalized_items)
         stock_reserved = True
         promo_usage_reserved = reserve_promo_usage(promo)
-        metadata_json = {"source": "web_checkout"}
+        metadata_json = {"source": "web_checkout", "preferred_locale": preferred_locale}
         # UTM attribution — capture last-touch email/ad source at purchase time
         if payload.utm and isinstance(payload.utm, dict):
             allowed_utm = {"utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"}
             for k, v in payload.utm.items():
                 if k in allowed_utm and isinstance(v, str) and v:
                     metadata_json[k] = v[:200]
-        frontend_base = checkout_frontend_base(payload.success_url, http_request)
-        metadata_json["event_source_url"] = f"{frontend_base}/success"
+        checkout_success_url = checkout_frontend_url(payload.success_url, http_request, "/success")
+        checkout_cancel_url = checkout_frontend_url(payload.cancel_url, http_request, "/cart")
+        metadata_json["event_source_url"] = checkout_success_url.split("?", 1)[0]
         meta_tracking = sanitize_meta_tracking(payload.meta)
         if meta_tracking.get("consent") == "granted":
             metadata_json["client_ip_address"] = _client_ip(http_request)[:100]
@@ -2976,6 +3154,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "amount_total": round(amount_total, 2),
             "items_json": normalized_items,
             "metadata_json": metadata_json,
+            "preferred_locale": preferred_locale,
             "email": payload.customer_email,
             "phone": payload.phone,
             "shipping_name": f"{payload.first_name or ''} {payload.last_name or ''}".strip(),
@@ -2989,10 +3168,34 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         if not order_insert.data:
             raise HTTPException(status_code=500, detail="Failed to create order")
         created_order = order_insert.data[0]
+        customer_email = normalize_email(payload.customer_email)
+        if customer_email:
+            try:
+                profile_data = {
+                    "email": customer_email,
+                    "preferred_locale": preferred_locale,
+                    "updated_at": now_iso(),
+                }
+                for key, value in {
+                    "first_name": payload.first_name,
+                    "last_name": payload.last_name,
+                    "phone": payload.phone,
+                    "address": payload.address,
+                    "city": payload.city,
+                    "zip": payload.zip,
+                    "country": payload.country,
+                }.items():
+                    clean = str(value or "").strip()
+                    if clean:
+                        profile_data[key] = clean[:200]
+                supabase.table("user_profiles").upsert(profile_data, on_conflict="email").execute()
+            except Exception as exc:
+                print(f"User profile locale capture skipped for checkout {client_reference_id}: {type(exc).__name__}: {exc}")
         capture_subscriber_email(
             payload.customer_email,
             "checkout_started",
-            {"client_reference_id": client_reference_id},
+            {"client_reference_id": client_reference_id, "preferred_locale": preferred_locale},
+            preferred_locale=preferred_locale,
         )
 
         # Discount is already baked into product line item prices above.
@@ -3012,10 +3215,12 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 "client_reference_id": client_reference_id,
                 "order_id": str(created_order.get("id")),
                 "promo_code": str(promo.get("code")) if promo else "",
+                "preferred_locale": preferred_locale,
                 **({"order_note": payload.comment[:500]} if payload.comment else {}),
             },
-            success_url=f"{frontend_base}/success?session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=f"{frontend_base}/cart",
+            locale="auto",
+            success_url=f"{checkout_success_url}{'&' if '?' in checkout_success_url else '?'}session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=checkout_cancel_url,
         )
         session = stripe.checkout.Session.create(**stripe_session_params)
         session_dict = stripe_obj_to_dict(session)
@@ -3569,11 +3774,18 @@ def build_shipping_notification_email(order: dict) -> tuple[str, str]:
     """Returns (html, text) for the shipping notification email."""
     first_name = _html.escape((str(order.get("shipping_name") or "").split() or ["there"])[0])
     order_id_val = 10000 + int(order.get("id") or 0)  # human-readable order number
+    metadata = as_dict(order.get("metadata_json"))
+    preferred_locale = (
+        normalize_preferred_locale(order.get("preferred_locale"))
+        or locale_from_metadata(metadata)
+        or "en"
+    )
+    is_uk = preferred_locale == "uk"
     tracking_number = _html.escape(str(order.get("tracking_number") or "").strip())
     tracking_url = normalize_tracking_url(str(order.get("tracking_url") or ""))
     items = order.get("items_json") or []
-    items_html_str = order_items_html(items)
-    items_text_str = order_items_text(items)
+    items_html_str = order_items_html(items, preferred_locale)
+    items_text_str = order_items_text(items, preferred_locale)
     total = to_float(order.get("amount_total"))
     store_url = FRONTEND_URL.rstrip("/")
 
@@ -3582,58 +3794,71 @@ def build_shipping_notification_email(order: dict) -> tuple[str, str]:
     if tracking_number or tracking_url:
         track_rows = ""
         if tracking_number:
-            track_rows += f"<p style='margin:4px 0;font-size:14px;color:#1a1a18'>Tracking number: <strong>{tracking_number}</strong></p>"
+            tracking_number_label = "Номер відстеження" if is_uk else "Tracking number"
+            track_rows += f"<p style='margin:4px 0;font-size:14px;color:#1a1a18'>{tracking_number_label}: <strong>{tracking_number}</strong></p>"
         if tracking_url:
-            track_rows += f"<p style='margin:4px 0;font-size:14px'><a href='{_html.escape(tracking_url, quote=True)}' style='color:#2563eb;font-weight:600'>Track your package →</a></p>"
+            track_cta = "Відстежити посилку →" if is_uk else "Track your package →"
+            track_rows += f"<p style='margin:4px 0;font-size:14px'><a href='{_html.escape(tracking_url, quote=True)}' style='color:#2563eb;font-weight:600'>{track_cta}</a></p>"
+        tracking_title = "📦 Інформація для відстеження" if is_uk else "📦 Tracking information"
         tracking_block_html = f"""
         <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:20px 0">
-          <p style="margin:0 0 8px;font-weight:700;font-size:15px;color:#166534">📦 Tracking information</p>
+          <p style="margin:0 0 8px;font-weight:700;font-size:15px;color:#166534">{tracking_title}</p>
           {track_rows}
         </div>"""
         tracking_block_text = (
-            f"\nTracking number: {tracking_number}\n" if tracking_number else ""
-        ) + (f"Track here: {tracking_url}\n" if tracking_url else "")
+            f"\n{('Номер відстеження' if is_uk else 'Tracking number')}: {tracking_number}\n" if tracking_number else ""
+        ) + (f"{('Відстежити тут' if is_uk else 'Track here')}: {tracking_url}\n" if tracking_url else "")
 
+    title = "Твоє замовлення вже в дорозі!" if is_uk else "Your order is on the way! 🚀"
+    intro = f"Привіт, {first_name}! Гарна новина — твоє замовлення #{order_id_val} вже відправлено." if is_uk else f"Hi {first_name}, great news — your order #{order_id_val} has been shipped."
+    summary_label = "Склад замовлення" if is_uk else "Order summary"
+    item_label = "Товар" if is_uk else "Item"
+    qty_label = "К-сть" if is_uk else "Qty"
+    price_label = "Ціна" if is_uk else "Price"
+    total_label = "Разом" if is_uk else "Total"
+    questions = "Є питання? Відповідай на цей лист або зайди на" if is_uk else "Questions? Reply to this email or visit"
+
+    html_lang = "uk" if is_uk else "en"
     html = f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8"></head>
+<html lang="{html_lang}"><head><meta charset="UTF-8"></head>
 <body style="margin:0;padding:0;background:#f9f9f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
 <div style="max-width:560px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e8e8e4">
   <div style="background:#111;padding:24px 32px">
     <p style="margin:0;font-size:20px;font-weight:700;letter-spacing:0.06em;color:#fff">edm.clothes</p>
   </div>
   <div style="padding:32px">
-    <h1 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#1a1a18">Your order is on the way! 🚀</h1>
-    <p style="font-size:15px;color:#555;margin:0 0 20px">Hi {first_name}, great news — your order #{order_id_val} has been shipped.</p>
+    <h1 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#1a1a18">{title}</h1>
+    <p style="font-size:15px;color:#555;margin:0 0 20px">{intro}</p>
     {tracking_block_html}
-    <h2 style="font-size:14px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px">Order summary</h2>
+    <h2 style="font-size:14px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.08em;margin:24px 0 12px">{summary_label}</h2>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       <thead>
         <tr style="border-bottom:2px solid #f0f0ee">
-          <th style="padding:6px 0;text-align:left;color:#888;font-weight:500">Item</th>
-          <th style="padding:6px 0;text-align:center;color:#888;font-weight:500">Qty</th>
-          <th style="padding:6px 0;text-align:right;color:#888;font-weight:500">Price</th>
+          <th style="padding:6px 0;text-align:left;color:#888;font-weight:500">{item_label}</th>
+          <th style="padding:6px 0;text-align:center;color:#888;font-weight:500">{qty_label}</th>
+          <th style="padding:6px 0;text-align:right;color:#888;font-weight:500">{price_label}</th>
         </tr>
       </thead>
       <tbody>{items_html_str}</tbody>
     </table>
-    <p style="margin:16px 0 0;font-size:15px;font-weight:700;text-align:right">Total: {money_eur(total)}</p>
+    <p style="margin:16px 0 0;font-size:15px;font-weight:700;text-align:right">{total_label}: {money_eur(total)}</p>
     <div style="margin-top:28px;padding-top:20px;border-top:1px solid #f0f0ee;text-align:center">
-      <p style="font-size:13px;color:#888;margin:0">Questions? Reply to this email or visit <a href="{store_url}" style="color:#111">{store_url.replace("https://","")}</a></p>
+      <p style="font-size:13px;color:#888;margin:0">{questions} <a href="{store_url}" style="color:#111">{store_url.replace("https://","")}</a></p>
     </div>
   </div>
 </div>
 </body></html>"""
 
-    text = f"""Your order #{order_id_val} has been shipped!
+    text = f"""{'Твоє замовлення' if is_uk else 'Your order'} #{order_id_val} {'відправлено!' if is_uk else 'has been shipped!'}
 
-Hi {first_name}, your edm.clothes order is on its way.
+{('Привіт' if is_uk else 'Hi')} {first_name}, {('твоє замовлення edm.clothes вже в дорозі.' if is_uk else 'your edm.clothes order is on its way.')}
 {tracking_block_text}
-Order summary:
+{summary_label}:
 {items_text_str}
 
-Total: {money_eur(total)}
+{total_label}: {money_eur(total)}
 
-Questions? Contact us at {store_url}
+{('Є питання? Напиши нам:' if is_uk else 'Questions? Contact us at')} {store_url}
 """
     return html, text
 
@@ -3703,7 +3928,13 @@ def notify_order_shipped(order_id: int):
         raise HTTPException(status_code=400, detail="Order has no customer email")
     html, text = build_shipping_notification_email(order)
     display_num = 10000 + order_id
-    send_email(customer_email, f"Your order #{display_num} has been shipped! 🚀", html, text)
+    preferred_locale = (
+        normalize_preferred_locale(order.get("preferred_locale"))
+        or locale_from_metadata(as_dict(order.get("metadata_json")))
+        or "en"
+    )
+    subject = f"Твоє замовлення #{display_num} відправлено!" if preferred_locale == "uk" else f"Your order #{display_num} has been shipped! 🚀"
+    send_email(customer_email, subject, html, text)
     supabase.table("orders").update({"shipped_at": now_iso(), "updated_at": now_iso()}).eq("id", order_id).execute()
     return {"ok": True}
 
@@ -3717,6 +3948,13 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email is required")
 
+    preferred_locale = (
+        normalize_preferred_locale(payload.preferred_locale)
+        or normalize_preferred_locale(payload.locale)
+        or locale_from_metadata(payload.metadata)
+    )
+    metadata = with_preferred_locale_metadata(payload.metadata, preferred_locale)
+
     # Check if already actively subscribed
     existing = supabase.table("email_subscribers").select("id,is_active").eq("email", email).limit(1).execute()
     row = existing.data[0] if existing.data else None
@@ -3724,9 +3962,10 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
     already_active = row and row.get("is_active") is not False
 
     if already_active and not is_new:
+        capture_subscriber_email(email, payload.source or "unknown", metadata, preferred_locale=preferred_locale)
         return {"ok": True, "already_subscribed": True}
 
-    capture_subscriber_email(email, payload.source or "unknown", payload.metadata or {})
+    capture_subscriber_email(email, payload.source or "unknown", metadata, preferred_locale=preferred_locale)
 
     if is_new:
         # Generate unique WELCOME_XXXXX code
@@ -3752,9 +3991,24 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
             }).execute()
 
             site_url = get_setting("site_url", "https://edmclothes.net")
+            welcome_locale = normalize_preferred_locale(preferred_locale) or "en"
+            is_uk = welcome_locale == "uk"
+            shop_url = f"{site_url}/ua/products" if is_uk else f"{site_url}/products"
+            html_lang = "uk" if is_uk else "en"
             discount_label = f"{int(discount_pct)}%" if discount_pct == int(discount_pct) else f"{discount_pct}%"
+            welcome_title = "Вітаємо в EDM Clothes" if is_uk else "Welcome to EDM Clothes"
+            welcome_copy = (
+                f"Дякуємо за підписку! Ось твій ексклюзивний промокод на <strong>{discount_label} знижки</strong> на перше замовлення:"
+                if is_uk
+                else f"Thanks for subscribing! Here's your exclusive discount code for <strong>{discount_label} off</strong> your first order:"
+            )
+            code_label = "Твій код" if is_uk else "Your code"
+            cta_label = "До магазину" if is_uk else "Shop now"
+            checkout_hint = "Введи код під час оформлення замовлення. Одноразовий, діє на будь-яке замовлення." if is_uk else "Enter the code at checkout. Single use, valid on any order."
+            unsub_intro = "Не хочеш отримувати листи?" if is_uk else "Don't want to hear from us?"
+            unsub_label = "Відписатися" if is_uk else "Unsubscribe"
             html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html_lang}">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
 <body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
@@ -3767,26 +4021,26 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
         </tr>
         <tr>
           <td style="padding:40px 40px 32px;">
-            <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">Welcome to EDM Clothes</h1>
+            <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">{welcome_title}</h1>
             <p style="margin:0 0 28px;font-size:15px;color:#6b6b66;line-height:1.6;">
-              Thanks for subscribing! Here's your exclusive discount code for <strong>{discount_label} off</strong> your first order:
+              {welcome_copy}
             </p>
             <div style="background:#f5f5f3;border-radius:12px;padding:20px;text-align:center;margin:0 0 28px;">
-              <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">Your code</p>
+              <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">{code_label}</p>
               <p style="margin:0;font-size:26px;font-weight:800;letter-spacing:0.12em;color:#0a0a0a;">{welcome_code}</p>
             </div>
             <table cellpadding="0" cellspacing="0" width="100%">
               <tr>
                 <td align="center">
-                  <a href="{site_url}/products"
+                  <a href="{shop_url}"
                      style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 40px;border-radius:999px;">
-                    Shop now
+                    {cta_label}
                   </a>
                 </td>
               </tr>
             </table>
             <p style="margin:28px 0 0;font-size:13px;color:#9b9b96;line-height:1.6;">
-              Enter the code at checkout. Single use, valid on any order.
+              {checkout_hint}
             </p>
           </td>
         </tr>
@@ -3797,8 +4051,8 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
               © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
             </p>
             <p style="margin:8px 0 0;font-size:11px;color:#c8c8c0;">
-              Don't want to hear from us?
-              <a href="{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+              {unsub_intro}
+              <a href="{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}" style="color:#c8c8c0;text-decoration:underline;">{unsub_label}</a>
             </p>
           </td>
         </tr>
@@ -3807,8 +4061,13 @@ def capture_email_subscriber(payload: SubscriberCaptureRequest, request: Request
   </table>
 </body>
 </html>"""
-            text = f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {site_url}/products\n\n---\nTo unsubscribe: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
-            send_email(email, "Welcome — here's your discount code", html, text)
+            text = (
+                f"Вітаємо в EDM Clothes!\n\nТвій промокод: {welcome_code}\n\n{discount_label} знижки на перше замовлення. Використай його тут: {shop_url}\n\n---\nВідписатися: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
+                if is_uk
+                else f"Welcome to EDM Clothes!\n\nYour discount code: {welcome_code}\n\n{discount_label} off your first order. Use at checkout on {shop_url}\n\n---\nTo unsubscribe: {site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
+            )
+            subject = "Вітаємо — твій промокод" if is_uk else "Welcome — here's your discount code"
+            send_email(email, subject, html, text)
 
     return {"ok": True, "already_subscribed": False}
 
@@ -4070,6 +4329,8 @@ class ContactMessagePayload(BaseModel):
     email: str
     subject: Optional[str] = None
     message: str
+    preferred_locale: Optional[str] = None
+    locale: Optional[str] = None
     # Honeypot: legitimate humans never fill this hidden field; bots autofill all inputs.
     website: Optional[str] = None
     # Cloudflare Turnstile token from cf-turnstile-response
@@ -4114,6 +4375,12 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
     email   = normalize_email(payload.email)
     subject = str(payload.subject or "").strip() or "Contact form message"
     message = str(payload.message or "").strip()
+    preferred_locale = (
+        normalize_preferred_locale(payload.preferred_locale)
+        or normalize_preferred_locale(payload.locale)
+        or "en"
+    )
+    is_uk = preferred_locale == "uk"
 
     if not name or not email or not message:
         raise HTTPException(status_code=400, detail="Name, email and message are required")
@@ -4155,8 +4422,23 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
     )
 
     # Confirmation to user
+    browse_url = f"{site_url}/ua/products" if is_uk else f"{site_url}/products"
+    user_subject = "Ми отримали твоє повідомлення — EDM Clothes" if is_uk else "We received your message — EDM Clothes"
+    user_title = "Ми отримали твоє повідомлення" if is_uk else "We got your message"
+    user_intro = (
+        f"Привіт, {e_name}. Дякуємо за повідомлення. Ми відповімо якнайшвидше, зазвичай протягом 1-2 робочих днів."
+        if is_uk
+        else f"Hi {e_name}, thanks for reaching out. We'll get back to you as soon as possible, usually within 1-2 business days."
+    )
+    message_label = "Твоє повідомлення" if is_uk else "Your message"
+    browse_label = "До магазину" if is_uk else "Browse store"
+    user_text = (
+        f"Привіт, {name},\n\nДякуємо за повідомлення. Ми відповімо протягом 1-2 робочих днів.\n\nТвоє повідомлення:\n{message}"
+        if is_uk
+        else f"Hi {name},\n\nThanks for reaching out! We'll reply within 1-2 business days.\n\nYour message:\n{message}"
+    )
     confirm_html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{preferred_locale}">
 <head><meta charset="UTF-8"/></head>
 <body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
@@ -4166,15 +4448,15 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
           <p style="margin:0;color:#fff;font-size:17px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
         </td></tr>
         <tr><td style="padding:36px 40px 28px;">
-          <h1 style="margin:0 0 12px;font-size:20px;font-weight:600;color:#0a0a0a;">We got your message</h1>
+          <h1 style="margin:0 0 12px;font-size:20px;font-weight:600;color:#0a0a0a;">{user_title}</h1>
           <p style="margin:0 0 24px;font-size:15px;color:#6b6b66;line-height:1.6;">
-            Hi {e_name}, thanks for reaching out. We'll get back to you as soon as possible — usually within 1–2 business days.
+            {user_intro}
           </p>
           <div style="background:#f5f5f3;border-radius:10px;padding:16px 20px;margin:0 0 24px;">
-            <p style="margin:0 0 4px;font-size:12px;color:#9b9b96;text-transform:uppercase;letter-spacing:0.08em;">Your message</p>
+            <p style="margin:0 0 4px;font-size:12px;color:#9b9b96;text-transform:uppercase;letter-spacing:0.08em;">{message_label}</p>
             <p style="margin:0;font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap">{e_message}</p>
           </div>
-          <a href="{site_url}/products" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:14px 32px;border-radius:999px;">Browse store</a>
+          <a href="{browse_url}" style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:14px 32px;border-radius:999px;">{browse_label}</a>
         </td></tr>
         <tr><td style="padding:0 40px;"><hr style="border:none;border-top:1px solid #ecece8;"/></td></tr>
         <tr><td style="padding:20px 40px;text-align:center;">
@@ -4185,8 +4467,8 @@ def send_contact_message(payload: ContactMessagePayload, background_tasks: Backg
   </table>
 </body></html>"""
     background_tasks.add_task(
-        send_email, email, "We received your message — EDM Clothes",
-        confirm_html, f"Hi {name},\n\nThanks for reaching out! We'll reply within 1-2 business days.\n\nYour message:\n{message}"
+        send_email, email, user_subject,
+        confirm_html, user_text
     )
 
     return {"ok": True}
@@ -4370,17 +4652,18 @@ def export_email_subscribers_csv():
         .execute()
     )
     rows = data.data or []
-    header = "email,first_source,last_source,events_count,first_seen_at,last_seen_at\n"
+    header = "email,preferred_locale,first_source,last_source,events_count,first_seen_at,last_seen_at\n"
     lines = [header]
     for row in rows:
         email = str(row.get("email") or "").replace('"', '""')
         first_source = str(row.get("first_source") or "").replace('"', '""')
         last_source = str(row.get("last_source") or "").replace('"', '""')
+        preferred_locale = str(row.get("preferred_locale") or "").replace('"', '""')
         events_count = int(row.get("events_count") or 0)
         first_seen_at = str(row.get("first_seen_at") or "").replace('"', '""')
         last_seen_at = str(row.get("last_seen_at") or "").replace('"', '""')
         lines.append(
-            f"\"{email}\",\"{first_source}\",\"{last_source}\",{events_count},\"{first_seen_at}\",\"{last_seen_at}\"\n"
+            f"\"{email}\",\"{preferred_locale}\",\"{first_source}\",\"{last_source}\",{events_count},\"{first_seen_at}\",\"{last_seen_at}\"\n"
         )
     return Response(
         content="".join(lines),
@@ -4399,7 +4682,7 @@ def get_subscriber_status(email: str, request: Request):
     verify_user_token(email, request)
     result = (
         supabase.table("email_subscribers")
-        .select("is_active")
+        .select("is_active,preferred_locale")
         .eq("email", email)
         .limit(1)
         .execute()
@@ -4408,7 +4691,10 @@ def get_subscriber_status(email: str, request: Request):
         row = result.data[0]
         # If is_active is NULL (column added later), treat existing row as subscribed
         is_active = row.get("is_active")
-        return {"subscribed": is_active is not False}
+        return {
+            "subscribed": is_active is not False,
+            "preferred_locale": normalize_preferred_locale(row.get("preferred_locale")),
+        }
     return {"subscribed": False}
 
 
@@ -4435,6 +4721,7 @@ class UserProfileUpdate(BaseModel):
     city: Optional[str] = None
     zip: Optional[str] = None
     country: Optional[str] = None
+    preferred_locale: Optional[str] = None
 
 
 @app.get("/user-profile")
@@ -4462,6 +4749,8 @@ def update_user_profile(payload: UserProfileUpdate, request: Request):
         raise HTTPException(status_code=400, detail="Email required")
     verify_user_token(email, request)
     data = {k: v for k, v in payload.dict().items() if k != "email" and v is not None}
+    if "preferred_locale" in data:
+        data["preferred_locale"] = normalize_preferred_locale(data.get("preferred_locale")) or "en"
     data["updated_at"] = now_iso()
     result = (
         supabase.table("user_profiles")
@@ -4566,6 +4855,8 @@ class AbandonedCartPayload(BaseModel):
     first_name: Optional[str] = None
     items:      list          = []
     total_eur:  Optional[float] = None
+    preferred_locale: Optional[str] = None
+    locale: Optional[str] = None
 
 
 @app.post("/abandoned-cart")
@@ -4586,6 +4877,11 @@ def save_abandoned_cart(payload: AbandonedCartPayload, request: Request):
     email = normalize_email(payload.email)
     if not email:
         raise HTTPException(status_code=400, detail="email required")
+    preferred_locale = (
+        normalize_preferred_locale(payload.preferred_locale)
+        or normalize_preferred_locale(payload.locale)
+        or "en"
+    )
 
     safe_items = []
     for raw in (payload.items or [])[:20]:  # cap stored items
@@ -4629,6 +4925,7 @@ def save_abandoned_cart(payload: AbandonedCartPayload, request: Request):
         "first_name": (payload.first_name or "").strip()[:64] or None,
         "items_json": safe_items,
         "total_eur":  authoritative_total,
+        "preferred_locale": preferred_locale,
         "status":     "pending",
         "updated_at": now,
         "emailed_at": None,   # reset if they came back and updated cart
@@ -4658,7 +4955,12 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
     row with malicious content (see /abandoned-cart endpoint comment).
     """
     email      = entry.get("email", "")
-    first_name = _html.escape(entry.get("first_name") or "there")
+    preferred_locale = (
+        normalize_preferred_locale(entry.get("preferred_locale"))
+        or preferred_locale_for_email(email)
+    )
+    is_uk = preferred_locale == "uk"
+    first_name = _html.escape(entry.get("first_name") or ("друже" if is_uk else "there"))
     items      = (entry.get("items_json") or [])[:6]  # cap at 6 items
     total      = entry.get("total_eur")
 
@@ -4675,6 +4977,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
 
     # Build item rows for the email — DB is the source of truth
     item_rows_html = ""
+    item_rows_text = []
     for item in items:
         try:
             pid = int(item.get("id") or 0)
@@ -4695,7 +4998,8 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
                 cover = arr[0]
         img      = _html.escape(str(cover or ""), quote=True)
         slug     = product.get("slug") or str(pid)
-        item_url = _html.escape(f"{site_url}/products/{slug}", quote=True)
+        localized_prefix = "/ua" if is_uk else ""
+        item_url = _html.escape(f"{site_url}{localized_prefix}/products/{slug}", quote=True)
 
         img_block = (
             f'<a href="{item_url}"><img src="{img}" width="64" height="64" '
@@ -4703,7 +5007,12 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
             if img else
             f'<div style="width:64px;height:64px;background:#f0f0ee;border-radius:8px;"></div>'
         )
-        size_label = f' · {size}' if size else ''
+        size_label = f" · {'розмір ' if is_uk else ''}{size}" if size else ""
+        item_rows_text.append(
+            f"- {product.get('name') or ''} x{qty}"
+            + (f" · {'розмір ' if is_uk else ''}{size}" if size else "")
+            + f" · €{price:.2f}"
+        )
         item_rows_html += f"""
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid #f0f0ee;">
@@ -4719,12 +5028,28 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
           </td>
         </tr>"""
 
-    total_line = f"<p style='margin:12px 0 0;font-size:15px;font-weight:700;color:#0a0a0a;'>Total: €{total:.2f}</p>" if total else ""
-    cart_url   = f"{site_url}/cart"
+    total_label = "Разом" if is_uk else "Total"
+    total_line = f"<p style='margin:12px 0 0;font-size:15px;font-weight:700;color:#0a0a0a;'>{total_label}: €{total:.2f}</p>" if total else ""
+    cart_url   = f"{site_url}{'/ua' if is_uk else ''}/cart"
     unsub_url  = f"{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
+    html_lang = "uk" if is_uk else "en"
+    kicker = "Ти залишив(-ла) дещо в кошику" if is_uk else "You left something behind"
+    title = f"{first_name}, твій кошик чекає" if is_uk else f"Hey {first_name}, your cart is waiting"
+    intro = (
+        "Ти майже оформив(-ла) замовлення. Ці речі все ще в кошику, але кількість обмежена."
+        if is_uk
+        else "You got close! These items are still in your cart — but stock is limited, so grab them before they sell out."
+    )
+    cta = "Завершити замовлення →" if is_uk else "Complete my order →"
+    footer_reason = (
+        "Ти отримуєш цей лист, тому що почав(-ла) оформлення замовлення."
+        if is_uk
+        else "You're receiving this because you started a checkout."
+    )
+    unsub_label = "Відписатися" if is_uk else "Unsubscribe"
 
     html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html_lang}">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
 <body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
@@ -4734,12 +5059,12 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
           <p style="margin:0;color:#fff;font-size:17px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">EDM.CLOTHES</p>
         </td></tr>
         <tr><td style="padding:36px 40px 24px;">
-          <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">You left something behind</p>
+          <p style="margin:0 0 6px;font-size:12px;color:#9b9b96;letter-spacing:0.1em;text-transform:uppercase;">{kicker}</p>
           <h1 style="margin:0 0 12px;font-size:22px;font-weight:600;color:#0a0a0a;letter-spacing:-0.02em;">
-            Hey {first_name}, your cart is waiting 🛒
+            {title}
           </h1>
           <p style="margin:0 0 28px;font-size:15px;color:#6b6b66;line-height:1.6;">
-            You got close! These items are still in your cart — but stock is limited, so grab them before they sell out.
+            {intro}
           </p>
           <table width="100%" cellpadding="0" cellspacing="0">
             {item_rows_html}
@@ -4750,7 +5075,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
           <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
             <a href="{cart_url}"
                style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 48px;border-radius:999px;">
-              Complete my order →
+              {cta}
             </a>
           </td></tr></table>
         </td></tr>
@@ -4760,7 +5085,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
             © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
           </p>
           <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
-            You're receiving this because you started a checkout. <a href="{unsub_url}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+            {footer_reason} <a href="{unsub_url}" style="color:#c8c8c0;text-decoration:underline;">{unsub_label}</a>
           </p>
         </td></tr>
       </table>
@@ -4769,19 +5094,14 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
 </body></html>"""
 
     text = (
-        f"Hey {first_name}, you left something in your cart!\n\n"
-        + "\n".join(
-            f"- {i.get('name','')} x{i.get('quantity') or i.get('qty',1)}"
-            + (f" · {i['size']}" if i.get('size') else "")
-            + f" · €{float(i.get('price',0)):.2f}"
-            for i in items[:6]
-        )
-        + (f"\n\nTotal: €{total:.2f}" if total else "")
-        + f"\n\nComplete your order: {cart_url}\n\n"
-        f"---\nTo unsubscribe: {unsub_url}"
+        (f"{first_name}, твій кошик чекає!\n\n" if is_uk else f"Hey {first_name}, you left something in your cart!\n\n")
+        + "\n".join(item_rows_text)
+        + (f"\n\n{total_label}: €{total:.2f}" if total else "")
+        + (f"\n\nЗавершити замовлення: {cart_url}\n\n" if is_uk else f"\n\nComplete your order: {cart_url}\n\n")
+        + (f"---\nВідписатися: {unsub_url}" if is_uk else f"---\nTo unsubscribe: {unsub_url}")
     )
 
-    subject = f"Hey {first_name}, you left something behind"
+    subject = f"{first_name}, твій кошик чекає" if is_uk else f"Hey {first_name}, you left something behind"
     send_resend_email(email, subject, html, text)
     return True
 
@@ -4893,14 +5213,16 @@ def _send_wishlist_email(email: str, subject: str, html: str, text: str) -> None
     send_email(email, subject, html, text)
 
 
-def _wishlist_product_row_html(p: dict, site_url: str, badge: str = "") -> str:
+def _wishlist_product_row_html(p: dict, site_url: str, locale: str = "en", badge: str = "") -> str:
+    is_uk = normalize_preferred_locale(locale) == "uk"
     name  = _html.escape(str(p.get("name") or ""))
     price = float(p.get("price") or 0)
     cmp   = float(p.get("compare_price") or 0)
     slug  = p.get("slug") or str(p.get("id", ""))
     imgs  = p.get("image_urls") or []
     img   = _html.escape(str((imgs[0] if imgs else None) or p.get("image_url") or ""), quote=True)
-    url   = _html.escape(f"{site_url}/products/{slug}", quote=True)
+    prefix = "/ua" if is_uk else ""
+    url   = _html.escape(f"{site_url}{prefix}/products/{slug}", quote=True)
 
     price_html = f"€{price:.2f}"
     if cmp and cmp > price:
@@ -4938,14 +5260,23 @@ def _wishlist_product_row_html(p: dict, site_url: str, badge: str = "") -> str:
 
 def _build_wishlist_email(
     email: str, first_name: str, headline: str, subtext: str,
-    products: list, site_url: str, badge: str = "",
+    products: list, site_url: str, badge: str = "", locale: str = "en",
 ) -> tuple[str, str]:
-    rows_html = "".join(_wishlist_product_row_html(p, site_url, badge) for p in products[:5])
+    is_uk = normalize_preferred_locale(locale) == "uk"
+    rows_html = "".join(_wishlist_product_row_html(p, site_url, locale, badge) for p in products[:5])
     unsub_url = f"{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
-    wishlist_url = f"{site_url}/account?tab=wishlist"
+    wishlist_url = f"{site_url}{'/ua' if is_uk else ''}/account?tab=wishlist"
+    html_lang = "uk" if is_uk else "en"
+    cta = "Відкрити обране →" if is_uk else "View my wishlist →"
+    footer_reason = (
+        "Ти отримуєш цей лист, тому що зберіг(-ла) ці товари в обраному."
+        if is_uk
+        else "You saved these items to your wishlist."
+    )
+    unsub_label = "Відписатися" if is_uk else "Unsubscribe"
 
     html = f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html_lang}">
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
 <body style="margin:0;padding:0;background:#f5f5f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f3;padding:48px 16px;">
@@ -4963,7 +5294,7 @@ def _build_wishlist_email(
           <table cellpadding="0" cellspacing="0" width="100%"><tr><td align="center">
             <a href="{wishlist_url}"
                style="display:inline-block;background:#0a0a0a;color:#fff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;padding:16px 48px;border-radius:999px;">
-              View my wishlist →
+              {cta}
             </a>
           </td></tr></table>
         </td></tr>
@@ -4973,7 +5304,7 @@ def _build_wishlist_email(
             © 2026 EDM Clothes · <a href="{site_url}" style="color:#b0b0a8;text-decoration:none;">edmclothes.net</a>
           </p>
           <p style="margin:6px 0 0;font-size:11px;color:#c8c8c0;">
-            You saved these items to your wishlist. <a href="{unsub_url}" style="color:#c8c8c0;text-decoration:underline;">Unsubscribe</a>
+            {footer_reason} <a href="{unsub_url}" style="color:#c8c8c0;text-decoration:underline;">{unsub_label}</a>
           </p>
         </td></tr>
       </table>
@@ -4984,7 +5315,7 @@ def _build_wishlist_email(
     text = f"{headline}\n\n{subtext}\n\n" + "\n".join(
         f"- {p.get('name','')} · €{float(p.get('price',0)):.2f}"
         for p in products[:5]
-    ) + f"\n\nView wishlist: {wishlist_url}\n\nUnsubscribe: {unsub_url}"
+    ) + (f"\n\nВідкрити обране: {wishlist_url}\n\nВідписатися: {unsub_url}" if is_uk else f"\n\nView wishlist: {wishlist_url}\n\nUnsubscribe: {unsub_url}")
 
     return html, text
 
@@ -5040,14 +5371,20 @@ def notify_wishlist_low_stock(bg: BackgroundTasks):
     now = datetime.now(timezone.utc).isoformat()
     sent = 0
     for email, products in by_email.items():
+        locale = preferred_locale_for_email(email)
+        is_uk = locale == "uk"
         html, text = _build_wishlist_email(
             email=email, first_name="there",
-            headline="Your saved items are almost gone 🔥",
-            subtext="Stock is running low on items you saved. Grab them before they sell out.",
-            products=products, site_url=site_url, badge="Almost gone",
+            headline="Збережені товари майже закінчилися" if is_uk else "Your saved items are almost gone",
+            subtext=(
+                "Кількість товарів з твого обраного обмежена. Забирай, поки вони не розпродалися."
+                if is_uk
+                else "Stock is running low on items you saved. Grab them before they sell out."
+            ),
+            products=products, site_url=site_url, badge="Мало" if is_uk else "Almost gone", locale=locale,
         )
         bg.add_task(_send_wishlist_email, email,
-                    "Items in your wishlist are almost sold out", html, text)
+                    "Товари з твого обраного майже закінчилися" if is_uk else "Items in your wishlist are almost sold out", html, text)
         # Mark as notified so we don't send again
         supabase.table("wishlists").update({"notified_low_stock_at": now}) \
             .in_("id", entry_ids_by_email[email]).execute()
@@ -5108,14 +5445,20 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
     now = datetime.now(timezone.utc).isoformat()
     sent = 0
     for email, products in by_email.items():
+        locale = preferred_locale_for_email(email)
+        is_uk = locale == "uk"
         html, text = _build_wishlist_email(
             email=email, first_name="there",
-            headline="Your saved items are now on sale 🏷️",
-            subtext="Good news — items you saved to your wishlist just went on sale. Don't miss out.",
-            products=products, site_url=site_url, badge="On sale",
+            headline="Збережені товари тепер зі знижкою" if is_uk else "Your saved items are now on sale",
+            subtext=(
+                "Гарна новина — товари з твого обраного щойно потрапили на знижку. Не пропусти."
+                if is_uk
+                else "Good news — items you saved to your wishlist just went on sale. Don't miss out."
+            ),
+            products=products, site_url=site_url, badge="Знижка" if is_uk else "On sale", locale=locale,
         )
         bg.add_task(_send_wishlist_email, email,
-                    "Items in your wishlist are now on sale 🏷️", html, text)
+                    "Товари з твого обраного тепер зі знижкою" if is_uk else "Items in your wishlist are now on sale", html, text)
         # Mark as notified
         supabase.table("wishlists").update({"notified_on_sale_at": now}) \
             .in_("id", entry_ids_by_email[email]).execute()

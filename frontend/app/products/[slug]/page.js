@@ -9,6 +9,8 @@ import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
 import { safeJsonLd } from '../../lib/safeJsonLd'
 import { notFound } from 'next/navigation'
+import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
+import { localizedAlternates, openGraphLocale } from '../../lib/seo'
 
 async function getProduct(slug) {
   try {
@@ -63,22 +65,24 @@ function buildRecommendations(current, all) {
   return total.slice(0, 4)
 }
 
-export async function generateMetadata({ params }) {
+export async function generateMetadata({ params, locale = 'en' }) {
   const { slug } = await params
   const product = await getProduct(slug)
   if (product?.notFound) notFound()
   if (!product) return { title: 'Product not found' }
+  const displayProduct = localizeProduct(product, locale)
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
-  const desc = product.description || `${product.name} — available at edm.clothes`
+  const desc = displayProduct.description || `${displayProduct.name} - available at edm.clothes`
 
   return {
-    title: product.name,
+    title: displayProduct.name,
     description: desc,
-    alternates: { canonical: `/products/${slug}` },
+    alternates: localizedAlternates(`/products/${slug}`, locale),
     openGraph: {
-      title: product.name,
+      title: displayProduct.name,
       description: desc,
-      images: image ? [{ url: image, width: 800, height: 800, alt: product.name }] : [],
+      locale: openGraphLocale(locale),
+      images: image ? [{ url: image, width: 800, height: 800, alt: displayProduct.name }] : [],
       // og:type is emitted as "product" via <meta> in the page body so Pinterest
       // Rich Pins / Facebook can read product-extension tags. Next.js's openGraph
       // type field has no 'product' case (only website/article/book/…), so omit it
@@ -86,26 +90,28 @@ export async function generateMetadata({ params }) {
     },
     twitter: {
       card: 'summary_large_image',
-      title: product.name,
+      title: displayProduct.name,
       description: desc,
       images: image ? [image] : [],
     },
   }
 }
 
-export default async function ProductPage({ params }) {
+export default async function ProductPage({ params, locale = 'en' }) {
+  const d = getMessages(locale)
   const { slug } = await params
   const [product, allProducts] = await Promise.all([getProduct(slug), getAllProducts()])
   if (product?.notFound) notFound()
   const sizeStock = product ? await getSizeStock(product.id) : {}
-  if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>Store temporarily unavailable</div>
+  if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>{d.product.unavailable}</div>
+  const displayProduct = localizeProduct(product, locale)
   const recommendations = buildRecommendations(product, allProducts)
   const availableStock = product.available_stock ?? product.stock ?? 0
   const isInStock = availableStock > 0
   const isLowStock = availableStock > 0 && availableStock <= 5
-  const materialCare = (product.material_care || '').trim() || 'No material and care information yet.'
-  const moreAboutProduct = (product.product_details || '').trim() || 'More product details will be added soon.'
-  const fitInfo = (product.fit_info || '').trim() || 'Fit guidance will be added soon.'
+  const materialCare = (displayProduct.material_care || '').trim() || d.product.materialCareFallback
+  const moreAboutProduct = (displayProduct.product_details || '').trim() || d.product.detailsFallback
+  const fitInfo = (displayProduct.fit_info || '').trim() || d.product.fitFallback
   const priceLabel = new Intl.NumberFormat('de-DE', {
     style: 'currency',
     currency: 'EUR',
@@ -118,8 +124,8 @@ export default async function ProductPage({ params }) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: product.name,
-    description: product.description,
+    name: displayProduct.name,
+    description: displayProduct.description,
     image: productImages,
     sku: String(product.id),
     category: product.category,
@@ -131,7 +137,7 @@ export default async function ProductPage({ params }) {
       availability: availableStock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
-      url: `https://www.edmclothes.net/products/${slug}`,
+      url: `https://www.edmclothes.net${pathForLocale(`/products/${slug}`, locale)}`,
       shippingDetails: {
         '@type': 'OfferShippingDetails',
         shippingRate: {
@@ -165,9 +171,9 @@ export default async function ProductPage({ params }) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.edmclothes.net' },
-      { '@type': 'ListItem', position: 2, name: 'Shop', item: 'https://www.edmclothes.net/products' },
-      { '@type': 'ListItem', position: 3, name: product.name, item: `https://www.edmclothes.net/products/${slug}` },
+      { '@type': 'ListItem', position: 1, name: d.product.breadcrumbHome, item: `https://www.edmclothes.net${pathForLocale('/', locale)}` },
+      { '@type': 'ListItem', position: 2, name: d.product.breadcrumbShop, item: `https://www.edmclothes.net${pathForLocale('/products', locale)}` },
+      { '@type': 'ListItem', position: 3, name: displayProduct.name, item: `https://www.edmclothes.net${pathForLocale(`/products/${slug}`, locale)}` },
     ],
   }
 
@@ -192,13 +198,13 @@ export default async function ProductPage({ params }) {
       <GaViewItemEvent
         item={{
           item_id:       product.color_group_id || product.slug || slug || String(product.id),
-          item_name:     product.name || 'Product',
+          item_name:     displayProduct.name || 'Product',
           item_category: product.category || undefined,
           price:         Number(product.price) || 0,
         }}
       />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
-        <Link href="/products" style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>← Back</Link>
+        <Link href={pathForLocale('/products', locale)} style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>{d.product.back}</Link>
 
         <div
           className="product-detail-grid"
@@ -209,24 +215,24 @@ export default async function ProductPage({ params }) {
             alignItems: 'start',
           }}>
           <div className="product-detail-media">
-            <ProductGallery product={product} />
+            <ProductGallery product={displayProduct} locale={locale} />
           </div>
 
           <div className="product-detail-info" style={{display:'flex',flexDirection:'column',gap:14}}>
-            <h1 className="product-detail-title" style={{fontWeight:600,margin:0}}>{product.name}</h1>
+            <h1 className="product-detail-title" style={{fontWeight:600,margin:0}}>{displayProduct.name}</h1>
             <div style={{display:'flex',alignItems:'baseline',gap:10}}>
               <p className="product-detail-price" style={{fontWeight:600,margin:0}}>{priceLabel}</p>
-              <p style={{fontSize:14,color:'#8a8a84',margin:0}}>incl. tax</p>
+              <p style={{fontSize:14,color:'#8a8a84',margin:0}}>{d.product.inclTax}</p>
             </div>
             <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:0}}>
-              {!isInStock ? 'Out of stock' : isLowStock ? 'LOW STOCK' : 'In stock'}
+              {!isInStock ? d.product.outOfStock : isLowStock ? d.product.lowStock : d.product.inStock}
             </p>
 
             {/* Color swatches — shown only when color_name is set */}
             {product.color_name && (
               <div>
                 <p style={{fontSize:13,color:'#666660',margin:'0 0 8px'}}>
-                  Color: <span style={{fontWeight:600,color:'#1a1a18'}}>{product.color_name}</span>
+                  {d.product.color}: <span style={{fontWeight:600,color:'#1a1a18'}}>{product.color_name}</span>
                 </p>
                 <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
                   {/* Current product swatch */}
@@ -239,7 +245,7 @@ export default async function ProductPage({ params }) {
                   }} />
                   {/* Variant swatches */}
                   {Array.isArray(product.color_variants) && product.color_variants.map(v => (
-                    <a key={v.id} href={'/products/' + v.slug} title={v.color_name}
+                    <a key={v.id} href={pathForLocale('/products/' + v.slug, locale)} title={v.color_name}
                       style={{
                         width:28,height:28,borderRadius:'50%',
                         background: v.color_hex || '#ccc',
@@ -257,25 +263,25 @@ export default async function ProductPage({ params }) {
 
             {sizeOptions.length > 0 && (
               <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
-                We recommend choosing your regular size.
+                {d.product.regularSize}
               </div>
             )}
 
-            <AddToCartButton product={product} showSizeSelector sizeStock={sizeStock} />
+            <AddToCartButton product={displayProduct} showSizeSelector sizeStock={sizeStock} locale={locale} />
             <div style={{display:'flex',alignItems:'center',gap:10,marginTop:4}}>
-              <WishlistButton productId={product.id} product={product} style={{
+              <WishlistButton productId={product.id} product={displayProduct} style={{
                 width:44,height:44,borderRadius:12,
                 background:'#f5f5f3',border:'1px solid #e5e5e3',
               }}/>
-              <span style={{fontSize:13,color:'#888'}}>Save to wishlist</span>
+              <span style={{fontSize:13,color:'#888'}}>{d.product.saveWishlist}</span>
             </div>
 
-            <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{product.description}</p>
+            <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{displayProduct.description}</p>
 
             <div style={{borderTop:'1px solid #e5e5e0',marginTop:8}}>
               <details style={{borderBottom:'1px solid #e5e5e0'}}>
                 <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
-                  Material & care
+                  {d.product.materialCare}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
                 <div style={{padding:'0 0 18px',color:'#5f5f58',fontSize:14,lineHeight:1.65,whiteSpace:'pre-wrap'}}>
@@ -284,7 +290,7 @@ export default async function ProductPage({ params }) {
               </details>
               <details style={{borderBottom:'1px solid #e5e5e0'}}>
                 <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
-                  More about this product
+                  {d.product.details}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
                 <div style={{padding:'0 0 18px',color:'#5f5f58',fontSize:14,lineHeight:1.65,whiteSpace:'pre-wrap'}}>
@@ -293,7 +299,7 @@ export default async function ProductPage({ params }) {
               </details>
               <details style={{borderBottom:'1px solid #e5e5e0'}}>
                 <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
-                  Fit
+                  {d.product.fit}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
                 <div style={{padding:'0 0 18px',color:'#5f5f58',fontSize:14,lineHeight:1.65,whiteSpace:'pre-wrap'}}>
@@ -304,13 +310,13 @@ export default async function ProductPage({ params }) {
 
               <details style={{borderBottom:'1px solid #e5e5e0'}}>
                 <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
-                  Shipping &amp; returns
+                  {d.product.shippingReturns}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
                 <div style={{padding:'0 0 18px',color:'#5f5f58',fontSize:14,lineHeight:1.65,display:'flex',flexDirection:'column',gap:8}}>
-                  <p style={{margin:0}}>Shipping cost is calculated at cart.</p>
-                  <p style={{margin:0}}>Free shipping on orders from €120.</p>
-                  <p style={{margin:0}}>14-day returns from date of receipt.</p>
+                  <p style={{margin:0}}>{d.product.shippingCost}</p>
+                  <p style={{margin:0}}>{d.product.freeShipping}</p>
+                  <p style={{margin:0}}>{d.product.returnWindow}</p>
                 </div>
               </details>
           </div>
@@ -321,19 +327,19 @@ export default async function ProductPage({ params }) {
       {recommendations.length > 0 && (
         <section style={{maxWidth:1220,margin:'0 auto',padding:'48px 24px 72px'}}>
           <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:28}}>
-            <h2 style={{fontSize:18,fontWeight:700,margin:0,letterSpacing:'-0.01em'}}>You may also like</h2>
-            <Link href="/products" style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>View all →</Link>
+            <h2 style={{fontSize:18,fontWeight:700,margin:0,letterSpacing:'-0.01em'}}>{d.product.mayLike}</h2>
+            <Link href={pathForLocale('/products', locale)} style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>{d.product.viewAll} →</Link>
           </div>
           {/* Mobile + desktop: grid */}
           <div className="recommendations-grid">
             {recommendations.map(p => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={p} locale={locale} />
             ))}
           </div>
 
           {/* Tablet: 2-item carousel */}
           <div className="recommendations-carousel">
-            <RecommendationsCarousel products={recommendations} />
+            <RecommendationsCarousel products={recommendations} locale={locale} />
           </div>
         </section>
       )}

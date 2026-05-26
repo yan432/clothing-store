@@ -2,15 +2,16 @@
 import { useCart } from '../context/CartContext'
 import { useEffect, useRef } from 'react'
 import { trackViewCart } from '../lib/track'
+import { getMessages, pathForLocale } from '../lib/i18n'
 
-const steps = [
-  { n: 1, label: 'Cart', active: true },
-  { n: 2, label: 'Details', active: false },
-  { n: 3, label: 'Confirm', disabled: true },
-  { n: 4, label: 'Payment', disabled: true },
-]
-
-export default function CartPage() {
+export default function CartPage({ locale = 'en' }) {
+  const d = getMessages(locale)
+  const steps = [
+    { n: 1, label: d.cartPage.steps[0], active: true },
+    { n: 2, label: d.cartPage.steps[1], active: false },
+    { n: 3, label: d.cartPage.steps[2], disabled: true },
+    { n: 4, label: d.cartPage.steps[3], disabled: true },
+  ]
   const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
   const viewTracked = useRef(false)
 
@@ -45,37 +46,37 @@ export default function CartPage() {
 
       {cart.length === 0 ? (
         <div style={{textAlign:'center',padding:'80px 0'}}>
-          <p style={{fontSize:18,color:'#aaa',marginBottom:24}}>Your cart is empty</p>
-          <a href="/products" style={{background:'#000',color:'#fff',padding:'12px 28px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
-            Shop Now
+          <p style={{fontSize:18,color:'#aaa',marginBottom:24}}>{d.cartPage.empty}</p>
+          <a href={pathForLocale('/products', locale)} style={{background:'#000',color:'#fff',padding:'12px 28px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
+            {d.cartPage.shopNow}
           </a>
         </div>
       ) : (
         <div className="cart-layout">
           <div>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
-              <h1 style={{fontSize:24,fontWeight:600,margin:0}}>Cart</h1>
+              <h1 style={{fontSize:24,fontWeight:600,margin:0}}>{d.cartPage.title}</h1>
               <button onClick={clearCart} style={{fontSize:13,color:'#aaa',background:'none',border:'none',cursor:'pointer'}}>
-                Clear all
+                {d.cartPage.clearAll}
               </button>
             </div>
 
             <div style={{display:'flex',flexDirection:'column',gap:12}}>
               {cart.map(item => (
                 <div key={item.id + (item.size || '')} className="cart-item">
-                  <a href={`/products/${item.slug || item.id}`}
+                  <a href={pathForLocale(`/products/${item.slug || item.id}`, locale)}
                     style={{width:90,height:90,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'block'}}>
                     {item.image_url
                       ? <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
-                      : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#ccc'}}>No image</div>
+                      : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#ccc'}}>{d.cartPage.noImage}</div>
                     }
                   </a>
                   <div style={{flex:1}}>
-                    <a href={`/products/${item.slug || item.id}`}
+                    <a href={pathForLocale(`/products/${item.slug || item.id}`, locale)}
                       style={{fontWeight:600,fontSize:15,margin:'0 0 2px',color:'inherit',textDecoration:'none',display:'block'}}>
                       {item.name}
                     </a>
-                    {item.size && <p style={{fontSize:13,color:'#888',margin:'0 0 2px'}}>Size: {item.size}</p>}
+                    {item.size && <p style={{fontSize:13,color:'#888',margin:'0 0 2px'}}>{d.cartPage.size}: {item.size}</p>}
                     <p style={{fontSize:13,color:'#aaa',margin:0}}>€{item.price}</p>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -95,21 +96,21 @@ export default function CartPage() {
                     <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>€{(item.price * item.qty).toFixed(2)}</p>
                     <button onClick={() => removeFromCart(item.id, item.size)}
                       style={{background:'none',border:'none',cursor:'pointer',color:'#bbb',fontSize:12,textDecoration:'underline',padding:0}}>
-                      Remove
+                      {d.cartPage.remove}
                     </button>
                   </div>
                 </div>
               ))}
             </div>
 
-            <a href="/products"
+            <a href={pathForLocale('/products', locale)}
               style={{display:'inline-block',marginTop:24,background:'none',color:'#555',border:'1.5px solid #e5e5e3',padding:'15px 28px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
-              ← Back to shop
+              {d.cartPage.backToShop}
             </a>
           </div>
 
           <div className="cart-summary">
-            <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>Order summary</h2>
+            <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>{d.cartPage.orderSummary}</h2>
 
             <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
               {cart.map(item => (
@@ -128,25 +129,25 @@ export default function CartPage() {
 
             <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-                <span>Subtotal</span><span>€{total.toFixed(2)}</span>
+                <span>{d.cartPage.subtotal}</span><span>€{total.toFixed(2)}</span>
               </div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#aaa'}}>
-                <span>Shipping</span><span>Calculated at next step</span>
+                <span>{d.cartPage.shipping}</span><span>{d.cartPage.shippingNextStep}</span>
               </div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4}}>
-                <span>Total</span><span>€{total.toFixed(2)}</span>
+                <span>{d.cartPage.total}</span><span>€{total.toFixed(2)}</span>
               </div>
               <p style={{fontSize:11,color:'#bbb',margin:'4px 0 0',lineHeight:1.5}}>
-                Promo codes and shipping cost will be applied at the confirmation step.
+                {d.cartPage.promoNote}
               </p>
             </div>
 
-            <button onClick={() => window.location.href = '/checkout'}
+            <button onClick={() => window.location.href = pathForLocale('/checkout', locale)}
               style={{width:'100%',marginTop:20,background:'#000',color:'#fff',border:'none',padding:'16px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer'}}>
-              Continue to details
+              {d.cartPage.continueToDetails}
             </button>
             <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:12,lineHeight:1.5}}>
-              Payment details are entered securely on external checkout.
+              {d.cartPage.externalPayment}
             </p>
           </div>
         </div>

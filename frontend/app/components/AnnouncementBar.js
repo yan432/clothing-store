@@ -1,33 +1,39 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
-
-const DEFAULT_ITEMS = [
-  'FREE SHIPPING ON ALL ORDERS OVER €120',
-  'NEW DROP — SPRING COLLECTION',
-  'MADE IN UKRAINE',
-]
+import { getMessages, localeFromPathname } from '../lib/i18n'
 
 export default function AnnouncementBar() {
-  const [items, setItems] = useState(DEFAULT_ITEMS)
-  const [enabled, setEnabled] = useState(true)
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
+  const [remote, setRemote] = useState({ locale: null, items: null, enabled: true })
+  const enabled = remote.locale === locale ? remote.enabled : true
+  const items = remote.locale === locale && remote.items ? remote.items : d.announcement.items
 
   useEffect(() => {
     fetch(getApiUrl('/settings'))
       .then(r => r.ok ? r.json() : null)
       .then(s => {
         if (!s) return
-        if (s.announcement_bar_enabled === 'false') { setEnabled(false); return }
-        if (s.announcement_bar_items) {
-          const parsed = s.announcement_bar_items
+        if (s.announcement_bar_enabled === 'false') {
+          setRemote({ locale, items: null, enabled: false })
+          return
+        }
+        const rawItems = locale === 'uk'
+          ? s.announcement_bar_items_uk
+          : s.announcement_bar_items
+        if (rawItems) {
+          const parsed = rawItems
             .split('\n')
             .map(l => l.trim())
             .filter(Boolean)
-          if (parsed.length) setItems(parsed)
+          if (parsed.length) setRemote({ locale, items: parsed, enabled: true })
         }
       })
       .catch(() => {})
-  }, [])
+  }, [locale])
 
   if (!enabled) return null
 

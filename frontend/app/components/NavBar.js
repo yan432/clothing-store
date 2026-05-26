@@ -1,29 +1,31 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useWishlist } from '../context/WishlistContext'
 import { getApiUrl } from '../lib/api'
+import { getMessages, localeFromPathname, pathForLocale, switchLocalePath, translateCategory } from '../lib/i18n'
 
-const SHOP_STATIC = [
-  { label: 'All products', href: '/products' },
-  { label: 'New arrivals', href: '/products?special=new' },
-  { label: 'Sale',         href: '/products?special=sale' },
+const SHOP_ROUTES = [
+  { key: 'allProducts', href: '/products' },
+  { key: 'newArrivals', href: '/products?special=new' },
+  { key: 'sale',        href: '/products?special=sale' },
 ]
 
-const INFO_LINKS = [
-  { label: 'About',               href: '/about' },
-  { label: 'Contact us',          href: '/contact' },
-  { label: 'Shipping info',       href: '/shipping' },
-  { label: 'Returns & exchanges', href: '/returns' },
-  { label: 'Size guide',          href: '/size-guide' },
-  { label: 'FAQ',                 href: '/faq' },
+const INFO_ROUTES = [
+  { key: 'about',     href: '/about' },
+  { key: 'contact',   href: '/contact' },
+  { key: 'shipping',  href: '/shipping' },
+  { key: 'returns',   href: '/returns' },
+  { key: 'sizeGuide', href: '/size-guide' },
+  { key: 'faq',       href: '/faq' },
 ]
 
-const ACCOUNT_LINKS = [
-  { href: '/account',            label: 'My account' },
-  { href: '/account?tab=orders', label: 'Orders' },
-  { href: '/wishlist',           label: 'Wishlist' },
+const ACCOUNT_ROUTES = [
+  { href: '/account',            key: 'myAccount' },
+  { href: '/account?tab=orders', key: 'orders' },
+  { href: '/wishlist',           key: 'wishlist' },
 ]
 
 const ADMIN_LINKS = [
@@ -37,6 +39,9 @@ const ADMIN_LINKS = [
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 
 export default function NavBar() {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const { count, setDrawerOpen } = useCart()
   const { user, signOut, isAdmin } = useAuth()
   const { ids: wishlistIds } = useWishlist()
@@ -65,6 +70,31 @@ export default function NavBar() {
   }, [])
 
   useEffect(() => () => clearTimeout(navLeaveTimer.current), [])
+
+  const shopStatic = SHOP_ROUTES.map(item => ({
+    label: d.nav[item.key],
+    href: pathForLocale(item.href, locale),
+  }))
+  const infoLinks = INFO_ROUTES.map(item => ({
+    label: d.nav[item.key],
+    href: pathForLocale(item.href, locale),
+  }))
+  const accountLinks = ACCOUNT_ROUTES.map(item => ({
+    label: d.nav[item.key],
+    href: pathForLocale(item.href, locale),
+  }))
+
+  function rememberPreferredLocale(nextLocale) {
+    try {
+      localStorage.setItem('preferred_locale', nextLocale)
+    } catch (_) {}
+    if (!user?.email) return
+    fetch('/api/user-profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferred_locale: nextLocale }),
+    }).catch(() => {})
+  }
 
   // click-outside for admin small dropdown
   useEffect(() => {
@@ -140,26 +170,49 @@ export default function NavBar() {
         <div className="nav-main-bar" style={{ alignItems: 'center', height: 58, padding: '0 20px' }}>
 
           {/* Hamburger — mobile left, hidden on desktop */}
-          <button type="button" className="nav-hamburger" onClick={() => setMobileOpen(true)} aria-label="Open menu">
+          <button type="button" className="nav-hamburger" onClick={() => setMobileOpen(true)} aria-label={d.nav.openMenu}>
             <svg width="18" height="14" viewBox="0 0 18 14" fill="none">
               <path d="M0 1h18M0 7h18M0 13h18" stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round"/>
             </svg>
           </button>
 
           {/* Logo: desktop — left col; mobile — absolute center */}
-          <a href="/" className="nav-logo" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: 'inherit' }}>
+          <a href={pathForLocale('/', locale)} className="nav-logo" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: 'inherit' }}>
             edm.clothes
           </a>
 
           {/* CENTER — desktop nav links only */}
           <div className="nav-center-links">
-            <a href="/products?special=new"
+            <a href={pathForLocale('/products?special=new', locale)}
               onMouseEnter={() => setOpenMenu(null)}
               style={{ color: '#1a1a18', textDecoration: 'none', fontSize: 13, fontWeight: 500, letterSpacing: '0.05em' }}>
-              New arrivals
+              {d.nav.newArrivals}
             </a>
-            {navBtn('shop', 'Shop')}
-            {navBtn('info', 'Info')}
+            {navBtn('shop', d.nav.shop)}
+            {navBtn('info', d.nav.info)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <a href={switchLocalePath(pathname, 'en')}
+                onClick={() => rememberPreferredLocale('en')}
+                aria-current={locale === 'en' ? 'true' : undefined}
+                style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                  color: locale === 'en' ? '#111' : '#aaa',
+                  textDecoration: 'none', padding: '4px 0',
+                }}>
+                EN
+              </a>
+              <span style={{ fontSize: 11, color: '#ddd' }}>/</span>
+              <a href={switchLocalePath(pathname, 'uk')}
+                onClick={() => rememberPreferredLocale('uk')}
+                aria-current={locale === 'uk' ? 'true' : undefined}
+                style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                  color: locale === 'uk' ? '#111' : '#aaa',
+                  textDecoration: 'none', padding: '4px 0',
+                }}>
+                UA
+              </a>
+            </div>
           </div>
 
           {/* RIGHT — icons */}
@@ -192,7 +245,7 @@ export default function NavBar() {
             )}
 
             {/* Cart */}
-            <button type="button" onClick={() => setDrawerOpen(true)} aria-label="Open cart"
+            <button type="button" onClick={() => setDrawerOpen(true)} aria-label={d.nav.openCart}
               onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 9, color: '#1a1a18', display: 'flex', alignItems: 'center', position: 'relative' }}>
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
@@ -209,7 +262,7 @@ export default function NavBar() {
 
             {/* Wishlist icon — only for logged-in users */}
             {user && (
-              <a href="/wishlist" aria-label="Wishlist"
+              <a href={pathForLocale('/wishlist', locale)} aria-label={d.nav.openWishlist}
                 style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24"
                   fill={wishlistIds.size > 0 ? '#111' : 'none'}
@@ -220,7 +273,7 @@ export default function NavBar() {
             )}
 
             {/* User icon */}
-            <a href={user ? '/account' : '/auth'} aria-label={user ? 'Account' : 'Sign in'}
+            <a href={pathForLocale(user ? '/account' : '/auth', locale)} aria-label={user ? d.nav.account : d.nav.signIn}
               onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
               style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
@@ -248,20 +301,20 @@ export default function NavBar() {
               {openMenu === 'shop' && (
                 <>
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>Browse</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {SHOP_STATIC.map(item => (
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.browse}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {shopStatic.map(item => (
                         <a key={item.href} href={item.href} onClick={() => setOpenMenu(null)} style={megaLink}>{item.label}</a>
                       ))}
                     </div>
                   </div>
                   {categories.length > 0 && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>Categories</p>
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.categories}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {categories.map(cat => (
-                          <a key={cat} href={`/products?category=${encodeURIComponent(cat)}`}
-                            onClick={() => setOpenMenu(null)} style={megaLink}>{cat}</a>
+                          <a key={cat} href={pathForLocale(`/products?category=${encodeURIComponent(cat)}`, locale)}
+                            onClick={() => setOpenMenu(null)} style={megaLink}>{translateCategory(cat, locale)}</a>
                         ))}
                       </div>
                     </div>
@@ -273,9 +326,9 @@ export default function NavBar() {
               {openMenu === 'info' && (
                 <>
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>Info</p>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.info}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {INFO_LINKS.map(item => (
+                      {infoLinks.map(item => (
                         <a key={item.href} href={item.href} onClick={() => setOpenMenu(null)} style={megaLink}>{item.label}</a>
                       ))}
                     </div>
@@ -284,23 +337,23 @@ export default function NavBar() {
                   <div style={{ width: 1, background: '#f0f0ee', flexShrink: 0 }} />
 
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>Account</p>
+                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.account}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {user ? (
                         <>
-                          {ACCOUNT_LINKS.map(item => (
+                          {accountLinks.map(item => (
                             <a key={item.href} href={item.href} onClick={() => setOpenMenu(null)} style={megaLink}>{item.label}</a>
                           ))}
                           <button type="button"
                             onClick={async () => { await signOut(); setOpenMenu(null) }}
                             style={{ ...megaLink, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0, color: '#aaa', fontSize: 15, fontWeight: 500 }}>
-                            Log out
+                            {d.nav.logOut}
                           </button>
                         </>
                       ) : (
                         <>
-                          <a href="/auth" onClick={() => setOpenMenu(null)} style={megaLink}>Sign in</a>
-                          <a href="/auth?tab=register" onClick={() => setOpenMenu(null)} style={megaLink}>Create account</a>
+                          <a href={pathForLocale('/auth', locale)} onClick={() => setOpenMenu(null)} style={megaLink}>{d.nav.signIn}</a>
+                          <a href={pathForLocale('/auth?tab=register', locale)} onClick={() => setOpenMenu(null)} style={megaLink}>{d.nav.createAccount}</a>
                         </>
                       )}
                     </div>
@@ -325,7 +378,7 @@ export default function NavBar() {
           }}>
             {/* Drawer header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f0f0ee' }}>
-              <a href="/" onClick={() => setMobileOpen(false)} style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: '#1a1a18' }}>
+              <a href={pathForLocale('/', locale)} onClick={() => setMobileOpen(false)} style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: '#1a1a18' }}>
                 edm.clothes
               </a>
               <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 26, color: '#888', padding: '0 2px', lineHeight: 1 }}>×</button>
@@ -335,7 +388,7 @@ export default function NavBar() {
               {/* Admin — mobile only */}
               {isAdmin && (
                 <>
-                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Admin</p>
+                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.admin}</p>
                   <div style={{ marginBottom: 24 }}>
                     {ADMIN_LINKS.map(item => (
                       <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
@@ -347,9 +400,17 @@ export default function NavBar() {
                 </>
               )}
               {/* Shop */}
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Shop</p>
+              <div style={{ display: 'flex', gap: 8, margin: '0 0 20px' }}>
+                <a href={switchLocalePath(pathname, 'en')} onClick={() => { rememberPreferredLocale('en'); setMobileOpen(false) }}
+                  style={{ fontSize: 12, fontWeight: 700, color: locale === 'en' ? '#111' : '#aaa', textDecoration: 'none' }}>EN</a>
+                <span style={{ fontSize: 12, color: '#ddd' }}>/</span>
+                <a href={switchLocalePath(pathname, 'uk')} onClick={() => { rememberPreferredLocale('uk'); setMobileOpen(false) }}
+                  style={{ fontSize: 12, fontWeight: 700, color: locale === 'uk' ? '#111' : '#aaa', textDecoration: 'none' }}>UA</a>
+              </div>
+
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.shop}</p>
               <div style={{ marginBottom: 24 }}>
-                {[...SHOP_STATIC, ...categories.map(cat => ({ label: cat, href: `/products?category=${encodeURIComponent(cat)}` }))].map(item => (
+                {[...shopStatic, ...categories.map(cat => ({ label: translateCategory(cat, locale), href: pathForLocale(`/products?category=${encodeURIComponent(cat)}`, locale) }))].map(item => (
                   <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                     style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
                     {item.label}
@@ -357,11 +418,11 @@ export default function NavBar() {
                 ))}
               </div>
               {/* Account */}
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Account</p>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.account}</p>
               <div style={{ marginBottom: 24 }}>
                 {user ? (
                   <>
-                    {ACCOUNT_LINKS.map(item => (
+                    {accountLinks.map(item => (
                       <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                         style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
                         {item.label}
@@ -369,26 +430,26 @@ export default function NavBar() {
                     ))}
                     <button type="button" onClick={async () => { await signOut(); setMobileOpen(false) }}
                       style={{ display: 'block', width: '100%', padding: '12px 0', fontSize: 15, fontWeight: 500, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #f5f5f3' }}>
-                      Log out
+                      {d.nav.logOut}
                     </button>
                   </>
                 ) : (
                   <>
-                    <a href="/auth" onClick={() => setMobileOpen(false)}
+                    <a href={pathForLocale('/auth', locale)} onClick={() => setMobileOpen(false)}
                       style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
-                      Sign in
+                      {d.nav.signIn}
                     </a>
-                    <a href="/auth?tab=register" onClick={() => setMobileOpen(false)}
+                    <a href={pathForLocale('/auth?tab=register', locale)} onClick={() => setMobileOpen(false)}
                       style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
-                      Create account
+                      {d.nav.createAccount}
                     </a>
                   </>
                 )}
               </div>
               {/* Info */}
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>Info</p>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.info}</p>
               <div style={{ paddingBottom: 48 }}>
-                {INFO_LINKS.map(item => (
+                {infoLinks.map(item => (
                   <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                     style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
                     {item.label}

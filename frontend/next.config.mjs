@@ -37,6 +37,8 @@ const cspHeader = [
 ].join('; ')
 
 const nextConfig = {
+  allowedDevOrigins: ['127.0.0.1'],
+
   images: {
     formats: ['image/webp'],
     // Add 390px so mobile cards (50vw on 390px phone at 2× DPR)

@@ -1,7 +1,9 @@
 'use client'
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import ShopTheLookDrawer from './ShopTheLookDrawer'
+import { localeFromPathname, pathForLocale } from '../lib/i18n'
 
 function CartIcon() {
   return (
@@ -14,6 +16,8 @@ function CartIcon() {
 }
 
 export default function HomepagePhotoTiles({ tiles }) {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
   const [activeTile, setActiveTile] = useState(null)
 
   if (!tiles || tiles.length === 0) return null
@@ -60,7 +64,7 @@ export default function HomepagePhotoTiles({ tiles }) {
             )
           }
           if (tile.href) {
-            return <a key={tile.id} href={tile.href} className="photo-tile">{inner}</a>
+            return <a key={tile.id} href={pathForLocale(tile.href, locale)} className="photo-tile">{inner}</a>
           }
           return <div key={tile.id} className="photo-tile">{inner}</div>
         })}
@@ -69,7 +73,7 @@ export default function HomepagePhotoTiles({ tiles }) {
       <ShopTheLookDrawer
         open={Boolean(activeTile)}
         productIds={activeTile?.product_ids || []}
-        shopHref={activeTile?.href || ''}
+        shopHref={pathForLocale(activeTile?.href || '', locale)}
         onClose={() => setActiveTile(null)}
       />
     </section>

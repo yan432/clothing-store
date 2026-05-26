@@ -2,8 +2,10 @@
 import { useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { getMessages, pathForLocale } from '../lib/i18n'
 
-export default function HomeAboutTeaser() {
+export default function HomeAboutTeaser({ locale = 'en' }) {
+  const d = getMessages(locale)
   const sectionRef = useRef(null)
   const photoRef = useRef(null)
 
@@ -66,16 +68,14 @@ export default function HomeAboutTeaser() {
       </div>
       <div className="home-about-overlay" aria-hidden="true" />
       <div className="home-about-inner">
-        <p className="home-about-kicker">The story</p>
+        <p className="home-about-kicker">{d.home.storyKicker}</p>
         <h2 id="home-about-h" className="home-about-h">
-          Learn more <em>about us.</em>
+          {d.home.storyTitle} <em>{d.home.storyTitleEm}</em>
         </h2>
         <p className="home-about-sub">
-          edm.clothes began as an upcycling project — long before it became a movement.
-          Six years of chapters, re-stitched garments, and work that gets to age and survive
-          the year it was made in.
+          {d.home.storyText}
         </p>
-        <Link href="/about" className="home-about-cta">Read our story →</Link>
+        <Link href={pathForLocale('/about', locale)} className="home-about-cta">{d.home.storyCta}</Link>
       </div>
     </section>
   )

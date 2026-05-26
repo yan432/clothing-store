@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackLead } from '../lib/track'
+import { localeFromPathname } from '../lib/i18n'
 
 function pad(n) { return String(n).padStart(2, '0') }
 
@@ -17,6 +19,7 @@ function calc(target) {
 }
 
 export default function DropCountdown({ targetDate, label = 'New Drop' }) {
+  const locale = localeFromPathname(usePathname() || '/')
   const [timeLeft, setTimeLeft] = useState(null)
   const [mounted, setMounted] = useState(false)
   const [email, setEmail] = useState('')
@@ -50,7 +53,12 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
       const res = await fetch(getApiUrl('/email-subscribers/capture'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), source: 'drop_timer' }),
+        body: JSON.stringify({
+          email: email.trim(),
+          source: 'drop_timer',
+          preferred_locale: locale,
+          metadata: { preferred_locale: locale },
+        }),
       })
       if (!res.ok) {
         const text = await res.text()

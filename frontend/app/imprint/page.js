@@ -1,7 +1,9 @@
+import { localizedAlternates } from '../lib/seo'
+
 export const metadata = {
   title: 'Imprint — EDM Clothes',
   description: 'Legal information about EDM Clothes.',
-  alternates: { canonical: '/imprint' },
+  alternates: localizedAlternates('/imprint'),
 }
 
 export default function ImprintPage() {

@@ -1,15 +1,76 @@
 import { getApiUrl } from '../lib/api'
 import { Package, RefreshCw, CheckCircle2, Mail } from 'lucide-react'
+import { pathForLocale } from '../lib/i18n'
+import { localizedAlternates } from '../lib/seo'
 
 export const revalidate = 60
 
 export const metadata = {
   title: 'Returns & Exchanges — EDM Clothes',
   description: 'Our return and exchange policy.',
-  alternates: { canonical: '/returns' },
+  alternates: localizedAlternates('/returns'),
 }
 
-async function getPage() {
+const UK_RETURNS_SECTIONS = [
+  {
+    title: 'Термін повернення',
+    body: 'Повернення можливе протягом 14 днів з дати отримання замовлення. Після цього терміну ми не зможемо прийняти повернення.',
+  },
+  {
+    title: 'Умови повернення',
+    body: 'Річ має бути неношеною, непраною, без пошкоджень, з оригінальними бірками та в оригінальному пакуванні. Товари з фінального розпродажу та індивідуальні замовлення не підлягають поверненню.',
+  },
+  {
+    title: 'Як оформити повернення',
+    body: 'Напиши нам на sales@edmclothes.net, вкажи номер замовлення та причину повернення. Ми надішлемо інструкції протягом 1-2 робочих днів.',
+  },
+  {
+    title: 'Повернення коштів',
+    body: 'Після отримання та перевірки повернення кошти будуть повернуті на початковий спосіб оплати протягом 5-10 робочих днів.',
+  },
+  {
+    title: 'Обмін',
+    body: 'Безкоштовний обмін доступний на інший розмір або колір того самого товару, якщо він є в наявності.',
+  },
+  {
+    title: 'Доставка повернення',
+    body: 'Вартість зворотної доставки оплачує покупець, якщо повернення не пов’язане з нашою помилкою, наприклад неправильним або дефектним товаром.',
+  },
+]
+
+const RETURNS_COPY = {
+  en: {
+    title: 'Returns & Exchanges',
+    lead: 'Last updated: April 2026',
+    summary: [
+      { Icon: Package, label: '14-day returns', sub: 'From date of receipt' },
+      { Icon: RefreshCw, label: 'Free exchange', sub: 'On size or colour' },
+      { Icon: CheckCircle2, label: 'Unworn items', sub: 'With original tags' },
+      { Icon: Mail, label: 'Email to start', sub: 'sales@edmclothes.net' },
+    ],
+    ctaTitle: 'Still have questions?',
+    ctaText: "Our team is happy to help. Reach out and we'll get back to you within 1-2 business days.",
+    contact: 'Contact us',
+    faq: 'FAQ',
+  },
+  uk: {
+    title: 'Повернення та обмін',
+    lead: 'Оновлено: квітень 2026',
+    summary: [
+      { Icon: Package, label: '14 днів', sub: 'З дати отримання' },
+      { Icon: RefreshCw, label: 'Безкоштовний обмін', sub: 'На розмір або колір' },
+      { Icon: CheckCircle2, label: 'Неношені речі', sub: 'З оригінальними бірками' },
+      { Icon: Mail, label: 'Напиши нам', sub: 'sales@edmclothes.net' },
+    ],
+    ctaTitle: 'Залишилися питання?',
+    ctaText: 'Напиши нам, і ми відповімо протягом 1-2 робочих днів.',
+    contact: 'Написати нам',
+    faq: 'FAQ',
+  },
+}
+
+async function getPage(locale = 'en') {
+  if (locale === 'uk') return { sections: UK_RETURNS_SECTIONS }
   try {
     const res = await fetch(getApiUrl('/pages/returns'), { next: { revalidate: 60 } })
     if (!res.ok) return null
@@ -17,23 +78,19 @@ async function getPage() {
   } catch { return null }
 }
 
-export default async function ReturnsPage() {
-  const data = await getPage()
+export default async function ReturnsPage({ locale = 'en' }) {
+  const copy = RETURNS_COPY[locale === 'uk' ? 'uk' : 'en']
+  const data = await getPage(locale)
   const sections = data?.sections || []
 
   return (
     <main style={{ maxWidth: 720, margin: '0 auto', padding: '56px 24px 80px' }}>
-      <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.02em' }}>Returns & Exchanges</h1>
-      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>Last updated: April 2026</p>
+      <h1 style={{ fontSize: 32, fontWeight: 700, margin: '0 0 6px', letterSpacing: '-0.02em' }}>{copy.title}</h1>
+      <p style={{ fontSize: 15, color: '#888', margin: '0 0 48px' }}>{copy.lead}</p>
 
       {/* Quick summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 48 }}>
-        {[
-          { Icon: Package,      label: '14-day returns', sub: 'From date of receipt' },
-          { Icon: RefreshCw,    label: 'Free exchange',  sub: 'On size or colour' },
-          { Icon: CheckCircle2, label: 'Unworn items',   sub: 'With original tags' },
-          { Icon: Mail,         label: 'Email to start', sub: 'sales@edmclothes.net' },
-        ].map(({ Icon, label, sub }) => (
+        {copy.summary.map(({ Icon, label, sub }) => (
           <div key={label} style={{ background: '#f5f5f3', borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Icon size={24} strokeWidth={1.5} /></div>
             <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{label}</p>
@@ -52,13 +109,13 @@ export default async function ReturnsPage() {
       ))}
 
       <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '28px 24px', marginTop: 8 }}>
-        <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>Still have questions?</p>
+        <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>{copy.ctaTitle}</p>
         <p style={{ fontSize: 14, color: '#666', margin: '0 0 16px', lineHeight: 1.6 }}>
-          Our team is happy to help — reach out and we'll get back to you within 1–2 business days.
+          {copy.ctaText}
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <a href="/contact" style={{ background: '#0a0a0a', color: '#fff', textDecoration: 'none', padding: '11px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>Contact us</a>
-          <a href="/faq" style={{ background: '#fff', color: '#111', textDecoration: 'none', padding: '11px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600, border: '1.5px solid #e5e5e0' }}>FAQ</a>
+          <a href={pathForLocale('/contact', locale)} style={{ background: '#0a0a0a', color: '#fff', textDecoration: 'none', padding: '11px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>{copy.contact}</a>
+          <a href={pathForLocale('/faq', locale)} style={{ background: '#fff', color: '#111', textDecoration: 'none', padding: '11px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600, border: '1.5px solid #e5e5e0' }}>{copy.faq}</a>
         </div>
       </div>
     </main>

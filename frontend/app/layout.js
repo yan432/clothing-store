@@ -15,6 +15,8 @@ import CookieConsent from './components/CookieConsent'
 import UtmCapture from './components/UtmCapture'
 import { WishlistProvider } from './context/WishlistContext'
 import { Suspense } from 'react'
+import { headers } from 'next/headers'
+import { localeFromPathname } from './lib/i18n'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -53,9 +55,13 @@ export async function generateMetadata() {
   }
 }
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const requestHeaders = await headers()
+  const pathname = requestHeaders.get('x-edm-pathname') || '/'
+  const locale = localeFromPathname(pathname)
+
   return (
-    <html lang="en">
+    <html lang={locale === 'uk' ? 'uk' : 'en'}>
       <head>
         {/* Speed up Supabase-hosted hero image (LCP) by warming the TCP/TLS connection */}
         <link rel="preconnect" href="https://tlaagtvplzitmqwqbluq.supabase.co" crossOrigin="" />

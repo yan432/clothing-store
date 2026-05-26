@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import ProductCard from './ProductCard'
 
-export default function RecommendationsCarousel({ products }) {
+export default function RecommendationsCarousel({ products, locale = 'en' }) {
   const trackRef = useRef(null)
   const [canPrev, setCanPrev] = useState(false)
   const [canNext, setCanNext] = useState(true)
@@ -52,7 +52,7 @@ export default function RecommendationsCarousel({ products }) {
       >
         {products.map(p => (
           <div key={p.id} style={{ flex: '0 0 calc(50% - 6px)', scrollSnapAlign: 'start', minWidth: 0 }}>
-            <ProductCard product={p} />
+            <ProductCard product={p} locale={locale} />
           </div>
         ))}
       </div>

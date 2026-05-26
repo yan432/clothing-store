@@ -1,6 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
+import { getMessages } from '../lib/i18n'
 
 function InstagramIcon() {
   return (
@@ -12,7 +13,8 @@ function InstagramIcon() {
   )
 }
 
-export default function HomeInstagramFeed({ posts }) {
+export default function HomeInstagramFeed({ posts, locale = 'en' }) {
+  const d = getMessages(locale)
   const trackRef = useRef(null)
   const [canLeft, setCanLeft] = useState(false)
   const [canRight, setCanRight] = useState(false)
@@ -45,8 +47,8 @@ export default function HomeInstagramFeed({ posts }) {
     <section className="ig-feed-section" aria-labelledby="ig-feed-h">
       <div className="ig-feed-head">
         <div>
-          <p className="ig-feed-kicker">Worn by you</p>
-          <h2 id="ig-feed-h" className="ig-feed-h">From the community</h2>
+          <p className="ig-feed-kicker">{d.home.wornByYou}</p>
+          <h2 id="ig-feed-h" className="ig-feed-h">{d.home.community}</h2>
         </div>
         <a href="https://www.instagram.com/edm.clothes" target="_blank" rel="noopener noreferrer" className="ig-feed-follow">
           <InstagramIcon />
@@ -58,14 +60,14 @@ export default function HomeInstagramFeed({ posts }) {
         <button
           type="button"
           className="ig-feed-arrow ig-feed-arrow-left"
-          aria-label="Scroll left"
+          aria-label={d.home.scrollLeft}
           onClick={() => scroll(-1)}
           disabled={!canLeft}
         >‹</button>
         <button
           type="button"
           className="ig-feed-arrow ig-feed-arrow-right"
-          aria-label="Scroll right"
+          aria-label={d.home.scrollRight}
           onClick={() => scroll(1)}
           disabled={!canRight}
         >›</button>
@@ -77,7 +79,7 @@ export default function HomeInstagramFeed({ posts }) {
               <>
                 <Image
                   src={post.image_url}
-                  alt={post.caption || 'Instagram post'}
+                  alt={post.caption || d.home.instagramPost}
                   fill
                   sizes="(max-width: 679px) 70vw, (max-width: 1099px) 33vw, 22vw"
                   quality={55}
@@ -99,7 +101,7 @@ export default function HomeInstagramFeed({ posts }) {
                   href={post.permalink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label={handle ? `Instagram post by ${handle}` : 'Instagram post'}
+                  aria-label={handle ? `${d.home.instagramBy} ${handle}` : d.home.instagramPost}
                 >
                   {inner}
                 </a>

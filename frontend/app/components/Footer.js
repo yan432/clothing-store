@@ -1,16 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackNewsletterSignup } from '../lib/track'
+import { getMessages, localeFromPathname, pathForLocale, translateCategory } from '../lib/i18n'
 
 const STATIC_SHOP_LINKS = [
-  ['All products', '/products'],
-  ['New arrivals', '/products?special=new'],
-  ['Sale',         '/products?special=sale'],
+  ['allProducts', '/products'],
+  ['newArrivals', '/products?special=new'],
+  ['sale',         '/products?special=sale'],
 ]
 
 export default function Footer() {
+  const pathname = usePathname() || '/'
+  const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const [newsletterEmail, setNewsletterEmail] = useState('')
   const [newsletterLoading, setNewsletterLoading] = useState(false)
   const [newsletterMessage, setNewsletterMessage] = useState('')
@@ -36,7 +41,8 @@ export default function Footer() {
         body: JSON.stringify({
           email,
           source: 'footer_newsletter',
-          metadata: { placement: 'footer' },
+          preferred_locale: locale,
+          metadata: { placement: 'footer', preferred_locale: locale },
         }),
       })
       if (!res.ok) {
@@ -44,26 +50,26 @@ export default function Footer() {
         throw new Error(text || 'Failed to subscribe')
       }
       trackNewsletterSignup({ source: 'footer_newsletter' })
-      setNewsletterMessage('Thanks, you are subscribed.')
+      setNewsletterMessage(d.footer.subscribed)
       setNewsletterEmail('')
     } catch (_) {
-      setNewsletterMessage('Could not subscribe right now.')
+      setNewsletterMessage(d.footer.subscribeError)
     } finally {
       setNewsletterLoading(false)
     }
   }
 
   const shopLinks = [
-    ...STATIC_SHOP_LINKS,
-    ...categories.map(cat => [cat, `/products?category=${encodeURIComponent(cat)}`]),
+    ...STATIC_SHOP_LINKS.map(([key, href]) => [d.nav[key], pathForLocale(href, locale)]),
+    ...categories.map(cat => [translateCategory(cat, locale), pathForLocale(`/products?category=${encodeURIComponent(cat)}`, locale)]),
   ]
   const careLinks = [
-    ['About','/about'],
-    ['Contact us','/contact'],
-    ['Shipping info','/shipping'],
-    ['Returns & exchanges','/returns'],
-    ['Size guide','/size-guide'],
-    ['FAQ','/faq'],
+    [d.nav.about, pathForLocale('/about', locale)],
+    [d.nav.contact, pathForLocale('/contact', locale)],
+    [d.nav.shipping, pathForLocale('/shipping', locale)],
+    [d.nav.returns, pathForLocale('/returns', locale)],
+    [d.nav.sizeGuide, pathForLocale('/size-guide', locale)],
+    [d.nav.faq, pathForLocale('/faq', locale)],
   ]
 
   return (
@@ -74,7 +80,7 @@ export default function Footer() {
         <div className="footer-brand">
           <p style={{fontSize:20,fontWeight:700,letterSpacing:'0.06em',margin:'0 0 16px'}}>edm.clothes</p>
           <p style={{fontSize:13,color:'#666',lineHeight:1.7,margin:'0 0 20px'}}>
-            Minimal essentials designed for everyday wear. Made in Ukraine.
+            {d.footer.tagline}
           </p>
           <div style={{display:'flex',gap:10}}>
             <a href="https://www.instagram.com/edm.clothes" target="_blank" rel="noopener noreferrer"
@@ -96,7 +102,7 @@ export default function Footer() {
 
         {/* Shop */}
         <div className="footer-shop">
-          <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Shop</p>
+          <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>{d.footer.shop}</p>
           <ul style={{listStyle:'none',margin:0,padding:0,display:'flex',flexDirection:'column',gap:12}}>
             {shopLinks.map(([label, href]) => (
               <li key={label}>
@@ -108,7 +114,7 @@ export default function Footer() {
 
         {/* Customer care */}
         <div className="footer-care">
-          <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Customer care</p>
+          <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>{d.footer.customerCare}</p>
           <ul style={{listStyle:'none',margin:0,padding:0,display:'flex',flexDirection:'column',gap:12}}>
             {careLinks.map(([label, href]) => (
               <li key={label}>
@@ -120,17 +126,17 @@ export default function Footer() {
 
         {/* Newsletter */}
         <div className="footer-newsletter">
-          <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>Newsletter</p>
+          <p style={{fontSize:11,fontWeight:600,letterSpacing:'0.12em',color:'#555',textTransform:'uppercase',margin:'0 0 20px'}}>{d.footer.newsletter}</p>
           <p style={{fontSize:13,color:'#bbb',lineHeight:1.5,margin:'0 0 10px',fontWeight:600}}>
-            Sign up for our email newsletter & get <span style={{color:'#fff'}}>-10% OFF</span> your first order
+            {d.footer.newsletterLead} <span style={{color:'#fff'}}>{d.footer.newsletterDiscount}</span> {d.footer.newsletterTail}
           </p>
           <p style={{fontSize:13,color:'#666',lineHeight:1.6,margin:'0 0 16px'}}>
-            Get early access to new arrivals, sales, exclusive content, events and more!
+            {d.footer.newsletterCopy}
           </p>
           <form onSubmit={handleNewsletterSubmit} className="footer-newsletter-form">
             <input
               type="email"
-              placeholder="Email address"
+              placeholder={d.footer.emailPlaceholder}
               value={newsletterEmail}
               onChange={(e) => setNewsletterEmail(e.target.value)}
               required
@@ -140,7 +146,7 @@ export default function Footer() {
               disabled={newsletterLoading}
               style={{opacity: newsletterLoading ? 0.7 : 1}}
             >
-              {newsletterLoading ? '...' : 'Sign up'}
+              {newsletterLoading ? '...' : d.footer.signUp}
             </button>
           </form>
           <p style={{fontSize:12,color:'#888',margin:'8px 0 0',minHeight:16}}>
@@ -154,7 +160,7 @@ export default function Footer() {
         <div className="footer-bottom-row">
 
           <div style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
-            <span style={{fontSize:12,color:'#555',marginRight:4,whiteSpace:'nowrap'}}>We accept</span>
+            <span style={{fontSize:12,color:'#555',marginRight:4,whiteSpace:'nowrap'}}>{d.footer.accept}</span>
             {[
               { file: 'Visa.png',       alt: 'Visa' },
               { file: 'Mastercard.png', alt: 'Mastercard' },
@@ -170,8 +176,8 @@ export default function Footer() {
           </div>
 
           <div className="footer-legal-links">
-            {[['Privacy Policy','/privacy'],['Terms','/terms'],['Imprint','/imprint']].map(([label, href]) => (
-              <a key={label} href={href} className="footer-link" style={{fontSize:12,marginBottom:0}}>
+            {[[d.footer.privacy,'/privacy'],[d.footer.terms,'/terms'],[d.footer.imprint,'/imprint']].map(([label, href]) => (
+              <a key={label} href={pathForLocale(href, locale)} className="footer-link" style={{fontSize:12,marginBottom:0}}>
                 {label}
               </a>
             ))}
@@ -182,7 +188,7 @@ export default function Footer() {
       {/* Bottom */}
       <div style={{borderTop:'1px solid #111',padding:'20px 24px',textAlign:'center'}}>
         <p style={{fontSize:12,color:'#333',margin:0}}>
-          © {new Date().getFullYear()} edm.clothes. Made in Ukraine.
+          © {new Date().getFullYear()} edm.clothes. {d.footer.made}
         </p>
       </div>
     </footer>
