@@ -15,8 +15,8 @@ const imageHosts = Array.from(new Set([
 
 const cspHeader = [
   "default-src 'self'",
-  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Google Ads + Meta Pixel + TikTok Pixel
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://connect.facebook.net https://analytics.tiktok.com",
+  // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Google Ads + Meta Pixel + TikTok Pixel + Microsoft Clarity
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://connect.facebook.net https://analytics.tiktok.com https://www.clarity.ms",
   // Styles: self + inline (Next.js injects inline styles)
   "style-src 'self' 'unsafe-inline'",
   // Images: self + data URIs + Supabase + bigcartel + GA + GTM + Meta + TikTok + Google Ads remarketing pixel
@@ -27,7 +27,7 @@ const cspHeader = [
   // Frames: Stripe payment iframe
   "frame-src https://js.stripe.com https://hooks.stripe.com https://td.doubleclick.net",
   // Connect: self + backend API + Supabase + Stripe + GA + Google Ads + Meta + TikTok + ipapi
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://*.tiktokw.us`,
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://*.tiktokw.us https://*.clarity.ms`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
@@ -65,6 +65,16 @@ const nextConfig = {
         destination: '/products/:slug',
         permanent: true,
       },
+      // BigCartel appended -<digits> when a slug was taken (e.g. scars-hoodie-11).
+      // Strip the suffix so the canonical product page handles the request.
+      {
+        source: '/products/:slug(.+)-:num(\\d+)',
+        destination: '/products/:slug',
+        permanent: true,
+      },
+      // BigCartel colour-variant slugs that map to one canonical product
+      { source: '/products/edm-module-longsleeve-white', destination: '/products/edm-module-longsleeve', permanent: true },
+      { source: '/products/edm-module-longsleeve-milk',  destination: '/products/edm-module-longsleeve', permanent: true },
       // Capitalised category names (product.category in DB is "Tops" not "tops")
       { source: '/category/tops',        destination: '/products?category=Tops',        permanent: true },
       { source: '/category/bottoms',     destination: '/products?category=Bottoms',     permanent: true },
@@ -79,6 +89,9 @@ const nextConfig = {
         destination: '/products',
         permanent: true,
       },
+      // Old BigCartel static pages → current equivalents
+      { source: '/return-policy',                     destination: '/returns',    permanent: true },
+      { source: '/material-and-care-recommendations', destination: '/size-guide', permanent: true },
     ]
   },
 
