@@ -16,6 +16,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
   const [isDragging, setIsDragging] = useState(false)
   const [instantSwitch, setInstantSwitch] = useState(false)
   const touchStartXRef = useRef(null)
+  const suppressTapRef = useRef(false)
   const activeImage = images[activeIndex] || ''
   const hasImages = images.length > 0
 
@@ -44,6 +45,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
 
   function onTouchStart(event) {
     touchStartXRef.current = event.touches[0]?.clientX ?? null
+    suppressTapRef.current = false
     setIsDragging(true)
     setDragOffset(0)
   }
@@ -51,7 +53,9 @@ export default function ProductGallery({ product, locale = 'en' }) {
   function onTouchMove(event) {
     if (touchStartXRef.current == null) return
     const currentX = event.touches[0]?.clientX ?? touchStartXRef.current
-    setDragOffset(currentX - touchStartXRef.current)
+    const diff = currentX - touchStartXRef.current
+    if (Math.abs(diff) > 8) suppressTapRef.current = true
+    setDragOffset(diff)
   }
 
   function onTouchEnd(event) {
@@ -60,11 +64,33 @@ export default function ProductGallery({ product, locale = 'en' }) {
     const diff = endX - touchStartXRef.current
     touchStartXRef.current = null
     setIsDragging(false)
+    suppressTapRef.current = Math.abs(diff) > 8
     if (Math.abs(diff) >= 40) {
       if (diff > 0) goPrev()
       else goNext()
     }
     setDragOffset(0)
+  }
+
+  function onGalleryClick(event) {
+    if (images.length <= 1) return
+    if (suppressTapRef.current) {
+      suppressTapRef.current = false
+      return
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    const sideZoneWidth = rect.width * 0.42
+    if (x <= sideZoneWidth) goPrev()
+    else if (x >= rect.width - sideZoneWidth) goNext()
+  }
+
+  function onArrowClick(event, direction) {
+    event.stopPropagation()
+    suppressTapRef.current = false
+    if (direction === 'prev') goPrev()
+    else goNext()
   }
 
   return (
@@ -108,6 +134,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
+        onClick={onGalleryClick}
         style={{background:'#f5f5f3',borderRadius:20,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',color:'#ccc',touchAction:'pan-y'}}>
         {hasImages ? (
           <div
@@ -141,8 +168,8 @@ export default function ProductGallery({ product, locale = 'en' }) {
 
         {images.length > 1 && (
           <>
-            <button className="product-gallery-arrow left" onClick={goPrev} aria-label={d.products.previousImage || 'Previous image'}>‹</button>
-            <button className="product-gallery-arrow right" onClick={goNext} aria-label={d.products.nextImage || 'Next image'}>›</button>
+            <button type="button" className="product-gallery-arrow left" onClick={(event) => onArrowClick(event, 'prev')} aria-label={d.products.previousImage || 'Previous image'}>‹</button>
+            <button type="button" className="product-gallery-arrow right" onClick={(event) => onArrowClick(event, 'next')} aria-label={d.products.nextImage || 'Next image'}>›</button>
             <div className="product-gallery-counter">{activeIndex + 1} / {images.length}</div>
           </>
         )}
