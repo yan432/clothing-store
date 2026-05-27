@@ -244,7 +244,7 @@ const ABOUT_COPY = {
     visualEssay: 'Visual essay',
     pictures: <>edm.clothes <em>in pictures.</em></>,
     instagram: 'See more on Instagram',
-    tiktok: 'Follow on TikTok',
+    pinterest: 'Follow on Pinterest',
     journal: 'The journal',
     epilogueTitle: 'Learn more about us.',
     epilogueText: 'The full journal - 30 pages, photography, essays, sketches - is a free download. Print it, fold it, tear out a page and pin it to your wall.',
@@ -279,7 +279,7 @@ const ABOUT_COPY = {
     visualEssay: 'Візуальний есей',
     pictures: <>edm.clothes <em>у кадрах.</em></>,
     instagram: 'Більше в Instagram',
-    tiktok: 'Стежити в TikTok',
+    pinterest: 'Стежити в Pinterest',
     journal: 'Журнал',
     epilogueTitle: 'Дізнатися більше про нас.',
     epilogueText: 'Повний журнал - це 30 сторінок фотографій, есеїв і скетчів у вільному доступі. Завантаж, роздрукуй, склади або вирви сторінку й повісь на стіну.',
@@ -446,11 +446,11 @@ export default function AboutPage({ locale = 'en' }) {
             </svg>
             {copy.instagram}
           </a>
-          <a href="https://www.tiktok.com/@edm_clothes" target="_blank" rel="noopener noreferrer" className={s.mosaicInstaBtn}>
-            <svg width="14" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
-              <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.32 6.32 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/>
+          <a href="https://pinterest.com/edmclothes" target="_blank" rel="noopener noreferrer" className={s.mosaicInstaBtn}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+              <path d="M12 2C6.48 2 2 6.48 2 12c0 4.24 2.64 7.85 6.35 9.3-.09-.79-.17-2 .04-2.86.19-.78 1.22-4.95 1.22-4.95s-.31-.62-.31-1.55c0-1.45.84-2.53 1.89-2.53.89 0 1.32.67 1.32 1.47 0 .9-.57 2.24-.86 3.48-.25 1.04.52 1.89 1.55 1.89 1.86 0 3.29-1.96 3.29-4.79 0-2.5-1.8-4.25-4.37-4.25-2.98 0-4.72 2.23-4.72 4.54 0 .9.35 1.86.78 2.39.08.1.1.19.07.29-.08.34-.27 1.07-.31 1.22-.05.2-.16.24-.37.14-1.37-.64-2.23-2.64-2.23-4.25 0-3.46 2.51-6.64 7.25-6.64 3.8 0 6.76 2.71 6.76 6.34 0 3.78-2.38 6.82-5.69 6.82-1.11 0-2.16-.58-2.52-1.26 0 0-.55 2.1-.69 2.62-.25.96-.92 2.16-1.37 2.89C9.65 21.83 10.81 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2z"/>
             </svg>
-            {copy.tiktok}
+            {copy.pinterest}
           </a>
         </div>
       </Reveal>
