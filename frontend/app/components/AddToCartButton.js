@@ -1,7 +1,7 @@
 'use client'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Bell, AlertTriangle } from 'lucide-react'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
 import NotifyMePopup from './NotifyMePopup'
@@ -16,6 +16,8 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
   const [maxReached, setMaxReached] = useState(false)
   const [selectedSizeInput, setSelectedSizeInput] = useState('')
   const [notifyPopup, setNotifyPopup]   = useState(false)
+  const [sizePromptPulse, setSizePromptPulse] = useState(false)
+  const selectRef = useRef(null)
   const productTags = product?.tags
 
   // Parse + sort sizes in standard preset order (XS → S → M → L → XL → XXL → One Size)
@@ -49,7 +51,22 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
 
   const canAdd = effectiveInStock && (!mustSelectSize || Boolean(selectedSize))
 
+  function promptSizeSelection() {
+    const el = selectRef.current
+    if (el) {
+      el.focus({ preventScroll: true })
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      try { el.showPicker?.() } catch {}
+    }
+    setSizePromptPulse(true)
+    setTimeout(() => setSizePromptPulse(false), 1200)
+  }
+
   function handleAdd() {
+    if (mustSelectSize && !selectedSize) {
+      promptSizeSelection()
+      return
+    }
     if (!canAdd) return
     const size = selectedSize || sizeOptions[0] || null
     const sizeSpecificStock = size != null ? getSizeQty(size) : undefined
@@ -78,20 +95,25 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           {/* Styled select wrapper */}
           <div style={{
             position: 'relative',
-            border: '1.5px solid #deded8',
+            border: `1.5px solid ${sizePromptPulse ? '#111' : '#deded8'}`,
             borderRadius: 10,
             background: '#fff',
+            boxShadow: sizePromptPulse ? '0 0 0 4px rgba(17,17,17,0.12)' : 'none',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
           }}>
             <p style={{
-              fontSize: 11, color: '#888', margin: 0,
+              fontSize: 11, color: sizePromptPulse ? '#111' : '#888', margin: 0,
               padding: '9px 14px 0',
               textTransform: 'uppercase', letterSpacing: '0.08em',
+              fontWeight: sizePromptPulse ? 600 : 400,
+              transition: 'color 0.2s',
             }}>
               {d.cart.size}
             </p>
             <select
+              ref={selectRef}
               value={selectedSize}
-              onChange={e => setSelectedSizeInput(e.target.value)}
+              onChange={e => { setSelectedSizeInput(e.target.value); setSizePromptPulse(false) }}
               style={{
                 width: '100%',
                 border: 'none',
@@ -173,7 +195,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
       ) : (
         <button
           onClick={handleAdd}
-          disabled={!canAdd}
+          disabled={!canAdd && !(mustSelectSize && !selectedSize)}
           style={{
             background: added ? '#16a34a' : '#000',
             color: '#fff',
@@ -182,10 +204,10 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
             borderRadius: 999,
             fontSize: 14,
             fontWeight: 500,
-            cursor: canAdd ? 'pointer' : 'not-allowed',
+            cursor: canAdd || (mustSelectSize && !selectedSize) ? 'pointer' : 'not-allowed',
             transition: 'background 0.2s, opacity 0.2s',
             width: '100%',
-            opacity: canAdd ? 1 : 0.55,
+            opacity: canAdd || (mustSelectSize && !selectedSize) ? 1 : 0.55,
           }}
         >
           {isInStock
