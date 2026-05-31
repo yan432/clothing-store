@@ -4,6 +4,7 @@ import ProductGallery from '../../components/ProductGallery'
 import ProductCard from '../../components/ProductCard'
 import RecommendationsCarousel from '../../components/RecommendationsCarousel'
 import GaViewItemEvent from '../../components/GaViewItemEvent'
+import ProductDetailsEventTracker from '../../components/ProductDetailsEventTracker'
 import Link from 'next/link'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
@@ -195,6 +196,16 @@ export default async function ProductPage({ params, locale = 'en' }) {
       <meta property="og:availability" content={ogAvailability} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />
+      <ProductDetailsEventTracker
+        product={{
+          id: product.id,
+          slug: product.slug || slug,
+          colorGroupId: product.color_group_id,
+          name: displayProduct.name,
+          price: product.price,
+          category: product.category,
+        }}
+      />
       <GaViewItemEvent
         item={{
           item_id:       product.color_group_id || product.slug || slug || String(product.id),
@@ -308,7 +319,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
               </details>
             </div>
 
-              <details style={{borderBottom:'1px solid #e5e5e0'}}>
+              <details data-product-track-section="shipping_returns" style={{borderBottom:'1px solid #e5e5e0'}}>
                 <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
                   {d.product.shippingReturns}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>

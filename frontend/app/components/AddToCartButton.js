@@ -6,6 +6,7 @@ import { Bell, AlertTriangle } from 'lucide-react'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
 import NotifyMePopup from './NotifyMePopup'
 import { getMessages, pathForLocale } from '../lib/i18n'
+import { trackAddToCartBlocked, trackSizeSelect } from '../lib/track'
 
 // sizeStock: { S: 5, M: 0, L: 1 } — undefined key = not tracked (available)
 export default function AddToCartButton({ product, showSizeSelector = false, sizeStock = {}, locale = 'en' }) {
@@ -64,10 +65,22 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
 
   function handleAdd() {
     if (mustSelectSize && !selectedSize) {
+      trackAddToCartBlocked({
+        product,
+        reason: 'size_required',
+      })
       promptSizeSelection()
       return
     }
-    if (!canAdd) return
+    if (!canAdd) {
+      trackAddToCartBlocked({
+        product,
+        reason: !isInStock ? 'out_of_stock' : 'unavailable_size',
+        size: selectedSize,
+        availableStock: selectedSize ? getSizeQty(selectedSize) : availableStock,
+      })
+      return
+    }
     const size = selectedSize || sizeOptions[0] || null
     const sizeSpecificStock = size != null ? getSizeQty(size) : undefined
     // Override available_stock with size-specific stock so CartContext enforces per-size limits
@@ -76,9 +89,36 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
       : {}
     const result = addToCart({ ...product, size, ...stockOverride })
     if (!result?.ok) {
+      trackAddToCartBlocked({
+        product,
+        reason: result?.reason || 'cart_add_failed',
+        size,
+        availableStock: sizeSpecificStock ?? availableStock,
+      })
       setMaxReached(true); setTimeout(() => setMaxReached(false), 1800); return
     }
     setMaxReached(false); setAdded(true); setTimeout(() => setAdded(false), 1500)
+  }
+
+  function handleSizeChange(event) {
+    const nextSize = event.target.value
+    setSelectedSizeInput(nextSize)
+    setSizePromptPulse(false)
+    trackSizeSelect({
+      product,
+      size: nextSize,
+      availableStock: getSizeQty(nextSize),
+    })
+  }
+
+  function handleNotifyClick() {
+    trackAddToCartBlocked({
+      product,
+      reason: 'size_sold_out',
+      size: selectedSize,
+      availableStock: getSizeQty(selectedSize),
+    })
+    setNotifyPopup(true)
   }
 
   // FOMO state for currently selected size
@@ -113,7 +153,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
             <select
               ref={selectRef}
               value={selectedSize}
-              onChange={e => { setSelectedSizeInput(e.target.value); setSizePromptPulse(false) }}
+              onChange={handleSizeChange}
               style={{
                 width: '100%',
                 border: 'none',
@@ -173,7 +213,7 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
       {/* Show "Notify me" when a specific sold-out size is selected */}
       {selectedSize && isSoldOut(selectedSize) ? (
         <button
-          onClick={() => setNotifyPopup(true)}
+          onClick={handleNotifyClick}
           style={{
             background: 'transparent',
             color: '#111',

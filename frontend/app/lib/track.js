@@ -99,11 +99,14 @@ export function catalogItemId({ slug, id, size, colorGroupId } = {}) {
   return colorGroupId || slug || String(id || '')
 }
 
+function gaProductItemId({ slug, id, colorGroupId } = {}) {
+  return colorGroupId || slug || String(id || '')
+}
+
 function gaItem(item = {}, index = 0) {
-  const itemId = catalogItemId({
+  const itemId = gaProductItemId({
     id:           item.product_id || item.id,
     slug:         item.slug || item.product_slug,
-    size:         item.size,
     colorGroupId: item.color_group_id || item.colorGroupId,
   }) || String(item.product_id || item.id || index)
 
@@ -114,6 +117,21 @@ function gaItem(item = {}, index = 0) {
     item_variant:  item.size || item.color_name || undefined,
     price:         Number(item.price) || 0,
     quantity:      Number(item.quantity || item.qty) || 1,
+  }
+}
+
+function productEventParams(product = {}, extra = {}) {
+  return {
+    item_id:       gaProductItemId({
+      id:           product.product_id || product.id,
+      slug:         product.slug || product.product_slug,
+      colorGroupId: product.color_group_id || product.colorGroupId,
+    }) || undefined,
+    item_name:     product.name || product.product_name || product.title || undefined,
+    item_category: product.category || product.item_category || undefined,
+    item_variant:  product.size || product.color_name || extra.size || undefined,
+    value:         Number(product.price) || undefined,
+    ...extra,
   }
 }
 
@@ -231,6 +249,55 @@ export function trackCartAdd(productOrId, email = null) {
   }
 }
 
+export function trackSizeSelect({ product = {}, size = '', availableStock = null } = {}) {
+  const cleanSize = String(size || '').trim()
+  if (!cleanSize) return
+  send('size_select', {
+    product_id: product.id || product.product_id || null,
+    metadata: {
+      slug:  product.slug || product.product_slug || null,
+      size:  cleanSize,
+      stock: availableStock == null ? null : Number(availableStock),
+    },
+  })
+  gaEvent('size_select', productEventParams(product, {
+    size: cleanSize,
+    item_variant: cleanSize,
+    stock: availableStock == null ? undefined : Number(availableStock),
+  }))
+}
+
+export function trackAddToCartBlocked({ product = {}, reason = 'unknown', size = '', availableStock = null } = {}) {
+  const cleanReason = String(reason || 'unknown')
+  const cleanSize = String(size || '').trim()
+  send('add_to_cart_blocked', {
+    product_id: product.id || product.product_id || null,
+    metadata: {
+      slug:   product.slug || product.product_slug || null,
+      reason: cleanReason,
+      size:   cleanSize || null,
+      stock:  availableStock == null ? null : Number(availableStock),
+    },
+  })
+  gaEvent('add_to_cart_blocked', productEventParams(product, {
+    reason: cleanReason,
+    size: cleanSize || undefined,
+    item_variant: cleanSize || product.size || undefined,
+    stock: availableStock == null ? undefined : Number(availableStock),
+  }))
+}
+
+export function trackShippingOpen({ product = {}, section = 'shipping_returns' } = {}) {
+  send('shipping_open', {
+    product_id: product.id || product.product_id || null,
+    metadata: {
+      slug: product.slug || product.product_slug || null,
+      section,
+    },
+  })
+  gaEvent('shipping_open', productEventParams(product, { section }))
+}
+
 export function trackViewCart(items = []) {
   gaEvent('view_cart', {
     currency: 'EUR',
@@ -275,7 +342,20 @@ export function trackShippingInfo({ email = null, cart = [], value = null, shipp
 
 /** User clicked the payment handoff button */
 export function trackPaymentInfo({ email = null, cart = [], value = null, paymentType = 'Stripe' } = {}) {
+  send('payment_click', {
+    email,
+    metadata: {
+      payment_type: paymentType,
+      value: value == null ? cartValue(cart) : Number(value),
+    },
+  })
   send('checkout_payment_info', { email })
+  gaEvent('payment_click', {
+    currency:     'EUR',
+    value:        value == null ? cartValue(cart) : Number(value),
+    payment_type: paymentType,
+    items:        cartItems(cart),
+  })
   gaEvent('add_payment_info', {
     currency:     'EUR',
     value:        value == null ? cartValue(cart) : Number(value),

@@ -4765,6 +4765,8 @@ def update_user_profile(payload: UserProfileUpdate, request: Request):
 ALLOWED_EVENT_TYPES = {
     "product_view", "cart_add", "checkout_started",
     "purchase", "login", "wishlist_add",
+    "size_select", "add_to_cart_blocked", "shipping_open",
+    "checkout_shipping_info", "checkout_payment_info", "payment_click",
 }
 
 class UserEventPayload(BaseModel):

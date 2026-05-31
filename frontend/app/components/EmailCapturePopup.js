@@ -9,6 +9,8 @@ import { trackNewsletterPopupClose, trackNewsletterSignup } from '../lib/track'
 import { getMessages, localeFromPathname } from '../lib/i18n'
 
 const SESSION_KEY = 'email-popup-dismissed'
+const SESSION_STARTED_KEY = 'email-popup-session-started-at'
+const POPUP_DELAY_MS = 30_000
 
 export default function EmailCapturePopup() {
   const pathname = usePathname() || '/'
@@ -44,13 +46,42 @@ export default function EmailCapturePopup() {
       return
     }
 
-    const onScroll = () => {
-      if (window.scrollY < 320) return
+    let sessionStartedAt = Number(sessionStorage.getItem(SESSION_STARTED_KEY) || 0)
+    if (!sessionStartedAt) {
+      sessionStartedAt = Date.now()
+      sessionStorage.setItem(SESSION_STARTED_KEY, String(sessionStartedAt))
+    }
+
+    let hasScrolledEnough = window.scrollY >= 320
+    let delayPassed = Date.now() - sessionStartedAt >= POPUP_DELAY_MS
+    let timer = null
+
+    function maybeShow() {
+      if (!hasScrolledEnough || !delayPassed) return
       setVisible(true)
       window.removeEventListener('scroll', onScroll)
+      if (timer) window.clearTimeout(timer)
     }
+
+    const onScroll = () => {
+      if (window.scrollY < 320) return
+      hasScrolledEnough = true
+      maybeShow()
+    }
+
+    const remainingDelay = Math.max(0, POPUP_DELAY_MS - (Date.now() - sessionStartedAt))
+    timer = window.setTimeout(() => {
+      delayPassed = true
+      maybeShow()
+    }, remainingDelay)
+
     window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    maybeShow()
+
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (timer) window.clearTimeout(timer)
+    }
   }, [canShow, user, authLoading, forceShow])
 
   function closePopup() {
