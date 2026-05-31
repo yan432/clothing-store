@@ -181,9 +181,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
             src={hero.image}
             alt=""
             fill
-            preload
-            fetchPriority="high"
-            loading="eager"
+            priority
             quality={90}
             sizes="100vw"
             // 1x1 dark JPEG so the section never flashes flat black before

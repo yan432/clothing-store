@@ -40,7 +40,7 @@ const nextConfig = {
   allowedDevOrigins: ['127.0.0.1'],
 
   images: {
-    formats: ['image/webp'],
+    formats: ['image/avif', 'image/webp'],
     // Add 390px so mobile cards (50vw on 390px phone at 2× DPR)
     // get a 390px image instead of jumping straight to 640px.
     deviceSizes: [390, 640, 750, 828, 1080, 1200, 1920],
