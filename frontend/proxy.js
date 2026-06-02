@@ -12,6 +12,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '')
 function nextWithPathHeader(request) {
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-edm-pathname', request.nextUrl.pathname)
+  requestHeaders.set('x-edm-search', request.nextUrl.search || '')
   return NextResponse.next({
     request: {
       headers: requestHeaders,

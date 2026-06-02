@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { isMarketingTrackingDisabled } from '../lib/trackingFilter'
 
 const GA_MEASUREMENT_ID = 'G-CMVZYXVZ8Y'
 
@@ -14,6 +15,7 @@ function ensureGtag() {
 }
 
 function syncSavedConsent() {
+  if (isMarketingTrackingDisabled()) return false
   try {
     if (window.localStorage.getItem('cookie_consent') !== 'granted') return false
   } catch {
@@ -37,6 +39,7 @@ export default function GaViewItemEvent({ item }) {
     let tracked = false
 
     function trackViewItem() {
+      if (isMarketingTrackingDisabled()) return
       if (tracked || !syncSavedConsent()) return
       if (!window.__gaConfigured) return
       tracked = true

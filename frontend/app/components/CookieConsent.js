@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { getMessages, localeFromPathname } from '../lib/i18n'
+import { isMarketingTrackingDisabled } from '../lib/trackingFilter'
 
 const STORAGE_KEY = 'cookie_consent'
 
@@ -15,6 +16,7 @@ const EEA_COUNTRIES = new Set([
 
 function updateGAConsent(granted) {
   if (typeof window === 'undefined') return
+  if (isMarketingTrackingDisabled()) return
   window.dataLayer = window.dataLayer || []
   if (typeof window.gtag !== 'function') {
     window.gtag = function gtag() {
@@ -35,6 +37,7 @@ function updateGAConsent(granted) {
 
 function updateMetaConsent(granted) {
   if (typeof window === 'undefined' || !window.fbq) return
+  if (isMarketingTrackingDisabled()) return
   window.fbq('consent', granted ? 'grant' : 'revoke')
   if (granted && !window.__metaPageViewTracked) {
     window.fbq('track', 'PageView')
@@ -44,6 +47,7 @@ function updateMetaConsent(granted) {
 
 function updateTikTokConsent(granted) {
   if (typeof window === 'undefined' || !window.ttq) return
+  if (isMarketingTrackingDisabled()) return
   if (granted) {
     window.ttq.grantConsent()
     if (!window.__ttqPageViewTracked) {

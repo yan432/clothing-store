@@ -5,6 +5,7 @@
 
 import { getApiUrl } from './api'
 import { getSessionId } from './session'
+import { isMarketingTrackingDisabled } from './trackingFilter'
 
 const GA_MEASUREMENT_ID = 'G-CMVZYXVZ8Y'
 
@@ -17,13 +18,23 @@ function hasTrackingConsent() {
 }
 
 function fbq(...args) {
-  if (typeof window !== 'undefined' && typeof window.fbq === 'function' && hasTrackingConsent()) {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.fbq === 'function' &&
+    hasTrackingConsent() &&
+    !isMarketingTrackingDisabled()
+  ) {
     window.fbq(...args)
   }
 }
 
 function ttq(method, ...args) {
-  if (typeof window !== 'undefined' && typeof window.ttq === 'function' && hasTrackingConsent()) {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.ttq === 'function' &&
+    hasTrackingConsent() &&
+    !isMarketingTrackingDisabled()
+  ) {
     window.ttq[method]?.(...args)
   }
 }
@@ -64,7 +75,7 @@ function ensureGtag() {
 }
 
 function syncGAConsentFromStorage() {
-  if (!hasTrackingConsent()) return
+  if (!hasTrackingConsent() || isMarketingTrackingDisabled()) return
 
   ensureGtag()
   window.gtag('consent', 'update', {
@@ -77,6 +88,7 @@ function syncGAConsentFromStorage() {
 
 function gaEvent(name, params = {}) {
   if (typeof window === 'undefined') return
+  if (isMarketingTrackingDisabled()) return
 
   ensureGtag()
   syncGAConsentFromStorage()
@@ -174,6 +186,7 @@ function metaPurchaseEventId(orderId) {
 
 async function send(event_type, extra = {}) {
   if (typeof window === 'undefined') return
+  if (isMarketingTrackingDisabled()) return
   try {
     await fetch(getApiUrl('/events'), {
       method: 'POST',
@@ -318,7 +331,11 @@ export function trackCheckoutStarted(opts = null) {
     items:    cartItems(items),
   })
   // Google Ads conversion (event-based) — matches Begin Checkout action in AW-16809967064
-  if (typeof window !== 'undefined' && typeof window.gtag === 'function') {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.gtag === 'function' &&
+    !isMarketingTrackingDisabled()
+  ) {
     window.gtag('event', 'conversion', {
       send_to:  'AW-16809967064/aPB6CJGBirEcENj7zs8-',
       value:    cartTotal,
@@ -474,7 +491,7 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
   ttq('track', 'Purchase', ttqPurchasePayload)
 
   // GA4 e-commerce purchase event
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && !isMarketingTrackingDisabled()) {
     ensureGtag()
     syncGAConsentFromStorage()
 
