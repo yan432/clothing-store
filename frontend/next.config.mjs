@@ -19,9 +19,9 @@ const cspHeader = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.googletagmanager.com https://www.google-analytics.com https://www.googleadservices.com https://googleads.g.doubleclick.net https://connect.facebook.net https://analytics.tiktok.com https://*.clarity.ms",
   // Styles: self + inline (Next.js injects inline styles)
   "style-src 'self' 'unsafe-inline'",
-  // Images: self + data URIs + Supabase + bigcartel + GA + GTM + Meta + TikTok + Google Ads remarketing pixel
+  // Images: self + data URIs + Supabase + bigcartel + GA + GTM + Meta + TikTok + Clarity + Google Ads remarketing pixel
   // Google Ads remarketing pixel comes from country-specific google.<tld>/ads/ga-audiences — list common EU/global TLDs
-  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca`,
+  `img-src 'self' data: blob: https://${supabaseHost} https://assets.bigcartel.com https://www.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://analytics.tiktok.com https://*.clarity.ms https://googleads.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca`,
   // Fonts: self
   "font-src 'self' data:",
   // Frames: Stripe payment iframe
