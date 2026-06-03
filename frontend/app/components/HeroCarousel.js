@@ -100,7 +100,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           fetchPriority="low"
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
-        <div style={{
+        <div className="hero-carousel-caption" style={{
           position: 'absolute', inset: 0,
           background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.1) 50%, transparent 100%)',
           display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
@@ -200,9 +200,10 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
       )}
 
       {total > 1 && (
-        <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 2 }}>
+        <div className="hero-carousel-dots" style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 6, zIndex: 2 }}>
           {slides.map((_, i) => (
             <button key={i} onClick={() => goToIdx(i)}
+              className="hero-carousel-dot-button"
               aria-label={`Slide ${i + 1}`}
               style={{
                 width: 44, height: 44, borderRadius: 22,
@@ -211,6 +212,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}>
               <span
+                className="hero-carousel-dot"
                 aria-hidden="true"
                 style={{
                   width: i === realIdx ? 20 : 6, height: 6, borderRadius: 3,

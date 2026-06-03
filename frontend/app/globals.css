@@ -239,6 +239,16 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   .home-main { padding-bottom: 16px; }
 }
 
+@media (max-width: 639px) {
+  .hero-carousel-caption {
+    padding: 28px 24px 96px !important;
+  }
+
+  .hero-carousel-dots {
+    bottom: 8px !important;
+  }
+}
+
 /* Hide product description in homepage New Arrivals (only) */
 .home-arrivals-grid .product-card-desc,
 .home-arrivals-carousel .product-card-desc {
