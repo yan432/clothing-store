@@ -181,8 +181,9 @@ export default async function Home({ searchParams, locale = 'en' }) {
             src={hero.image}
             alt=""
             fill
-            priority
-            quality={90}
+            preload
+            fetchPriority="high"
+            quality={65}
             sizes="100vw"
             // 1x1 dark JPEG so the section never flashes flat black before
             // the full Supabase image lands — feels instant on mobile.
@@ -228,7 +229,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
         <section style={{ maxWidth: W, margin: '0 auto', padding: '18px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{d.home.newArrivals}</h2>
-            <a href={pathForLocale('/products?special=new', locale)} style={{ fontSize: 12, color: '#888', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+            <a href={pathForLocale('/products?special=new', locale)} style={{ fontSize: 12, color: '#5f5f58', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
               {d.home.viewAll} →
             </a>
           </div>

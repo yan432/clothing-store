@@ -94,9 +94,10 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           alt={s.title}
           fill
           sizes="100vw"
-          quality={90}
+          quality={75}
           draggable={false}
-          {...(isActive ? { priority: true } : { loading: 'lazy' })}
+          loading="lazy"
+          fetchPriority="low"
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
         <div style={{
@@ -106,7 +107,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           padding: '32px 36px',
         }}>
           {s.label && <p style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 8px' }}>{s.label}</p>}
-          {s.title && <h3 style={{ fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 600, color: '#fff', margin: s.link_label ? '0 0 16px' : 0, lineHeight: 1.15 }}>{s.title}</h3>}
+          {s.title && <h2 style={{ fontSize: 'clamp(20px, 3vw, 32px)', fontWeight: 600, color: '#fff', margin: s.link_label ? '0 0 16px' : 0, lineHeight: 1.15 }}>{s.title}</h2>}
           {s.link_label && (
             <span style={{
               display: 'inline-block', alignSelf: 'flex-start',
@@ -122,7 +123,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
 
   function slideWrapper(s, isActive = false) {
     return s.href
-      ? <a href={s.href} style={{ display: 'block', width: '100%', height: '100%', textDecoration: 'none' }}>{renderSlideContent(s, isActive)}</a>
+      ? <a href={s.href} tabIndex={isActive ? undefined : -1} aria-hidden={!isActive} style={{ display: 'block', width: '100%', height: '100%', textDecoration: 'none' }}>{renderSlideContent(s, isActive)}</a>
       : renderSlideContent(s, isActive)
   }
 
@@ -204,11 +205,20 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
             <button key={i} onClick={() => goToIdx(i)}
               aria-label={`Slide ${i + 1}`}
               style={{
-                width: i === realIdx ? 20 : 6, height: 6, borderRadius: 3,
-                background: i === realIdx ? '#fff' : 'rgba(255,255,255,0.45)',
+                width: 44, height: 44, borderRadius: 22,
+                background: 'transparent',
                 border: 'none', cursor: 'pointer', padding: 0,
-                transition: 'all 300ms ease',
-              }} />
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: i === realIdx ? 20 : 6, height: 6, borderRadius: 3,
+                  background: i === realIdx ? '#fff' : 'rgba(255,255,255,0.6)',
+                  transition: 'all 300ms ease',
+                }}
+              />
+            </button>
           ))}
         </div>
       )}

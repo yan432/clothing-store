@@ -49,7 +49,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const BADGE = {
     new:       { label: d.products.badges.new, bg: '#000',    color: '#fff' },
     sale:      { label: `-${discount}%`, bg: '#ef4444', color: '#fff' },
-    low_stock: { label: d.products.badges.lowStock, bg: '#f59e0b', color: '#fff' },
+    low_stock: { label: d.products.badges.lowStock, bg: '#92400e', color: '#fff' },
     sold_out:  { label: d.products.badges.soldOut, bg: '#6b6b6b', color: '#fff' },
   }
 
@@ -168,7 +168,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
         </div>
 
         <div className="product-card-info">
-          <p style={{fontSize:11,color:'#8f8f87',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
+          <p style={{fontSize:11,color:'#5f5f58',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
             {displayProduct.category ? translateCategory(displayProduct.category, activeLocale) : d.products.essentials}
           </p>
           <p style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>

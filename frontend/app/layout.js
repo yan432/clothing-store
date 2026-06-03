@@ -13,6 +13,7 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
 import CookieConsent from './components/CookieConsent'
 import UtmCapture from './components/UtmCapture'
+import MarketingPixels from './components/MarketingPixels'
 import { WishlistProvider } from './context/WishlistContext'
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
@@ -125,67 +126,11 @@ export default async function RootLayout({ children }) {
             {children}
             <Footer />
             <CookieConsent />
+            <MarketingPixels disabled={suppressMarketingTracking} />
             {!suppressMarketingTracking && (
               <>
                 <Analytics />
                 <SpeedInsights />
-                {/* GA loads after page is fully idle — reduces initial JS weight ~64 KiB */}
-                <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="lazyOnload" />
-                <Script id="ga-config" strategy="lazyOnload">{`
-                  if (!window.__edmTrackingDisabled) {
-                    window.dataLayer = window.dataLayer || [];
-                    function gtag(){dataLayer.push(arguments);}
-                    gtag('js', new Date());
-                    gtag('config', 'G-CMVZYXVZ8Y');
-                    gtag('config', 'AW-16809967064');
-                    window.__gaConfigured = true;
-                    window.dispatchEvent(new Event('ga-configured'));
-                  }
-                `}</Script>
-                {/* Meta Pixel — lazyOnload to keep ~180ms off TBT */}
-                <Script id="meta-pixel" strategy="lazyOnload">{`
-                  if (!window.__edmTrackingDisabled) {
-                    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-                    fbq('init', '1608949326833856');
-                    var cookieConsent = null;
-                    try { cookieConsent = localStorage.getItem('cookie_consent'); } catch (e) {}
-                    if (cookieConsent === 'granted') {
-                      fbq('consent', 'grant');
-                      fbq('track', 'PageView');
-                      window.__metaPageViewTracked = true;
-                    } else {
-                      fbq('consent', 'revoke');
-                    }
-                  }
-                `}</Script>
-                {/* TikTok Pixel — lazyOnload to keep ~180ms off TBT */}
-                <Script id="tiktok-pixel" strategy="lazyOnload">{`
-                  if (!window.__edmTrackingDisabled) {
-                    !function (w, d, t) {
-                      w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
-                      ttq.load('D879J7JC77U3446EEDE0');
-                      var cookieConsent = null;
-                      try { cookieConsent = localStorage.getItem('cookie_consent'); } catch (e) {}
-                      if (cookieConsent === 'granted') {
-                        ttq.grantConsent();
-                        ttq.page();
-                        window.__ttqPageViewTracked = true;
-                      } else {
-                        ttq.holdConsent();
-                      }
-                    }(window, document, 'ttq');
-                  }
-                `}</Script>
-                {/* Microsoft Clarity — session replays + heatmaps */}
-                <Script id="ms-clarity" strategy="lazyOnload">{`
-                  if (!window.__edmTrackingDisabled) {
-                    (function(c,l,a,r,i,t,y){
-                      c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-                      t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-                      y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-                    })(window, document, "clarity", "script", "wvgo1gvy39");
-                  }
-                `}</Script>
               </>
             )}
           </CartProvider>
