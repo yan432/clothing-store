@@ -49,7 +49,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const BADGE = {
     new:       { label: d.products.badges.new, bg: '#000',    color: '#fff' },
     sale:      { label: `-${discount}%`, bg: '#ef4444', color: '#fff' },
-    low_stock: { label: d.products.badges.lowStock, bg: '#92400e', color: '#fff' },
+    low_stock: { label: d.products.badges.lowStock, bg: '#f59e0b', color: '#fff' },
     sold_out:  { label: d.products.badges.soldOut, bg: '#6b6b6b', color: '#fff' },
   }
 
