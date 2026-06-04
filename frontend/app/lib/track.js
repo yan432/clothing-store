@@ -467,28 +467,34 @@ export function trackPurchase({ orderId, total, currency = 'EUR', items = [], ut
   // Internal backend event
   send('purchase', { order_id: orderId, total })
 
-  // Meta Pixel purchase event
-  const eventId = metaPurchaseEventId(orderId)
-  const pixelPayload = {
-    value:        Number(total),
-    currency,
-    content_ids:  items.map(metaItemId).filter(Boolean),
-    content_type: 'product',
-  }
-  if (eventId) {
-    fbq('track', 'Purchase', pixelPayload, { eventID: eventId })
-  } else {
-    fbq('track', 'Purchase', pixelPayload)
-  }
+  // Meta requires value > 0 — fall back to summing items if total is missing/zero
+  const resolvedValue = Number(total) > 0 ? Number(total) : cartValue(items)
 
-  // TikTok Pixel purchase events
-  const ttqPurchasePayload = {
-    contents: items.map(ttqItem),
-    value:    Number(total),
-    currency,
+  // Meta Pixel purchase event (skip when value can't be resolved to a positive
+  // number — server-side CAPI is the source of truth in that case)
+  if (resolvedValue > 0) {
+    const eventId = metaPurchaseEventId(orderId)
+    const pixelPayload = {
+      value:        resolvedValue,
+      currency,
+      content_ids:  items.map(metaItemId).filter(Boolean),
+      content_type: 'product',
+    }
+    if (eventId) {
+      fbq('track', 'Purchase', pixelPayload, { eventID: eventId })
+    } else {
+      fbq('track', 'Purchase', pixelPayload)
+    }
+
+    // TikTok Pixel purchase events
+    const ttqPurchasePayload = {
+      contents: items.map(ttqItem),
+      value:    resolvedValue,
+      currency,
+    }
+    ttq('track', 'PlaceAnOrder', ttqPurchasePayload)
+    ttq('track', 'Purchase', ttqPurchasePayload)
   }
-  ttq('track', 'PlaceAnOrder', ttqPurchasePayload)
-  ttq('track', 'Purchase', ttqPurchasePayload)
 
   // GA4 e-commerce purchase event
   if (typeof window !== 'undefined' && !isMarketingTrackingDisabled()) {

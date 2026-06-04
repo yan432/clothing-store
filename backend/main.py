@@ -617,6 +617,36 @@ def build_meta_user_data(order: dict) -> dict:
     return user_data
 
 
+def purchase_event_value(order: dict) -> Optional[float]:
+    """Resolve the Purchase event value Meta/TikTok require (> 0).
+
+    Falls back to summing items when amount_total is missing or zero, since
+    Meta rejects events with value <= 0 and logs them as invalid.
+    Returns None when no positive value can be derived — caller should skip.
+    """
+    total = to_float(order.get("amount_total"))
+    if total > 0:
+        return round(total, 2)
+
+    items = order.get("items_json") or []
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except Exception:
+            items = []
+    if not isinstance(items, list):
+        return None
+
+    fallback = 0.0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        qty = max(1, int(to_float(item.get("quantity") or item.get("qty"), 1)))
+        fallback += to_float(item.get("price")) * qty
+
+    return round(fallback, 2) if fallback > 0 else None
+
+
 def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) -> Optional[dict]:
     metadata = as_dict(order.get("metadata_json"))
     if metadata.get("meta_cookie_consent") != "granted":
@@ -624,6 +654,10 @@ def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) 
 
     user_data = build_meta_user_data(order)
     if not user_data:
+        return None
+
+    value = purchase_event_value(order)
+    if value is None:
         return None
 
     items = order.get("items_json") or []
@@ -662,7 +696,7 @@ def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) 
         "user_data": user_data,
         "custom_data": {
             "currency": str(order.get("currency") or "EUR").upper(),
-            "value": to_float(order.get("amount_total")),
+            "value": value,
             "order_id": str(order.get("id")),
             "content_type": "product",
             "content_ids": content_ids,
@@ -737,6 +771,10 @@ def build_tiktok_purchase_payload(order: dict, event_dict: Optional[dict] = None
     if not user:
         return None
 
+    value = purchase_event_value(order)
+    if value is None:
+        return None
+
     # ── Contents ──────────────────────────────────────────────────────────────
     items = order.get("items_json") or []
     if isinstance(items, str):
@@ -772,7 +810,7 @@ def build_tiktok_purchase_payload(order: dict, event_dict: Optional[dict] = None
         "properties": {
             "contents": contents,
             "currency": str(order.get("currency") or "EUR").upper(),
-            "value":    to_float(order.get("amount_total")),
+            "value":    value,
             "order_id": str(order.get("id")),
         },
         "page": {"url": source_url},
