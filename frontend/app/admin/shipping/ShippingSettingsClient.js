@@ -125,10 +125,10 @@ export default function ShippingSettingsClient() {
           <div style={{ maxWidth: 220 }}>
             <Input
               label="1 UAH → EUR"
-              value={cfg?.uah_eur_rate ?? 0.023}
+              value={cfg?.uah_eur_rate ?? 0.019372}
               step="0.0001"
               onChange={e => setRate(e.target.value)}
-              hint="Example: 0.023 means 1 UAH = 0.023 EUR (≈ 43 UAH/€)"
+              hint="Example: 0.019372 means 1 UAH = 0.019372 EUR (≈ 51.6 UAH/€). This also converts product prices to ₴ on the UA store."
             />
           </div>
           <p style={{ fontSize: 12, color: '#aaa', marginTop: 8 }}>

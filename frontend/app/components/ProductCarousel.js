@@ -2,11 +2,14 @@
 import { useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
-import { localeFromPathname, localizeProduct, pathForLocale } from '../lib/i18n'
+import { localeFromPathname, localizeProduct, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 export default function ProductCarousel({ products }) {
   const pathname = usePathname() || '/'
   const locale = localeFromPathname(pathname)
+  const uahRate = useUahRate(locale === UK_LOCALE)
   const trackRef = useRef(null)
 
   function scroll(dir) {
@@ -54,7 +57,7 @@ export default function ProductCarousel({ products }) {
         {products.map((rawProduct) => {
           const p = localizeProduct(rawProduct, locale)
           const img = (Array.isArray(p.image_urls) && p.image_urls[0]) || p.image_url || ''
-          const price = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(Number(p.price || 0))
+          const price = formatPrice(priceForLocale(p, locale, uahRate), currencyForLocale(locale))
           const slug = p.slug || p.id
           return (
             <a

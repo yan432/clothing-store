@@ -3,11 +3,17 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import WishlistButton from './WishlistButton'
-import { getMessages, localeFromPathname, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
+import { getMessages, localeFromPathname, localizeProduct, pathForLocale, translateCategory, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
-export default function ProductCard({ product, colorSiblings = [], imagePriority = false, locale }) {
+export default function ProductCard({ product, colorSiblings = [], imagePriority = false, locale, uahRate = null }) {
   const pathname = usePathname() || '/'
   const activeLocale = locale || localeFromPathname(pathname)
+  // Use the server-passed rate when available (SSR-accurate); otherwise pull
+  // the shared client rate. Only fetches for the Ukrainian locale.
+  const hookRate = useUahRate(activeLocale === UK_LOCALE && uahRate == null)
+  const effectiveRate = uahRate ?? hookRate
   const d = getMessages(activeLocale)
   const displayProduct = localizeProduct(product, activeLocale)
   const [hovered, setHovered] = useState(false)
@@ -20,7 +26,8 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const activeProduct = swatchVariant || displayProduct
   const activeSlug = swatchVariant ? (swatchVariant.slug || swatchVariant.id) : (displayProduct.slug || displayProduct.id)
 
-  const price = Number(displayProduct.price || 0)
+  const currency = currencyForLocale(activeLocale)
+  const price = priceForLocale(displayProduct, activeLocale, effectiveRate)
   const images = Array.isArray(activeProduct.image_urls) && activeProduct.image_urls.length > 0
     ? activeProduct.image_urls
     : (activeProduct.image_url ? [activeProduct.image_url] : [])
@@ -28,10 +35,9 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const secondaryImage = images[1]
   const secondaryReady = secondaryReadyFor === secondaryImage
 
-  const priceLabel = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(price)
-  const comparePriceLabel = displayProduct.compare_price
-    ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(displayProduct.compare_price)
-    : null
+  const priceLabel = formatPrice(price, currency)
+  const comparePriceValue = comparePriceForLocale(displayProduct, activeLocale, effectiveRate)
+  const comparePriceLabel = comparePriceValue ? formatPrice(comparePriceValue, currency) : null
 
   const availableStock = displayProduct.available_stock ?? displayProduct.stock ?? 0
   const description = (displayProduct.description || '').trim()

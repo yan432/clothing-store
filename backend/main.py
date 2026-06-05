@@ -254,6 +254,8 @@ class Product(BaseModel):
     fit_info_uk: Optional[str] = None
     price: float
     compare_price: Optional[float] = None
+    price_uah: Optional[float] = None
+    compare_price_uah: Optional[float] = None
     image_url: Optional[str] = None
     category: Optional[str] = None
     stock: int = 0
@@ -281,6 +283,8 @@ class ProductUpdate(BaseModel):
     fit_info_uk: Optional[str] = None
     price: Optional[float] = None
     compare_price: Optional[float] = None
+    price_uah: Optional[float] = None
+    compare_price_uah: Optional[float] = None
     image_url: Optional[str] = None
     category: Optional[str] = None
     available_stock: Optional[int] = None
@@ -415,6 +419,17 @@ def to_float(value: Any, default: float = 0.0) -> float:
 
 def money_eur(value: Any) -> str:
     return f"€{to_float(value):.2f}"
+
+
+def money_fmt(value: Any, currency: Any = "eur") -> str:
+    """Format an amount in the given order currency.
+    EUR -> '€49.00'  ·  UAH -> '1 490 ₴' (matches frontend lib/money.js)."""
+    cur = str(currency or "eur").lower()
+    n = to_float(value)
+    if cur == "uah":
+        grouped = f"{int(round(n)):,}".replace(",", " ")
+        return f"{grouped} ₴"
+    return f"€{n:.2f}"
 
 
 def first_non_empty(*values: Any) -> Optional[str]:
@@ -647,6 +662,33 @@ def purchase_event_value(order: dict) -> Optional[float]:
     return round(fallback, 2) if fallback > 0 else None
 
 
+def purchase_event_value_eur(order: dict) -> Optional[float]:
+    """EUR-equivalent purchase value for analytics (settlement currency).
+    Prefers the stored amount_total_eur; falls back to per-item price_eur, then
+    to the order total when it's already EUR."""
+    metadata = as_dict(order.get("metadata_json"))
+    stored = metadata.get("amount_total_eur")
+    if stored is not None and to_float(stored) > 0:
+        return round(to_float(stored), 2)
+    if str(order.get("currency") or "eur").lower() == "eur":
+        return purchase_event_value(order)
+    items = order.get("items_json") or []
+    if isinstance(items, str):
+        try:
+            items = json.loads(items)
+        except Exception:
+            items = []
+    if not isinstance(items, list):
+        return None
+    s = 0.0
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        qty = max(1, int(to_float(item.get("quantity") or item.get("qty"), 1)))
+        s += to_float(item.get("price_eur") or item.get("price")) * qty
+    return round(s, 2) if s > 0 else None
+
+
 def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) -> Optional[dict]:
     metadata = as_dict(order.get("metadata_json"))
     if metadata.get("meta_cookie_consent") != "granted":
@@ -656,7 +698,7 @@ def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) 
     if not user_data:
         return None
 
-    value = purchase_event_value(order)
+    value = purchase_event_value_eur(order)
     if value is None:
         return None
 
@@ -682,7 +724,7 @@ def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) 
             contents.append({
                 "id": content_id,
                 "quantity": qty,
-                "item_price": to_float(item.get("price")),
+                "item_price": to_float(item.get("price_eur") or item.get("price")),
             })
         num_items += qty
 
@@ -695,7 +737,7 @@ def build_meta_purchase_payload(order: dict, event_dict: Optional[dict] = None) 
         "action_source": "website",
         "user_data": user_data,
         "custom_data": {
-            "currency": str(order.get("currency") or "EUR").upper(),
+            "currency": "EUR",
             "value": value,
             "order_id": str(order.get("id")),
             "content_type": "product",
@@ -771,7 +813,7 @@ def build_tiktok_purchase_payload(order: dict, event_dict: Optional[dict] = None
     if not user:
         return None
 
-    value = purchase_event_value(order)
+    value = purchase_event_value_eur(order)
     if value is None:
         return None
 
@@ -795,7 +837,7 @@ def build_tiktok_purchase_payload(order: dict, event_dict: Optional[dict] = None
             "content_id":   content_id or str(item.get("product_id") or item.get("id") or ""),
             "content_type": "product",
             "content_name": str(item.get("name") or item.get("product_name") or item.get("title") or ""),
-            "price":        to_float(item.get("price")),
+            "price":        to_float(item.get("price_eur") or item.get("price")),
             "quantity":     qty,
         })
 
@@ -809,7 +851,7 @@ def build_tiktok_purchase_payload(order: dict, event_dict: Optional[dict] = None
         "user":       user,
         "properties": {
             "contents": contents,
-            "currency": str(order.get("currency") or "EUR").upper(),
+            "currency": "EUR",
             "value":    value,
             "order_id": str(order.get("id")),
         },
@@ -1266,7 +1308,7 @@ def send_email_sync_debug(to_email: str, subject: str, html: str, text: str) -> 
     return result
 
 
-def order_items_html(items: list[dict], locale: str = "en") -> str:
+def order_items_html(items: list[dict], locale: str = "en", currency: Any = "eur") -> str:
     is_uk = normalize_preferred_locale(locale) == "uk"
     item_fallback = "Товар" if is_uk else "Item"
     size_label = "розмір" if is_uk else "size"
@@ -1281,12 +1323,12 @@ def order_items_html(items: list[dict], locale: str = "en") -> str:
         lines.append(
             f"<tr><td style='padding:6px 0'>{name}{size_suffix}</td>"
             f"<td style='padding:6px 0;text-align:center'>{qty}</td>"
-            f"<td style='padding:6px 0;text-align:right'>{money_eur(line_total)}</td></tr>"
+            f"<td style='padding:6px 0;text-align:right'>{money_fmt(line_total, currency)}</td></tr>"
         )
     return "".join(lines)
 
 
-def order_items_text(items: list[dict], locale: str = "en") -> str:
+def order_items_text(items: list[dict], locale: str = "en", currency: Any = "eur") -> str:
     is_uk = normalize_preferred_locale(locale) == "uk"
     item_fallback = "Товар" if is_uk else "Item"
     size_label = "розмір" if is_uk else "size"
@@ -1298,13 +1340,14 @@ def order_items_text(items: list[dict], locale: str = "en") -> str:
         price = to_float(item.get("price"))
         line_total = price * qty
         size_suffix = f" ({size_label}: {size})" if size else ""
-        text_lines.append(f"- {name}{size_suffix} x{qty}: {money_eur(line_total)}")
+        text_lines.append(f"- {name}{size_suffix} x{qty}: {money_fmt(line_total, currency)}")
     return "\n".join(text_lines)
 
 
 def send_order_confirmation_emails(order: dict) -> None:
     items = order.get("items_json") or []
     metadata = as_dict(order.get("metadata_json"))
+    currency = order.get("currency") or "eur"
     subtotal = sum(to_float(item.get("price")) * int(item.get("quantity") or 0) for item in items)
     promo_discount = to_float(metadata.get("promo_discount_amount"))
     shipping = max(0.0, to_float(order.get("amount_total")) - subtotal + promo_discount)
@@ -1345,15 +1388,15 @@ def send_order_confirmation_emails(order: dict) -> None:
         "email_order_message", "email_order_footer", "email_admin_subject",
     ])
 
-    items_html = order_items_html(items, preferred_locale)
-    items_text = order_items_text(items, preferred_locale)
-    admin_items_html = order_items_html(items, "en")
-    admin_items_text = order_items_text(items, "en")
+    items_html = order_items_html(items, preferred_locale, currency)
+    items_text = order_items_text(items, preferred_locale, currency)
+    admin_items_html = order_items_html(items, "en", currency)
+    admin_items_text = order_items_text(items, "en", currency)
     promo_row_html = ""
     promo_row_text = ""
     if promo_discount > 0:
-        promo_row_html = f"<tr><td style='padding:4px 0'>{labels['discount']}</td><td></td><td style='text-align:right'>-{money_eur(promo_discount)}</td></tr>"
-        promo_row_text = f"{labels['discount']}: -{money_eur(promo_discount)}\n"
+        promo_row_html = f"<tr><td style='padding:4px 0'>{labels['discount']}</td><td></td><td style='text-align:right'>-{money_fmt(promo_discount, currency)}</td></tr>"
+        promo_row_text = f"{labels['discount']}: -{money_fmt(promo_discount, currency)}\n"
 
     subject_tpl = "Підтвердження замовлення #{order_id} — EDM Clothes" if is_uk else (cfg.get("email_order_subject") or "Order confirmation #{order_id} — EDM Clothes")
     greeting_tpl = "Дякуємо за замовлення, {customer_name}!" if is_uk else (cfg.get("email_order_greeting") or "Thanks for your order, {customer_name}!")
@@ -1361,7 +1404,7 @@ def send_order_confirmation_emails(order: dict) -> None:
     footer_tpl = cfg.get("email_order_footer") or "EDM Clothes"
 
     def fmt(s):
-        return s.replace("{order_id}", str(order_id)).replace("{customer_name}", customer_name).replace("{total}", money_eur(total))
+        return s.replace("{order_id}", str(order_id)).replace("{customer_name}", customer_name).replace("{total}", money_fmt(total, currency))
 
     customer_subject = fmt(subject_tpl)
     greeting = fmt(greeting_tpl)
@@ -1382,12 +1425,12 @@ def send_order_confirmation_emails(order: dict) -> None:
           <tbody>{items_html}</tbody>
         </table>
         <table style="width:100%;margin-bottom:16px">
-          <tr><td style="color:#888">{labels['subtotal']}</td><td align="right">{money_eur(subtotal)}</td></tr>
+          <tr><td style="color:#888">{labels['subtotal']}</td><td align="right">{money_fmt(subtotal, currency)}</td></tr>
           {promo_row_html}
-          <tr><td style="color:#888">{labels['shipping']}</td><td align="right">{money_eur(shipping)}</td></tr>
+          <tr><td style="color:#888">{labels['shipping']}</td><td align="right">{money_fmt(shipping, currency)}</td></tr>
           <tr style="font-weight:700;font-size:16px">
             <td style="padding-top:8px">{labels['total']}</td>
-            <td align="right" style="padding-top:8px">{money_eur(total)}</td>
+            <td align="right" style="padding-top:8px">{money_fmt(total, currency)}</td>
           </tr>
         </table>
         <p><strong>{labels['shipping_address']}:</strong><br/>{shipping_address or labels['not_provided']}</p>
@@ -1399,10 +1442,10 @@ def send_order_confirmation_emails(order: dict) -> None:
         f"{greeting}\n\n{message}\n\n"
         f"{labels['order']} #{order_id} · {labels['ref']}: {order_ref or '-'}\n\n"
         f"{items_text}\n\n"
-        f"{labels['subtotal']}: {money_eur(subtotal)}\n"
+        f"{labels['subtotal']}: {money_fmt(subtotal, currency)}\n"
         f"{promo_row_text}"
-        f"{labels['shipping']}: {money_eur(shipping)}\n"
-        f"{labels['total']}: {money_eur(total)}\n\n"
+        f"{labels['shipping']}: {money_fmt(shipping, currency)}\n"
+        f"{labels['total']}: {money_fmt(total, currency)}\n\n"
         f"{labels['shipping_address']}: {shipping_address or labels['not_provided']}\n\n"
         f"{footer}"
     )
@@ -1448,7 +1491,7 @@ def send_order_confirmation_emails(order: dict) -> None:
               <tbody>{admin_items_html}</tbody>
             </table>
             <hr/>
-            <p>Subtotal: {money_eur(subtotal)} &nbsp;·&nbsp; Shipping: {money_eur(shipping)} &nbsp;·&nbsp; <strong>Total: {money_eur(total)}</strong></p>
+            <p>Subtotal: {money_fmt(subtotal, currency)} &nbsp;·&nbsp; Shipping: {money_fmt(shipping, currency)} &nbsp;·&nbsp; <strong>Total: {money_fmt(total, currency)}</strong></p>
           </div>
         """
         admin_text = (
@@ -1456,7 +1499,7 @@ def send_order_confirmation_emails(order: dict) -> None:
             f"Shipping address: {shipping_address or '-'}\n"
             f"{carrier_row_text}\n\n"
             f"{admin_items_text}\n\n"
-            f"Subtotal: {money_eur(subtotal)} | Shipping: {money_eur(shipping)} | Total: {money_eur(total)}"
+            f"Subtotal: {money_fmt(subtotal, currency)} | Shipping: {money_fmt(shipping, currency)} | Total: {money_fmt(total, currency)}"
         )
         send_email(admin_target, admin_subject, admin_html, admin_text)
 
@@ -2033,7 +2076,7 @@ def duplicate_product(product_id: int):
         "product_details", "product_details_uk",
         "fit_info", "fit_info_uk",
         "faq",
-        "price", "compare_price", "category",
+        "price", "compare_price", "price_uah", "compare_price_uah", "category",
         "tags", "color_name", "color_hex", "color_group_id",
         "volumetric_weight",
     ]
@@ -2603,8 +2646,8 @@ SHIPPING_COST = 30.0  # fallback default
 # ── Shipping calculation (Nova Poshta international) ─────────────────────────
 
 DEFAULT_SHIPPING_CONFIG: dict = {
-    # Exchange rate: 1 UAH → EUR. Update periodically in CMS.
-    "uah_eur_rate": 0.023,
+    # Exchange rate: 1 UAH → EUR (≈ 51.62 UAH/€). Update periodically in CMS.
+    "uah_eur_rate": 0.019372,
     # Ukraine domestic (Nova Poshta)
     "ukraine": {
         "brackets": [
@@ -2814,12 +2857,51 @@ def ceil_to_half_eur(x: float) -> float:
     return _math.ceil(x * 2) / 2.0
 
 
+DEFAULT_UAH_EUR_RATE = 0.019372  # 1 UAH -> EUR (≈ 51.62 UAH/€); mirrors DEFAULT_SHIPPING_CONFIG
+
+
+def ceil_to_100_uah(x: float) -> float:
+    """Round a hryvnia amount UP to the nearest 100 ₴ (mirrors frontend lib/money.js)."""
+    n = float(x or 0)
+    if n <= 0:
+        return 0.0
+    return float(_math.ceil(n / 100.0) * 100)
+
+
+def eur_to_uah(eur: float, rate: float) -> float:
+    """Convert EUR -> UAH using a (1 UAH -> EUR) rate, rounded up to 100 ₴."""
+    r = rate if (rate and rate > 0) else DEFAULT_UAH_EUR_RATE
+    return ceil_to_100_uah(float(eur or 0) / r)
+
+
+def product_charge_unit(db_product: dict, eur_price: float, currency: str, rate: float) -> float:
+    """Resolve a product's unit price in the charge currency.
+    UAH: price_uah override if set, else auto-convert the EUR price (round up 100 ₴).
+    EUR: the EUR price as-is."""
+    if currency != "uah":
+        return float(eur_price or 0)
+    override = db_product.get("price_uah")
+    try:
+        if override is not None and str(override).strip() != "" and float(override) > 0:
+            return float(override)
+    except (TypeError, ValueError):
+        pass
+    return eur_to_uah(eur_price, rate)
+
+
 def get_shipping_config() -> dict:
-    """Load shipping config from settings table, fall back to defaults."""
+    """Load shipping config from settings table, fall back to defaults.
+    The `value` column may hold the config as a JSON string (text column) or as
+    a parsed object, so handle both."""
     try:
         row = supabase.table("settings").select("value").eq("key", "shipping_config").limit(1).execute()
         if row.data:
             stored = row.data[0].get("value")
+            if isinstance(stored, str):
+                try:
+                    stored = json.loads(stored)
+                except (ValueError, TypeError):
+                    stored = None
             if isinstance(stored, dict) and stored:
                 return stored
     except Exception:
@@ -3013,8 +3095,15 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
     except Exception as exc:
         print(f"Pre-checkout expired cleanup skipped: {type(exc).__name__}: {exc}")
 
+    # Charge currency follows the storefront locale. Ukrainian store charges in
+    # UAH (price_uah override or EUR auto-converted, rounded up to 100 ₴);
+    # everything else stays in EUR. Settlement is still EUR on Stripe's side.
+    _shipping_cfg = get_shipping_config()
+    charge_currency = "uah" if preferred_locale == "uk" else "eur"
+    uah_rate = float(_shipping_cfg.get("uah_eur_rate") or DEFAULT_UAH_EUR_RATE)
+
     normalized_items = []
-    subtotal = 0.0
+    subtotal = 0.0  # EUR — canonical for free-shipping threshold + promo logic
     line_items = []
     total_vol_weight = 0.0  # kg, for shipping calculation
 
@@ -3026,6 +3115,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             price = float(db_product.get("price") or item.price)
         except HTTPException:
             raise HTTPException(status_code=400, detail=f"Product {item.id} not found or unavailable")
+        # Unit price in the charge currency (UAH override/convert, or EUR as-is)
+        unit_charge = product_charge_unit(db_product, price, charge_currency, uah_rate)
         db_image_url = db_product.get("image_url")
         db_image_urls = db_product.get("image_urls") or []
         if isinstance(db_image_urls, str):
@@ -3044,7 +3135,8 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "category": db_product.get("category"),
             "color_group_id": db_product.get("color_group_id"),
             "name": product_name,
-            "price": price,
+            "price": unit_charge,      # stored in the order's charge currency
+            "price_eur": price,        # original EUR price, for reference
             "quantity": qty,
             "image_url": db_image_url,
             "size": item.size,
@@ -3053,7 +3145,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         subtotal += price * qty
         line_items.append({
             "price_data": {
-                "currency": "eur",
+                "currency": charge_currency,
                 "product_data": {
                     "name": product_name,
                     "images": [db_image_url] if db_image_url else [],
@@ -3062,18 +3154,26 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                         "size": item.size or "",
                     },
                 },
-                "unit_amount": int(price * 100),
+                "unit_amount": int(round(unit_charge * 100)),
             },
             "quantity": qty,
         })
 
     # Calculate shipping via Nova Poshta / Ukr Poshta zone table (server-authoritative)
-    _shipping_cfg = get_shipping_config()
     _country = str(payload.country or "DE")
     _ship_result = compute_shipping_cost(_country, total_vol_weight, _shipping_cfg)
     if _ship_result.get("price_eur") is None:
         raise HTTPException(status_code=400, detail=f"Delivery to {_country} is currently not available")
-    shipping_cost_cfg = float(_ship_result["price_eur"])
+    shipping_cost_cfg = float(_ship_result["price_eur"])  # EUR — canonical
+    # Shipping in the charge currency: Nova Poshta returns an exact UAH bracket;
+    # otherwise convert the EUR cost. EUR orders just use the EUR value.
+    if charge_currency == "uah":
+        if _ship_result.get("price_uah") is not None:
+            shipping_charge = float(_ship_result["price_uah"])
+        else:
+            shipping_charge = eur_to_uah(shipping_cost_cfg, uah_rate)
+    else:
+        shipping_charge = shipping_cost_cfg
 
     free_threshold, _ = get_shipping_settings()
     qualifies_free_shipping = subtotal >= free_threshold
@@ -3089,6 +3189,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         promo_type = str(promo.get("discount_type") or "").lower()
         if promo_type == "free_shipping":
             shipping_cost_cfg = 0.0
+            shipping_charge = 0.0
         promo_discount = promo_discount_amount(subtotal, promo, shipping_cost_cfg)
         if promo_discount <= 0 and promo_type != "free_shipping":
             raise HTTPException(status_code=400, detail="Promo code does not apply")
@@ -3120,27 +3221,37 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
     # Apply percent/fixed discount to PRODUCT line items only (not shipping).
     # We bake the discount into unit_amount instead of using Stripe coupons,
     # so Stripe charges the same total as our internal calculation.
+    # promo_discount_charge is the discount in the *charge* currency (derived
+    # from the actual baked amounts) so emails/order pages stay consistent.
+    promo_discount_charge = 0.0
     if promo and promo_type in ("percent", "fixed"):
         promo_value = float(promo.get("discount_value") or 0)
         if promo_type == "percent":
             factor = 1.0 - promo_value / 100.0
         else:  # fixed — distribute proportionally across items
             factor = max(0.0, (subtotal - promo_discount) / subtotal) if subtotal > 0 else 1.0
+        products_before = sum(li["price_data"]["unit_amount"] * li["quantity"] for li in line_items)
         line_items = [
             {**li, "price_data": {**li["price_data"], "unit_amount": max(1, round(li["price_data"]["unit_amount"] * factor))}}
             for li in line_items
         ]
+        products_after = sum(li["price_data"]["unit_amount"] * li["quantity"] for li in line_items)
+        promo_discount_charge = (products_before - products_after) / 100.0
 
     if should_charge_shipping:
         line_items.append({
             "price_data": {
-                "currency": "eur",
+                "currency": charge_currency,
                 "product_data": {"name": "Shipping"},
-                "unit_amount": int(shipping_cost_cfg * 100),
+                "unit_amount": int(round(shipping_charge * 100)),
             },
             "quantity": 1,
         })
-    amount_total = subtotal - promo_discount + (shipping_cost_cfg if should_charge_shipping else 0.0)
+    # Authoritative order total in the charge currency: sum the final line items
+    # so it exactly matches what Stripe will charge.
+    amount_total = sum(
+        li["price_data"]["unit_amount"] * li["quantity"] for li in line_items
+    ) / 100.0
 
     client_reference_id = str(uuid.uuid4())
     created_order = None
@@ -3175,7 +3286,10 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             metadata_json["promo_code"] = promo.get("code")
             metadata_json["promo_discount_type"] = promo.get("discount_type")
             metadata_json["promo_discount_value"] = promo.get("discount_value")
-            metadata_json["promo_discount_amount"] = promo_discount
+            # Stored in the charge currency so emails / order pages reconcile;
+            # EUR value kept separately for reporting.
+            metadata_json["promo_discount_amount"] = round(promo_discount_charge, 2)
+            metadata_json["promo_discount_amount_eur"] = round(promo_discount, 2)
             metadata_json["promo_usage_reserved"] = promo_usage_reserved
         if payload.comment:
             metadata_json["order_note"] = payload.comment[:500]
@@ -3183,12 +3297,20 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         metadata_json["shipping_carrier"] = _ship_result.get("carrier") or ""
         metadata_json["shipping_label"] = _ship_result.get("label") or ""
         metadata_json["shipping_cost_eur"] = round(shipping_cost_cfg, 2)
+        # EUR-equivalent order total — used for analytics (Meta/TikTok CAPI) so
+        # ROAS reporting stays in the settlement currency regardless of charge ccy.
+        metadata_json["amount_total_eur"] = round(
+            subtotal - promo_discount + (shipping_cost_cfg if should_charge_shipping else 0.0), 2
+        )
+        if charge_currency == "uah":
+            metadata_json["shipping_cost_uah"] = round(shipping_charge, 2)
+            metadata_json["uah_eur_rate"] = uah_rate
         metadata_json["shipping_weight_kg"] = _ship_result.get("weight_kg")
 
         order_insert = supabase.table("orders").insert({
             "client_reference_id": client_reference_id,
             "status": ORDER_PENDING,
-            "currency": "eur",
+            "currency": charge_currency,
             "amount_total": round(amount_total, 2),
             "items_json": normalized_items,
             "metadata_json": metadata_json,
@@ -3242,8 +3364,11 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         # Shipping and customer contact details are collected before Stripe.
         # Do not force billing address collection in Checkout; wallets like
         # Apple Pay can otherwise ask for the same address again.
+        # Klarna/PayPal don't support UAH presentment — restrict to card (covers
+        # Apple Pay / Google Pay) for Ukrainian-currency checkouts.
+        payment_methods = ["card"] if charge_currency == "uah" else ["card", "klarna", "paypal"]
         stripe_session_params: dict = dict(
-            payment_method_types=["card", "klarna", "paypal"],
+            payment_method_types=payment_methods,
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
@@ -3821,9 +3946,10 @@ def build_shipping_notification_email(order: dict) -> tuple[str, str]:
     is_uk = preferred_locale == "uk"
     tracking_number = _html.escape(str(order.get("tracking_number") or "").strip())
     tracking_url = normalize_tracking_url(str(order.get("tracking_url") or ""))
+    currency = order.get("currency") or "eur"
     items = order.get("items_json") or []
-    items_html_str = order_items_html(items, preferred_locale)
-    items_text_str = order_items_text(items, preferred_locale)
+    items_html_str = order_items_html(items, preferred_locale, currency)
+    items_text_str = order_items_text(items, preferred_locale, currency)
     total = to_float(order.get("amount_total"))
     store_url = FRONTEND_URL.rstrip("/")
 
@@ -3879,7 +4005,7 @@ def build_shipping_notification_email(order: dict) -> tuple[str, str]:
       </thead>
       <tbody>{items_html_str}</tbody>
     </table>
-    <p style="margin:16px 0 0;font-size:15px;font-weight:700;text-align:right">{total_label}: {money_eur(total)}</p>
+    <p style="margin:16px 0 0;font-size:15px;font-weight:700;text-align:right">{total_label}: {money_fmt(total, currency)}</p>
     <div style="margin-top:28px;padding-top:20px;border-top:1px solid #f0f0ee;text-align:center">
       <p style="font-size:13px;color:#888;margin:0">{questions} <a href="{store_url}" style="color:#111">{store_url.replace("https://","")}</a></p>
     </div>
@@ -3894,7 +4020,7 @@ def build_shipping_notification_email(order: dict) -> tuple[str, str]:
 {summary_label}:
 {items_text_str}
 
-{total_label}: {money_eur(total)}
+{total_label}: {money_fmt(total, currency)}
 
 {('Є питання? Напиши нам:' if is_uk else 'Questions? Contact us at')} {store_url}
 """
@@ -5000,6 +5126,8 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
         or preferred_locale_for_email(email)
     )
     is_uk = preferred_locale == "uk"
+    currency = "uah" if is_uk else "eur"
+    uah_rate = float(get_shipping_config().get("uah_eur_rate") or DEFAULT_UAH_EUR_RATE) if is_uk else DEFAULT_UAH_EUR_RATE
     first_name = _html.escape(entry.get("first_name") or ("друже" if is_uk else "there"))
     items      = (entry.get("items_json") or [])[:6]  # cap at 6 items
     total      = entry.get("total_eur")
@@ -5012,12 +5140,13 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
     item_ids = [i for i in item_ids if i > 0]
     db_products: dict[int, dict] = {}
     if item_ids:
-        rows = supabase.table("products").select("id,name,price,slug,image_url,image_urls").in_("id", item_ids).execute().data or []
+        rows = supabase.table("products").select("id,name,price,price_uah,slug,image_url,image_urls").in_("id", item_ids).execute().data or []
         db_products = {int(r["id"]): r for r in rows}
 
     # Build item rows for the email — DB is the source of truth
     item_rows_html = ""
     item_rows_text = []
+    total_charge = 0.0
     for item in items:
         try:
             pid = int(item.get("id") or 0)
@@ -5028,7 +5157,8 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
             continue  # product was deleted; skip silently
         qty      = max(1, int(item.get("quantity") or item.get("qty") or 1))
         name     = _html.escape(str(product.get("name") or ""))
-        price    = float(product.get("price") or 0)
+        price    = product_charge_unit(product, float(product.get("price") or 0), currency, uah_rate)
+        total_charge += price * qty
         size     = _html.escape(str(item.get("size") or ""))
         # Cover image preference: image_url, then first of image_urls
         cover    = product.get("image_url") or ""
@@ -5051,7 +5181,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
         item_rows_text.append(
             f"- {product.get('name') or ''} x{qty}"
             + (f" · {'розмір ' if is_uk else ''}{size}" if size else "")
-            + f" · €{price:.2f}"
+            + f" · {money_fmt(price, currency)}"
         )
         item_rows_html += f"""
         <tr>
@@ -5062,14 +5192,15 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
                 <p style="margin:0 0 4px;font-size:14px;font-weight:500;color:#0a0a0a;">
                   <a href="{item_url}" style="color:#0a0a0a;text-decoration:none;">{name}</a>
                 </p>
-                <p style="margin:0;font-size:12px;color:#9b9b96;">x{qty}{size_label} · €{price:.2f}</p>
+                <p style="margin:0;font-size:12px;color:#9b9b96;">x{qty}{size_label} · {money_fmt(price, currency)}</p>
               </td>
             </tr></table>
           </td>
         </tr>"""
 
     total_label = "Разом" if is_uk else "Total"
-    total_line = f"<p style='margin:12px 0 0;font-size:15px;font-weight:700;color:#0a0a0a;'>{total_label}: €{total:.2f}</p>" if total else ""
+    display_total = total_charge if is_uk else total
+    total_line = f"<p style='margin:12px 0 0;font-size:15px;font-weight:700;color:#0a0a0a;'>{total_label}: {money_fmt(display_total, currency)}</p>" if display_total else ""
     cart_url   = f"{site_url}{'/ua' if is_uk else ''}/cart"
     unsub_url  = f"{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
     html_lang = "uk" if is_uk else "en"
@@ -5136,7 +5267,7 @@ def _send_abandoned_cart_email(entry: dict, site_url: str) -> bool:
     text = (
         (f"{first_name}, твій кошик чекає!\n\n" if is_uk else f"Hey {first_name}, you left something in your cart!\n\n")
         + "\n".join(item_rows_text)
-        + (f"\n\n{total_label}: €{total:.2f}" if total else "")
+        + (f"\n\n{total_label}: {money_fmt(display_total, currency)}" if display_total else "")
         + (f"\n\nЗавершити замовлення: {cart_url}\n\n" if is_uk else f"\n\nComplete your order: {cart_url}\n\n")
         + (f"---\nВідписатися: {unsub_url}" if is_uk else f"---\nTo unsubscribe: {unsub_url}")
     )
@@ -5253,23 +5384,39 @@ def _send_wishlist_email(email: str, subject: str, html: str, text: str) -> None
     send_email(email, subject, html, text)
 
 
-def _wishlist_product_row_html(p: dict, site_url: str, locale: str = "en", badge: str = "") -> str:
+def _wishlist_product_row_html(p: dict, site_url: str, locale: str = "en", badge: str = "", rate: float = None) -> str:
     is_uk = normalize_preferred_locale(locale) == "uk"
+    currency = "uah" if is_uk else "eur"
+    if is_uk and rate is None:
+        rate = float(get_shipping_config().get("uah_eur_rate") or DEFAULT_UAH_EUR_RATE)
+    rate = rate or DEFAULT_UAH_EUR_RATE
+
+    def _charge(eur_value, override_key):
+        if currency != "uah":
+            return float(eur_value or 0)
+        ov = p.get(override_key)
+        try:
+            if ov is not None and str(ov).strip() != "" and float(ov) > 0:
+                return float(ov)
+        except (TypeError, ValueError):
+            pass
+        return eur_to_uah(float(eur_value or 0), rate)
+
     name  = _html.escape(str(p.get("name") or ""))
-    price = float(p.get("price") or 0)
-    cmp   = float(p.get("compare_price") or 0)
+    price = _charge(p.get("price"), "price_uah")
+    cmp   = _charge(p.get("compare_price"), "compare_price_uah") if p.get("compare_price") else 0.0
     slug  = p.get("slug") or str(p.get("id", ""))
     imgs  = p.get("image_urls") or []
     img   = _html.escape(str((imgs[0] if imgs else None) or p.get("image_url") or ""), quote=True)
     prefix = "/ua" if is_uk else ""
     url   = _html.escape(f"{site_url}{prefix}/products/{slug}", quote=True)
 
-    price_html = f"€{price:.2f}"
+    price_html = money_fmt(price, currency)
     if cmp and cmp > price:
         pct = round((1 - price / cmp) * 100)
         price_html = (
-            f'<span style="color:#ef4444;font-weight:700;">€{price:.2f}</span> '
-            f'<span style="color:#aaa;text-decoration:line-through;font-size:12px;">€{cmp:.2f}</span> '
+            f'<span style="color:#ef4444;font-weight:700;">{money_fmt(price, currency)}</span> '
+            f'<span style="color:#aaa;text-decoration:line-through;font-size:12px;">{money_fmt(cmp, currency)}</span> '
             f'<span style="color:#ef4444;font-size:11px;">−{pct}%</span>'
         )
 
@@ -5303,7 +5450,9 @@ def _build_wishlist_email(
     products: list, site_url: str, badge: str = "", locale: str = "en",
 ) -> tuple[str, str]:
     is_uk = normalize_preferred_locale(locale) == "uk"
-    rows_html = "".join(_wishlist_product_row_html(p, site_url, locale, badge) for p in products[:5])
+    currency = "uah" if is_uk else "eur"
+    uah_rate = float(get_shipping_config().get("uah_eur_rate") or DEFAULT_UAH_EUR_RATE) if is_uk else DEFAULT_UAH_EUR_RATE
+    rows_html = "".join(_wishlist_product_row_html(p, site_url, locale, badge, uah_rate) for p in products[:5])
     unsub_url = f"{site_url}/unsubscribe?email={email}&token={make_unsub_token(email)}"
     wishlist_url = f"{site_url}{'/ua' if is_uk else ''}/account?tab=wishlist"
     html_lang = "uk" if is_uk else "en"
@@ -5352,8 +5501,19 @@ def _build_wishlist_email(
   </table>
 </body></html>"""
 
+    def _txt_price(p):
+        if currency != "uah":
+            return float(p.get("price") or 0)
+        ov = p.get("price_uah")
+        try:
+            if ov is not None and str(ov).strip() != "" and float(ov) > 0:
+                return float(ov)
+        except (TypeError, ValueError):
+            pass
+        return eur_to_uah(float(p.get("price") or 0), uah_rate)
+
     text = f"{headline}\n\n{subtext}\n\n" + "\n".join(
-        f"- {p.get('name','')} · €{float(p.get('price',0)):.2f}"
+        f"- {p.get('name','')} · {money_fmt(_txt_price(p), currency)}"
         for p in products[:5]
     ) + (f"\n\nВідкрити обране: {wishlist_url}\n\nВідписатися: {unsub_url}" if is_uk else f"\n\nView wishlist: {wishlist_url}\n\nUnsubscribe: {unsub_url}")
 
@@ -5373,7 +5533,7 @@ def notify_wishlist_low_stock(bg: BackgroundTasks):
     try:
         low = (
             supabase.table("products")
-            .select("id,name,slug,price,compare_price,image_url,image_urls,available_stock")
+            .select("id,name,slug,price,price_uah,compare_price,compare_price_uah,image_url,image_urls,available_stock")
             .gt("available_stock", 0)
             .lte("available_stock", 3)
             .eq("is_hidden", False)
@@ -5446,7 +5606,7 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
     try:
         on_sale = (
             supabase.table("products")
-            .select("id,name,slug,price,compare_price,image_url,image_urls,available_stock")
+            .select("id,name,slug,price,price_uah,compare_price,compare_price_uah,image_url,image_urls,available_stock")
             .not_.is_("compare_price", "null")
             .gt("available_stock", 0)
             .eq("is_hidden", False)

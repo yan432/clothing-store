@@ -4,11 +4,13 @@ import { getApiUrl } from '../lib/api'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Sparkles } from 'lucide-react'
-import { getMessages, localeFromPathname, pathForLocale } from '../lib/i18n'
+import { getMessages, localeFromPathname, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, eurToUah, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 const DEFAULT_THRESHOLD = 120
 
-function ShippingBar({ total, threshold, labels }) {
+function ShippingBar({ total, threshold, labels, currency }) {
   const remaining = Math.max(0, threshold - total)
   const progress = Math.min(100, (total / threshold) * 100)
   const reached = remaining === 0
@@ -35,7 +37,7 @@ function ShippingBar({ total, threshold, labels }) {
       }}>
         {textReached
           ? <><Sparkles size={13} strokeWidth={1.8} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} /> {labels.drawerFreeShippingUnlocked}</>
-          : <>{labels.drawerFreeShippingRemainingPrefix} <strong>€{remaining.toFixed(2)}</strong> {labels.drawerFreeShippingRemainingSuffix}</>
+          : <>{labels.drawerFreeShippingRemainingPrefix} <strong>{formatPrice(remaining, currency)}</strong> {labels.drawerFreeShippingRemainingSuffix}</>
         }
       </p>
       <div style={{ height: 4, borderRadius: 999, background: '#e5e5e3', overflow: 'hidden' }}>
@@ -51,9 +53,13 @@ function ShippingBar({ total, threshold, labels }) {
 }
 
 export default function CartDrawer({ open, onClose }) {
-  const { cart, removeFromCart, updateQty, total } = useCart()
+  const { cart, removeFromCart, updateQty } = useCart()
   const pathname = usePathname() || '/'
   const locale = localeFromPathname(pathname)
+  const currency = currencyForLocale(locale)
+  const uahRate = useUahRate(locale === UK_LOCALE)
+  const lineUnit = (item) => priceForLocale(item, locale, uahRate)
+  const total = cart.reduce((sum, i) => sum + lineUnit(i) * i.qty, 0)
   const d = getMessages(locale)
   const [visible, setVisible] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -122,7 +128,7 @@ export default function CartDrawer({ open, onClose }) {
         </div>
 
         {/* Free shipping progress bar */}
-        <ShippingBar total={total} threshold={threshold} labels={d.cartPage} />
+        <ShippingBar total={total} threshold={currency === 'UAH' ? eurToUah(threshold, uahRate) : threshold} labels={d.cartPage} currency={currency} />
 
         {/* Items */}
         <div style={{flex:1,overflowY:'auto',padding:'16px 24px'}}>
@@ -159,7 +165,7 @@ export default function CartDrawer({ open, onClose }) {
                         style={{background:'none',border:'none',cursor:'pointer',color:'#ccc',fontSize:18,padding:0,flexShrink:0,lineHeight:1}}>×</button>
                     </div>
                     {item.size && <p style={{fontSize:12,color:'#888',margin:'0 0 2px'}}>{d.cartPage.size}: {item.size}</p>}
-                    <p style={{fontSize:13,color:'#aaa',margin:'0 0 10px'}}>€{item.price}</p>
+                    <p style={{fontSize:13,color:'#aaa',margin:'0 0 10px'}}>{formatPrice(lineUnit(item), currency)}</p>
                     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                       <div style={{display:'flex',alignItems:'center',gap:10,border:'1px solid #e5e5e3',borderRadius:999,padding:'4px 12px'}}>
                         <button onClick={() => updateQty(item.id, item.qty - 1, item.size)}
@@ -172,7 +178,7 @@ export default function CartDrawer({ open, onClose }) {
                             color:  (item.available_stock > 0 && item.qty >= item.available_stock) ? '#ccc' : '#555',
                           }}>+</button>
                       </div>
-                      <p style={{fontSize:14,fontWeight:600,margin:0}}>€{(item.price * item.qty).toFixed(2)}</p>
+                      <p style={{fontSize:14,fontWeight:600,margin:0}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
                     </div>
                   </div>
                 </div>
@@ -191,12 +197,12 @@ export default function CartDrawer({ open, onClose }) {
           }}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:6}}>
               <span style={{fontSize:14,color:'#888'}}>{d.cartPage.subtotal}</span>
-              <span style={{fontSize:14,color:'#888'}}>€{total.toFixed(2)}</span>
+              <span style={{fontSize:14,color:'#888'}}>{formatPrice(total, currency)}</span>
             </div>
             <p style={{fontSize:11,color:'#bbb',margin:'0 0 12px'}}>{d.cartPage.drawerShippingPromo}</p>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:16}}>
               <span style={{fontSize:16,fontWeight:700}}>{d.cartPage.total}</span>
-              <span style={{fontSize:16,fontWeight:700}}>€{total.toFixed(2)}</span>
+              <span style={{fontSize:16,fontWeight:700}}>{formatPrice(total, currency)}</span>
             </div>
             <button onClick={() => { onClose(); window.location.href = pathForLocale('/checkout', locale) }}
               style={{width:'100%',background:'#000',color:'#fff',border:'none',padding:'16px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer',marginBottom:10}}>

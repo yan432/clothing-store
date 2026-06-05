@@ -5,7 +5,9 @@ import { X } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { useCart } from '../context/CartContext'
 import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
-import { getMessages, localeFromPathname, localizeProduct, pathForLocale } from '../lib/i18n'
+import { getMessages, localeFromPathname, localizeProduct, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 function sortSizes(arr) {
   return [...arr].sort((a, b) => {
@@ -18,14 +20,10 @@ function sortSizes(arr) {
   })
 }
 
-function priceLabel(p) {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-    .format(Number(p || 0))
-}
-
 function LookItem({ product, locale }) {
   const d = getMessages(locale)
   const displayProduct = localizeProduct(product, locale)
+  const uahRate = useUahRate(locale === UK_LOCALE)
   const { addToCart } = useCart()
   const productTags = product?.tags
   const sizes = useMemo(() => sortSizes(parseSizeOptionsFromTags(productTags)), [productTags])
@@ -76,7 +74,7 @@ function LookItem({ product, locale }) {
             {displayProduct.name}
           </a>
           <p style={{ fontSize: 14, color: '#444', margin: 0 }}>
-            {priceLabel(displayProduct.price)}
+            {formatPrice(priceForLocale(displayProduct, locale, uahRate), currencyForLocale(locale))}
           </p>
         </div>
 

@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackPaymentInfo } from '../lib/track'
 import { getStoredMetaAttribution, getStoredUtm } from '../components/UtmCapture'
-import { getMessages, pathForLocale } from '../lib/i18n'
+import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, eurToUah, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 const DEFAULT_SHIPPING = 30
 const DEFAULT_THRESHOLD = 120
@@ -74,6 +76,9 @@ function StepBar({ locale = 'en' }) {
 export default function ConfirmPage({ locale = 'en' }) {
   const d = getMessages(locale)
   const { cart, total } = useCart()
+  const currency = currencyForLocale(locale)
+  const uahRate = useUahRate(locale === UK_LOCALE)
+  const lineUnit = (item) => priceForLocale(item, locale, uahRate)
   const router = useRouter()
   const [details, setDetails] = useState(null)
   const [promo, setPromo] = useState('')
@@ -82,6 +87,7 @@ export default function ConfirmPage({ locale = 'en' }) {
   const [promoLoading, setPromoLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [shippingCost, setShippingCost] = useState(DEFAULT_SHIPPING)
+  const [shipUah, setShipUah] = useState(null)
   const [freeThreshold, setFreeThreshold] = useState(DEFAULT_THRESHOLD)
   const paymentTracked = useRef(false)
   const regionNames = useMemo(() => {
@@ -101,6 +107,7 @@ export default function ConfirmPage({ locale = 'en' }) {
       try {
         const ship = JSON.parse(savedShipping)
         if (ship?.price_eur != null) setShippingCost(ship.price_eur)
+        setShipUah(ship?.price_uah != null ? Number(ship.price_uah) : null)
       } catch {}
     }
   }, [locale, router])
@@ -117,7 +124,7 @@ export default function ConfirmPage({ locale = 'en' }) {
       }),
     })
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.price_eur != null) setShippingCost(d.price_eur) })
+      .then(d => { if (d?.price_eur != null) setShippingCost(d.price_eur); setShipUah(d?.price_uah != null ? Number(d.price_uah) : null) })
       .catch(() => {})
 
     fetch(getApiUrl('/settings'))
@@ -131,11 +138,30 @@ export default function ConfirmPage({ locale = 'en' }) {
 
   if (!details || cart.length === 0) return null
 
-  const discount = promoApplied ? Number(promoApplied.discount_amount || 0) : 0
-  const safeDiscount = Math.min(total + shippingCost, Math.max(0, discount))
+  // Subtotal in the charge currency (UAH override/convert, or EUR). Free-shipping
+  // threshold + promo validation stay in EUR to match backend logic exactly.
+  const subtotalDisplay = cart.reduce((s, i) => s + lineUnit(i) * i.qty, 0)
+  let discountDisplay = 0
+  if (promoApplied) {
+    if (promoApplied.discount_type === 'percent') {
+      discountDisplay = subtotalDisplay * Number(promoApplied.discount_value || 0) / 100
+    } else if (promoApplied.discount_type === 'fixed') {
+      const eurDiscount = Number(promoApplied.discount_amount || 0)
+      discountDisplay = total > 0 ? subtotalDisplay * (eurDiscount / total) : 0
+    }
+  }
+  const safeDiscount = Math.min(subtotalDisplay, Math.max(0, discountDisplay))
   const qualifiesFreeShipping = total >= freeThreshold
-  const shippingTotal = (promoApplied?.discount_type === 'free_shipping' || qualifiesFreeShipping) ? 0 : shippingCost
-  const finalTotal = total - safeDiscount + shippingTotal
+  const shippingChargeBase = currency === 'UAH'
+    ? (shipUah != null ? shipUah : eurToUah(shippingCost, uahRate))
+    : shippingCost
+  const shippingTotal = (promoApplied?.discount_type === 'free_shipping' || qualifiesFreeShipping) ? 0 : shippingChargeBase
+  const finalTotal = subtotalDisplay - safeDiscount + shippingTotal
+  // Analytics are reported in EUR (settlement currency) for consistent ROAS
+  // across markets, regardless of the customer-facing charge currency.
+  const discountEur = promoApplied ? Math.min(total, Math.max(0, Number(promoApplied.discount_amount || 0))) : 0
+  const shippingEur = (promoApplied?.discount_type === 'free_shipping' || qualifiesFreeShipping) ? 0 : shippingCost
+  const finalTotalEur = total - discountEur + shippingEur
 
   async function applyPromo() {
     const code = promo.trim().toUpperCase()
@@ -173,7 +199,7 @@ export default function ConfirmPage({ locale = 'en' }) {
       trackPaymentInfo({
         email: details.email,
         cart,
-        value: finalTotal,
+        value: finalTotalEur,
         paymentType: 'Stripe',
       })
     }
@@ -213,9 +239,12 @@ export default function ConfirmPage({ locale = 'en' }) {
       if (data.url) {
         // Save order snapshot for GA4 purchase event on /success
         try {
+          // Analytics snapshot is in EUR (settlement currency) for consistent
+          // ROAS reporting, independent of the UAH charge currency.
           localStorage.setItem('pending_order', JSON.stringify({
             order_id: data.order_id || data.id,
-            total: finalTotal,
+            total: finalTotalEur,
+            currency: 'EUR',
             items: cart.map(item => ({
               product_id: item.id,
               slug: item.slug || null,
@@ -268,7 +297,7 @@ export default function ConfirmPage({ locale = 'en' }) {
                     {item.size && <p style={{fontSize:12,color:'#888',margin:'0 0 2px'}}>{d.confirm.size}: {item.size}</p>}
                     <p style={{fontSize:12,color:'#aaa',margin:0}}>{d.confirm.qty}: {item.qty}</p>
                   </div>
-                  <p style={{fontSize:14,fontWeight:600,margin:0}}>€{(item.price * item.qty).toFixed(2)}</p>
+                  <p style={{fontSize:14,fontWeight:600,margin:0}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
                 </div>
               ))}
             </div>
@@ -328,7 +357,7 @@ export default function ConfirmPage({ locale = 'en' }) {
                     ? `${promoApplied.discount_value}% ${d.confirm.percentOff}`
                     : promoApplied.discount_type === 'free_shipping'
                       ? d.confirm.freeShipping
-                      : `€${Number(promoApplied.discount_value || 0).toFixed(2)} ${d.confirm.euroOff}`}
+                      : `${formatPrice(safeDiscount, currency)} ${d.confirm.euroOff}`}
                 </span>
                 <button onClick={() => { setPromoApplied(null); setPromo('') }}
                   style={{background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:18,padding:0}}>×</button>
@@ -362,13 +391,13 @@ export default function ConfirmPage({ locale = 'en' }) {
                   <p style={{fontSize:13,fontWeight:500,margin:'0 0 1px'}}>{item.name}</p>
                   <p style={{fontSize:11,color:'#aaa',margin:0}}>x{item.qty}{item.size ? ` • ${item.size}` : ''}</p>
                 </div>
-                <p style={{fontSize:13,fontWeight:500,margin:0}}>€{(item.price*item.qty).toFixed(2)}</p>
+                <p style={{fontSize:13,fontWeight:500,margin:0}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
               </div>
             ))}
           </div>
           <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>{d.confirm.subtotal}</span><span>€{total.toFixed(2)}</span>
+              <span>{d.confirm.subtotal}</span><span>{formatPrice(subtotalDisplay, currency)}</span>
             </div>
             {promoApplied && (
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#16a34a'}}>
@@ -377,19 +406,19 @@ export default function ConfirmPage({ locale = 'en' }) {
                     ? `${promoApplied.discount_value}%`
                     : promoApplied.discount_type === 'free_shipping'
                       ? d.confirm.freeShipping
-                      : `€${Number(promoApplied.discount_value || 0).toFixed(2)}`})
+                      : formatPrice(safeDiscount, currency)})
                 </span>
-                <span>−€{safeDiscount.toFixed(2)}</span>
+                <span>−{formatPrice(safeDiscount, currency)}</span>
               </div>
             )}
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
               <span>{d.confirm.shipping}</span>
               <span style={shippingTotal === 0 ? {color:'#16a34a',fontWeight:500} : {}}>
-                {shippingTotal === 0 ? d.confirm.free : `€${shippingTotal.toFixed(2)}`}
+                {shippingTotal === 0 ? d.confirm.free : formatPrice(shippingTotal, currency)}
               </span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4,paddingTop:10,borderTop:'1px solid #e5e5e3'}}>
-              <span>{d.confirm.total}</span><span>€{finalTotal.toFixed(2)}</span>
+              <span>{d.confirm.total}</span><span>{formatPrice(finalTotal, currency)}</span>
             </div>
           </div>
           <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:16,lineHeight:1.5}}>

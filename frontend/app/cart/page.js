@@ -2,17 +2,23 @@
 import { useCart } from '../context/CartContext'
 import { useEffect, useRef } from 'react'
 import { trackViewCart } from '../lib/track'
-import { getMessages, pathForLocale } from '../lib/i18n'
+import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 export default function CartPage({ locale = 'en' }) {
   const d = getMessages(locale)
+  const currency = currencyForLocale(locale)
+  const uahRate = useUahRate(locale === UK_LOCALE)
+  const lineUnit = (item) => priceForLocale(item, locale, uahRate)
   const steps = [
     { n: 1, label: d.cartPage.steps[0], active: true },
     { n: 2, label: d.cartPage.steps[1], active: false },
     { n: 3, label: d.cartPage.steps[2], disabled: true },
     { n: 4, label: d.cartPage.steps[3], disabled: true },
   ]
-  const { cart, removeFromCart, updateQty, total, clearCart } = useCart()
+  const { cart, removeFromCart, updateQty, clearCart } = useCart()
+  const total = cart.reduce((sum, i) => sum + lineUnit(i) * i.qty, 0)
   const viewTracked = useRef(false)
 
   useEffect(() => {
@@ -77,7 +83,7 @@ export default function CartPage({ locale = 'en' }) {
                       {item.name}
                     </a>
                     {item.size && <p style={{fontSize:13,color:'#888',margin:'0 0 2px'}}>{d.cartPage.size}: {item.size}</p>}
-                    <p style={{fontSize:13,color:'#aaa',margin:0}}>€{item.price}</p>
+                    <p style={{fontSize:13,color:'#aaa',margin:0}}>{formatPrice(lineUnit(item), currency)}</p>
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
                     <button onClick={() => updateQty(item.id, item.qty - 1, item.size)}
@@ -93,7 +99,7 @@ export default function CartPage({ locale = 'en' }) {
                       }}>+</button>
                   </div>
                   <div className="cart-item-price">
-                    <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>€{(item.price * item.qty).toFixed(2)}</p>
+                    <p style={{fontSize:15,fontWeight:600,margin:'0 0 4px'}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
                     <button onClick={() => removeFromCart(item.id, item.size)}
                       style={{background:'none',border:'none',cursor:'pointer',color:'#bbb',fontSize:12,textDecoration:'underline',padding:0}}>
                       {d.cartPage.remove}
@@ -122,20 +128,20 @@ export default function CartPage({ locale = 'en' }) {
                     <p style={{fontSize:14,fontWeight:500,margin:'0 0 2px'}}>{item.name}</p>
                     <p style={{fontSize:12,color:'#aaa',margin:0}}>x{item.qty}{item.size ? ` • ${item.size}` : ''}</p>
                   </div>
-                  <p style={{fontSize:14,fontWeight:500,margin:0}}>€{(item.price*item.qty).toFixed(2)}</p>
+                  <p style={{fontSize:14,fontWeight:500,margin:0}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
                 </div>
               ))}
             </div>
 
             <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-                <span>{d.cartPage.subtotal}</span><span>€{total.toFixed(2)}</span>
+                <span>{d.cartPage.subtotal}</span><span>{formatPrice(total, currency)}</span>
               </div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#aaa'}}>
                 <span>{d.cartPage.shipping}</span><span>{d.cartPage.shippingNextStep}</span>
               </div>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:16,fontWeight:700,marginTop:4}}>
-                <span>{d.cartPage.total}</span><span>€{total.toFixed(2)}</span>
+                <span>{d.cartPage.total}</span><span>{formatPrice(total, currency)}</span>
               </div>
               <p style={{fontSize:11,color:'#bbb',margin:'4px 0 0',lineHeight:1.5}}>
                 {d.cartPage.promoNote}

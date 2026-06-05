@@ -5,6 +5,7 @@ import AdminOnly from '../../../components/AdminOnly'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { buildSizeTags, parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
+import { eurToUah, DEFAULT_UAH_EUR_RATE } from '../../../lib/money'
 
 const MANAGED_TAG_PREFIXES = ['new', 'sale', 'order:fixed', 'order:random', 'order:priority:', 'size:']
 
@@ -33,6 +34,8 @@ export default function ProductEditorClient({ id }) {
     image_url: '',
     price: '0',
     compare_price: '',
+    price_uah: '',
+    compare_price_uah: '',
     available_stock: '0',
     reserved_stock: '0',
     is_hidden: false,
@@ -91,6 +94,8 @@ export default function ProductEditorClient({ id }) {
           image_url: p.image_url || '',
           price: String(p.price ?? 0),
           compare_price: p.compare_price != null ? String(p.compare_price) : '',
+          price_uah: p.price_uah != null ? String(p.price_uah) : '',
+          compare_price_uah: p.compare_price_uah != null ? String(p.compare_price_uah) : '',
           available_stock: String(p.available_stock ?? p.stock ?? 0),
           reserved_stock: String(p.reserved_stock ?? 0),
           is_hidden: Boolean(p.is_hidden),
@@ -156,6 +161,8 @@ export default function ProductEditorClient({ id }) {
         image_url: form.image_url.trim() || null,
         price: nextPrice,
         compare_price: form.is_sale ? nextComparePrice : null,
+        price_uah: form.price_uah !== '' ? Number(form.price_uah) : null,
+        compare_price_uah: (form.is_sale && form.compare_price_uah !== '') ? Number(form.compare_price_uah) : null,
         available_stock: Math.max(0, Number(form.available_stock || 0)),
         reserved_stock: Math.max(0, Number(form.reserved_stock || 0)),
         is_hidden: Boolean(form.is_hidden),
@@ -560,6 +567,28 @@ export default function ProductEditorClient({ id }) {
                 <input type="number" step="0.01" min="0" value={form.compare_price} onChange={(e) => setField('compare_price', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
               </label>
             )}
+
+            {/* Ukrainian-locale (UAH) price overrides. Leave blank to auto-convert from EUR. */}
+            <div style={{border:'1px solid #eee',borderRadius:12,padding:'12px 14px',background:'#fcfcfb'}}>
+              <p style={{fontSize:12,fontWeight:700,letterSpacing:'0.04em',textTransform:'uppercase',color:'#777',margin:'0 0 10px'}}>UA store price (₴)</p>
+              <div style={{display:'grid',gridTemplateColumns: form.is_sale ? '1fr 1fr' : '1fr',gap:10}}>
+                <label style={{fontSize:13,color:'#444'}}>{form.is_sale ? 'Current price (UAH)' : 'Price (UAH)'}
+                  <input type="number" step="1" min="0" value={form.price_uah}
+                    onChange={(e) => setField('price_uah', e.target.value)}
+                    placeholder={`auto ≈ ${eurToUah(Number(form.price || 0), DEFAULT_UAH_EUR_RATE)} ₴`}
+                    style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+                </label>
+                {form.is_sale && (
+                  <label style={{fontSize:13,color:'#444'}}>Old price (UAH)
+                    <input type="number" step="1" min="0" value={form.compare_price_uah}
+                      onChange={(e) => setField('compare_price_uah', e.target.value)}
+                      placeholder={`auto ≈ ${eurToUah(Number(form.compare_price || 0), DEFAULT_UAH_EUR_RATE)} ₴`}
+                      style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+                  </label>
+                )}
+              </div>
+              <span style={{fontSize:11,color:'#aaa',display:'block',marginTop:8}}>Leave blank to auto-convert from the EUR price at checkout-time rate (rounded up to 100 ₴).</span>
+            </div>
 
             <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
               <input

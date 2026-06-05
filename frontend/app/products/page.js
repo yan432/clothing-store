@@ -6,6 +6,7 @@ import { getApiUrl } from '../lib/api'
 import { safeJsonLd } from '../lib/safeJsonLd'
 import { getMessages, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
+import { getUahRate, currencyForLocale, priceForLocale } from '../lib/money'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 
@@ -72,6 +73,8 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
   const d = getMessages(locale)
   const { products, fetchError } = await getProducts()
   const colorSiblingsMap = buildColorSiblingsMap(products)
+  const uahRate = locale === 'uk' ? await getUahRate() : undefined
+  const currency = currencyForLocale(locale)
   const params = await searchParams
 
   const normalizeList = (v) => Array.isArray(v) ? v.filter(Boolean) : typeof v === 'string' && v ? [v] : []
@@ -172,7 +175,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
           '@type': 'Product',
           name: displayProduct.name,
           image: p.image_url,
-          offers: { '@type': 'Offer', price: p.price, priceCurrency: 'EUR' },
+          offers: { '@type': 'Offer', price: priceForLocale(p, locale, uahRate), priceCurrency: currency },
         },
       }
     }),
@@ -281,6 +284,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
                 colorSiblings={colorSiblingsMap[product.id] || []}
                 imagePriority={index < 4}
                 locale={locale}
+                uahRate={uahRate}
               />
             ))}
           </div>

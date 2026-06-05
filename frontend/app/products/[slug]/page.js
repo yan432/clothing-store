@@ -12,6 +12,7 @@ import { safeJsonLd } from '../../lib/safeJsonLd'
 import { notFound } from 'next/navigation'
 import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
 import { localizedAlternates, openGraphLocale } from '../../lib/seo'
+import { getUahRate, currencyForLocale, priceForLocale, formatPrice } from '../../lib/money'
 
 async function getProduct(slug) {
   try {
@@ -113,10 +114,10 @@ export default async function ProductPage({ params, locale = 'en' }) {
   const materialCare = (displayProduct.material_care || '').trim() || d.product.materialCareFallback
   const moreAboutProduct = (displayProduct.product_details || '').trim() || d.product.detailsFallback
   const fitInfo = (displayProduct.fit_info || '').trim() || d.product.fitFallback
-  const priceLabel = new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(Number(product.price || 0))
+  const uahRate = locale === 'uk' ? await getUahRate() : undefined
+  const currency = currencyForLocale(locale)
+  const displayPrice = priceForLocale(product, locale, uahRate)
+  const priceLabel = formatPrice(displayPrice, currency)
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
 
   const productImages = Array.isArray(product.image_urls) && product.image_urls.length
@@ -133,8 +134,8 @@ export default async function ProductPage({ params, locale = 'en' }) {
     brand: { '@type': 'Brand', name: 'edm.clothes' },
     offers: {
       '@type': 'Offer',
-      price: product.price,
-      priceCurrency: 'EUR',
+      price: displayPrice,
+      priceCurrency: currency,
       availability: availableStock > 0
         ? 'https://schema.org/InStock'
         : 'https://schema.org/OutOfStock',
@@ -179,7 +180,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
   }
 
   const ogAvailability = isInStock ? 'instock' : 'out of stock'
-  const ogPrice = String(Number(product.price) || 0)
+  const ogPrice = String(displayPrice || 0)
 
   return (
     <>
@@ -187,12 +188,12 @@ export default async function ProductPage({ params, locale = 'en' }) {
           either Schema.org or Open Graph; we emit both. React 19 hoists <meta> to <head>. */}
       <meta property="og:type" content="product" />
       <meta property="product:price:amount" content={ogPrice} />
-      <meta property="product:price:currency" content="EUR" />
+      <meta property="product:price:currency" content={currency} />
       <meta property="product:availability" content={ogAvailability} />
       <meta property="product:brand" content="edm.clothes" />
       <meta property="product:condition" content="new" />
       <meta property="og:price:amount" content={ogPrice} />
-      <meta property="og:price:currency" content="EUR" />
+      <meta property="og:price:currency" content={currency} />
       <meta property="og:availability" content={ogAvailability} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbJsonLd) }} />

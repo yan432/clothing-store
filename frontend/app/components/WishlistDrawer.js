@@ -6,10 +6,14 @@ import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
 import { getApiUrl } from '../lib/api'
 import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
-import { getMessages, localeFromPathname, pathForLocale } from '../lib/i18n'
+import { getMessages, localeFromPathname, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 function WishlistItem({ product, onRemove, locale, labels }) {
   const { addToCart, setDrawerOpen: openCart } = useCart()
+  const uahRate = useUahRate(locale === UK_LOCALE)
+  const currency = currencyForLocale(locale)
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
   const sizeStock = product.size_stock || {}
   const isSizeAvailable = (s) => sizeStock[s] === undefined ? true : sizeStock[s] > 0
@@ -35,6 +39,8 @@ function WishlistItem({ product, onRemove, locale, labels }) {
       id:              product.id,
       name:            product.name,
       price:           price,
+      price_uah:        product.price_uah ?? null,
+      compare_price_uah: product.compare_price_uah ?? null,
       image_url:       img || '',
       slug:            product.slug,
       size:            selectedSize || '',
@@ -76,10 +82,10 @@ function WishlistItem({ product, onRemove, locale, labels }) {
         {/* Price */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: disc ? '#ef4444' : '#111' }}>
-            €{price.toFixed(2)}
+            {formatPrice(priceForLocale(product, locale, uahRate), currency)}
           </span>
           {disc && (
-            <span style={{ fontSize: 12, color: '#aaa', textDecoration: 'line-through' }}>€{cmp.toFixed(2)}</span>
+            <span style={{ fontSize: 12, color: '#aaa', textDecoration: 'line-through' }}>{formatPrice(comparePriceForLocale(product, locale, uahRate), currency)}</span>
           )}
         </div>
 

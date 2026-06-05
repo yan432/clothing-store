@@ -1,5 +1,6 @@
-import { getApiUrl } from '../lib/api'
-import { buildFeedXml } from '../lib/productFeed'
+import { getApiUrl } from '../../lib/api'
+import { buildFeedXml } from '../../lib/productFeed'
+import { getUahRate } from '../../lib/money'
 
 export async function GET() {
   let products = []
@@ -10,7 +11,8 @@ export async function GET() {
     // return empty feed rather than 500
   }
 
-  const xml = buildFeedXml(products, { locale: 'en' })
+  const rate = await getUahRate()
+  const xml = buildFeedXml(products, { locale: 'uk', rate })
 
   return new Response(xml, {
     headers: {

@@ -6,10 +6,14 @@ import { useCart } from '../context/CartContext'
 import { getApiUrl } from '../lib/api'
 import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
 import NotifyMePopup from '../components/NotifyMePopup'
-import { getMessages, pathForLocale } from '../lib/i18n'
+import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
   const { addToCart, setDrawerOpen } = useCart()
+  const uahRate = useUahRate(locale === UK_LOCALE)
+  const currency = currencyForLocale(locale)
   const { user } = useAuth()
   const productTags = product.tags
   const sizeOptions = useMemo(() => parseSizeOptionsFromTags(productTags), [productTags])
@@ -48,6 +52,8 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
       id:              product.id,
       name:            product.name,
       price,
+      price_uah:        product.price_uah ?? null,
+      compare_price_uah: product.compare_price_uah ?? null,
       image_url:       img || '',
       slug:            product.slug,
       size:            selectedSize || '',
@@ -109,10 +115,10 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
         {/* Price */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: disc ? '#ef4444' : '#111' }}>
-            €{price.toFixed(2)}
+            {formatPrice(priceForLocale(product, locale, uahRate), currency)}
           </span>
           {disc && (
-            <span style={{ fontSize: 12, color: '#aaa', textDecoration: 'line-through' }}>€{cmp.toFixed(2)}</span>
+            <span style={{ fontSize: 12, color: '#aaa', textDecoration: 'line-through' }}>{formatPrice(comparePriceForLocale(product, locale, uahRate), currency)}</span>
           )}
         </div>
 

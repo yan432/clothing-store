@@ -5,7 +5,9 @@ import { useAuth } from '../context/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackCheckoutStarted, trackCompleteRegistration, trackNewsletterSignup, trackShippingInfo } from '../lib/track'
-import { getMessages, pathForLocale } from '../lib/i18n'
+import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
+import { currencyForLocale, priceForLocale, eurToUah, formatPrice } from '../lib/money'
+import { useUahRate } from '../lib/useUahRate'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -217,6 +219,10 @@ function BuyParamEffect({ addToCartRef, addManyToCartRef, setDrawerOpen }) {
 function CheckoutPage({ locale = 'en' }) {
   const d = getMessages(locale)
   const { cart, total, addToCart, addManyToCart, setDrawerOpen } = useCart()
+  const currency = currencyForLocale(locale)
+  const uahRate = useUahRate(locale === UK_LOCALE)
+  const lineUnit = (item) => priceForLocale(item, locale, uahRate)
+  const displayTotal = cart.reduce((sum, i) => sum + lineUnit(i) * i.qty, 0)
   const addToCartRef = useRef(addToCart)
   useEffect(() => { addToCartRef.current = addToCart }, [addToCart])
   const addManyToCartRef = useRef(addManyToCart)
@@ -756,21 +762,25 @@ function CheckoutPage({ locale = 'en' }) {
                   <p style={{fontSize:14,fontWeight:500,margin:'0 0 2px'}}>{item.name}</p>
                   <p style={{fontSize:12,color:'#aaa',margin:0}}>x{item.qty}{item.size ? ` • ${item.size}` : ''}</p>
                 </div>
-                <p style={{fontSize:14,fontWeight:500,margin:0}}>€{(item.price*item.qty).toFixed(2)}</p>
+                <p style={{fontSize:14,fontWeight:500,margin:0}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
               </div>
             ))}
           </div>
           <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>{d.checkout.subtotal}</span><span>€{total.toFixed(2)}</span>
+              <span>{d.checkout.subtotal}</span><span>{formatPrice(displayTotal, currency)}</span>
             </div>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
               <span>{d.checkout.shipping}</span>
               <span style={{color: shippingResult?.zone === 'unavailable' ? '#ef4444' : '#555'}}>
                 {shippingLoading ? '…' :
                   shippingResult?.zone === 'unavailable' ? d.checkout.notAvailable :
-                  shippingResult?.price_eur != null ? `€${shippingResult.price_eur.toFixed(2)}` :
-                  '—'}
+                  shippingResult?.free_shipping_applied ? formatPrice(0, currency) :
+                  shippingResult?.price_eur != null
+                    ? (currency === 'UAH'
+                        ? formatPrice(shippingResult.price_uah != null ? Number(shippingResult.price_uah) : eurToUah(shippingResult.price_eur, uahRate), currency)
+                        : `€${shippingResult.price_eur.toFixed(2)}`)
+                    : '—'}
               </span>
             </div>
             {shippingResult?.zone === 'unavailable' && (
