@@ -4,7 +4,7 @@ import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
 import ProductCard from './components/ProductCard'
 import DropCountdown from './components/DropCountdown'
-import { getMessages, pathForLocale, translateCategory } from './lib/i18n'
+import { getMessages, localizeProduct, pathForLocale, translateCategory } from './lib/i18n'
 import { localizedAlternates } from './lib/seo'
 // All below-fold sections are lazy-loaded via a 'use client' wrapper so
 // each gets its own JS chunk instead of bloating the initial bundle.
@@ -102,6 +102,18 @@ async function getDropTimer() {
 
 const W = 1160
 
+const UK_SLIDE_TITLE_BY_SLUG = {
+  'deconstructed-washed-jeans': 'Deconstructed джинси',
+  'edm-washed-hoodie': 'EDM washed худі',
+  'cargo-bermuda-shorts': 'Bermuda карго-шорти',
+}
+
+function productSlugFromHref(href = '') {
+  const path = String(href || '').split(/[?#]/)[0].replace(/^\/ua(?=\/)/, '')
+  const match = path.match(/^\/products\/([^/]+)$/)
+  return match ? match[1] : ''
+}
+
 export default async function Home({ searchParams, locale = 'en' }) {
   const d = getMessages(locale)
   const params = await (searchParams || {})
@@ -142,6 +154,27 @@ export default async function Home({ searchParams, locale = 'en' }) {
   const localizeSlideCta = (label) => {
     if (locale === 'uk' && (!label || String(label).trim().toLowerCase() === 'shop now')) return d.home.hero.cta
     return label
+  }
+  const productBySlug = new Map(allProducts.map((product) => [product.slug || String(product.id), product]))
+  const localizeSlideTitle = (slide) => {
+    const title = slide.title || ''
+    if (locale !== 'uk') return title
+
+    const rawHref = slide.href || ''
+    if (String(rawHref).includes('special=new')) return 'Новий дроп'
+
+    const slug = productSlugFromHref(rawHref)
+    if (slug) {
+      const product = productBySlug.get(slug)
+      const localizedName = product ? localizeProduct(product, 'uk').name : ''
+      if (localizedName && localizedName !== product?.name) return localizedName
+      if (UK_SLIDE_TITLE_BY_SLUG[slug]) return UK_SLIDE_TITLE_BY_SLUG[slug]
+    }
+
+    const normalizedTitle = title.trim().toLowerCase()
+    if (normalizedTitle.includes('new drop')) return 'Новий дроп'
+    if (normalizedTitle.includes('collection')) return 'Нова колекція'
+    return title
   }
 
   const organizationJsonLd = {
@@ -220,7 +253,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
       {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
         <section style={{ marginTop: 0 }}>
-          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: s.title, href: pathForLocale(s.href || '/products', locale), link_label: localizeSlideCta(s.link_label), label: '' }))} fullWidth />
+          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: localizeSlideTitle(s), href: pathForLocale(s.href || '/products', locale), link_label: localizeSlideCta(s.link_label), label: '' }))} fullWidth />
         </section>
       )}
 
