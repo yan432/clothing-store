@@ -15,6 +15,7 @@ export default function NewProductClient({ inTab = false }) {
   const [colorCopies, setColorCopies] = useState(1)
   const [form, setForm] = useState({
     name: '',
+    name_uk: '',
     description: '',
     description_uk: '',
     material_care: '',
@@ -58,6 +59,7 @@ export default function NewProductClient({ inTab = false }) {
           : []
       const payload = {
         name: form.name.trim(),
+        name_uk: form.name_uk.trim() || null,
         description: form.description.trim(),
         description_uk: form.description_uk.trim() || null,
         material_care: form.material_care.trim(),
@@ -119,6 +121,7 @@ export default function NewProductClient({ inTab = false }) {
       setColorCopies(1)
       setForm({
         name: '',
+        name_uk: '',
         description: '',
         description_uk: '',
         material_care: '',
@@ -186,6 +189,9 @@ export default function NewProductClient({ inTab = false }) {
 
           <div style={{border:'1px solid #dbeafe',borderRadius:10,padding:14,background:'#eff6ff'}}>
             <p style={{fontSize:12,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'#2563eb',margin:'0 0 12px'}}>Українська версія</p>
+            <label style={{fontSize:13,color:'#1e3a8a'}}>Назва
+              <input value={form.name_uk} onChange={(e) => setField('name_uk', e.target.value)} placeholder={form.name} style={{width:'100%',marginTop:6,border:'1px solid #bfdbfe',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+            </label>
             <label style={{fontSize:13,color:'#1e3a8a'}}>Опис
               <textarea value={form.description_uk} onChange={(e) => setField('description_uk', e.target.value)} rows={4} placeholder={form.description} style={{width:'100%',marginTop:6,border:'1px solid #bfdbfe',borderRadius:10,padding:'10px 12px',fontSize:14,resize:'vertical'}} />
             </label>

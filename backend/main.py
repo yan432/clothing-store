@@ -244,6 +244,7 @@ ZOHO_SMTP_PASSWORD = os.getenv("ZOHO_SMTP_PASSWORD", "")
 
 class Product(BaseModel):
     name: str
+    name_uk: Optional[str] = None
     description: Optional[str] = None
     description_uk: Optional[str] = None
     material_care: Optional[str] = None
@@ -273,6 +274,7 @@ class Product(BaseModel):
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
+    name_uk: Optional[str] = None
     description: Optional[str] = None
     description_uk: Optional[str] = None
     material_care: Optional[str] = None
@@ -2071,6 +2073,7 @@ def duplicate_product(product_id: int):
     # Using a denylist on select("*") is fragile because Supabase may return
     # generated/computed columns that are rejected on INSERT.
     copy_fields = [
+        "name_uk",
         "description", "description_uk",
         "material_care", "material_care_uk",
         "product_details", "product_details_uk",

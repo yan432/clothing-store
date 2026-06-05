@@ -277,7 +277,9 @@ export default async function ProductPage({ params, locale = 'en' }) {
             <h1 className="product-detail-title" style={{fontWeight:600,margin:0}}>{displayProduct.name}</h1>
             <div style={{display:'flex',alignItems:'baseline',gap:10}}>
               <p className="product-detail-price" style={{fontWeight:600,margin:0}}>{priceLabel}</p>
-              <p style={{fontSize:14,color:'#8a8a84',margin:0}}>{d.product.inclTax}</p>
+              {d.product.inclTax && (
+                <p style={{fontSize:14,color:'#8a8a84',margin:0}}>{d.product.inclTax}</p>
+              )}
             </div>
             <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:0}}>
               {!isInStock ? d.product.outOfStock : isLowStock ? d.product.lowStock : d.product.inStock}
