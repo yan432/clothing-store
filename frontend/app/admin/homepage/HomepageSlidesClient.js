@@ -572,7 +572,7 @@ export default function HomepageSlidesClient() {
           <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', margin: '0 0 12px' }}>Add photo</p>
           <div style={{ marginBottom: 10 }}>
             <label style={{ fontSize: 12, color: '#555' }}>"Shop all" link URL (optional)
-              <input ref={tileHrefRef} style={{ ...inp, marginTop: 4 }} placeholder="/products?special=new" />
+              <input ref={tileHrefRef} style={{ ...inp, marginTop: 4 }} placeholder="/collections/new" />
             </label>
           </div>
           <div style={{ marginBottom: 12 }}>

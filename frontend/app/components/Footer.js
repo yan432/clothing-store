@@ -5,11 +5,12 @@ import { usePathname } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
 import { trackNewsletterSignup } from '../lib/track'
 import { getMessages, localeFromPathname, pathForLocale, translateCategory } from '../lib/i18n'
+import { collectionPathForCategory } from '../lib/collections'
 
 const STATIC_SHOP_LINKS = [
   ['allProducts', '/products'],
-  ['newArrivals', '/products?special=new'],
-  ['sale',         '/products?special=sale'],
+  ['newArrivals', '/collections/new'],
+  ['sale',         '/collections/sale'],
 ]
 
 export default function Footer() {
@@ -61,7 +62,10 @@ export default function Footer() {
 
   const shopLinks = [
     ...STATIC_SHOP_LINKS.map(([key, href]) => [d.nav[key], pathForLocale(href, locale)]),
-    ...categories.map(cat => [translateCategory(cat, locale), pathForLocale(`/products?category=${encodeURIComponent(cat)}`, locale)]),
+    ...categories.map(cat => [
+      translateCategory(cat, locale),
+      pathForLocale(collectionPathForCategory(cat) || `/products?category=${encodeURIComponent(cat)}`, locale),
+    ]),
   ]
   const careLinks = [
     [d.nav.about, pathForLocale('/about', locale)],

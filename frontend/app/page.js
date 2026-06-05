@@ -229,7 +229,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
         <section style={{ maxWidth: W, margin: '0 auto', padding: '18px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{d.home.newArrivals}</h2>
-            <a href={pathForLocale('/products?special=new', locale)} style={{ fontSize: 12, color: '#5f5f58', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+            <a href={pathForLocale('/collections/new', locale)} style={{ fontSize: 12, color: '#5f5f58', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
               {d.home.viewAll} →
             </a>
           </div>

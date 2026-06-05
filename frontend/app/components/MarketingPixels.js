@@ -14,7 +14,7 @@ function consentGranted() {
 }
 
 export default function MarketingPixels({ disabled = false }) {
-  const [enabled, setEnabled] = useState(false)
+  const [marketingEnabled, setMarketingEnabled] = useState(false)
 
   useEffect(() => {
     if (disabled || window.__edmTrackingDisabled) {
@@ -26,10 +26,10 @@ export default function MarketingPixels({ disabled = false }) {
     const sync = (event) => {
       const granted = event?.detail?.granted ?? consentGranted()
       if (!granted) {
-        setEnabled(false)
+        setMarketingEnabled(false)
         return
       }
-      const start = () => setEnabled(true)
+      const start = () => setMarketingEnabled(true)
       if ('requestIdleCallback' in window) {
         const id = window.requestIdleCallback(start, { timeout: 1800 })
         cancelScheduledStart = () => window.cancelIdleCallback(id)
@@ -50,22 +50,24 @@ export default function MarketingPixels({ disabled = false }) {
     }
   }, [disabled])
 
-  if (!enabled) return null
+  if (disabled) return null
 
   return (
     <>
-      <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="lazyOnload" />
-      <Script id="ga-config" strategy="lazyOnload">{`
+      <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="afterInteractive" />
+      <Script id="ga-config" strategy="afterInteractive">{`
         if (!window.__edmTrackingDisabled && !window.__gaConfigured) {
           window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', 'G-CMVZYXVZ8Y');
-          gtag('config', 'AW-16809967064');
+          window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);}
+          window.gtag('js', new Date());
+          window.gtag('config', 'G-CMVZYXVZ8Y');
+          window.gtag('config', 'AW-16809967064');
           window.__gaConfigured = true;
           window.dispatchEvent(new Event('ga-configured'));
         }
       `}</Script>
+      {marketingEnabled && (
+        <>
       <Script id="meta-pixel" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.fbq) {
           !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
@@ -99,6 +101,8 @@ export default function MarketingPixels({ disabled = false }) {
           })(window, document, "clarity", "script", "wvgo1gvy39");
         }
       `}</Script>
+        </>
+      )}
     </>
   )
 }

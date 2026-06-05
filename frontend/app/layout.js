@@ -86,10 +86,10 @@ export default async function RootLayout({ children }) {
         `}</Script>
         <Script id="ga-consent-defaults" strategy="beforeInteractive">{`
           window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
+          window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);}
 
           // EEA + UK: require explicit consent (GDPR)
-          gtag('consent', 'default', {
+          window.gtag('consent', 'default', {
             ad_storage:         'denied',
             analytics_storage:  'denied',
             ad_user_data:       'denied',
@@ -103,7 +103,7 @@ export default async function RootLayout({ children }) {
           });
 
           // All other regions: grant analytics by default (no consent banner needed)
-          gtag('consent', 'default', {
+          window.gtag('consent', 'default', {
             ad_storage:         'denied',
             analytics_storage:  'granted',
             ad_user_data:       'denied',
@@ -111,7 +111,7 @@ export default async function RootLayout({ children }) {
           });
 
           // Pass click/session IDs in URLs when cookies are denied (improves accuracy)
-          gtag('set', 'url_passthrough', true);
+          window.gtag('set', 'url_passthrough', true);
         `}</Script>
       </head>
       <body className={inter.className}>

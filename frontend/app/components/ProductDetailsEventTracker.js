@@ -1,9 +1,32 @@
 'use client'
 
 import { useEffect } from 'react'
-import { trackShippingOpen } from '../lib/track'
+import { trackProductView, trackShippingOpen } from '../lib/track'
 
 export default function ProductDetailsEventTracker({ product }) {
+  useEffect(() => {
+    if (typeof window === 'undefined' || !product) return undefined
+
+    let trackedView = false
+    function trackView() {
+      if (trackedView) return
+      trackedView = true
+      trackProductView(product)
+    }
+
+    if (window.__gaConfigured) {
+      trackView()
+    } else {
+      window.addEventListener('ga-configured', trackView, { once: true })
+    }
+    const retryTimer = window.setTimeout(trackView, 2500)
+
+    return () => {
+      window.removeEventListener('ga-configured', trackView)
+      window.clearTimeout(retryTimer)
+    }
+  }, [product])
+
   useEffect(() => {
     if (typeof document === 'undefined' || !product) return undefined
 

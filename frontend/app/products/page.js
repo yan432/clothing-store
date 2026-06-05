@@ -9,6 +9,13 @@ import { localizedAlternates } from '../lib/seo'
 import { getUahRate, currencyForLocale, priceForLocale } from '../lib/money'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
+const SEO_PRODUCTS_TITLE = 'Shop Ukrainian Streetwear, Hoodies & Denim'
+const SEO_PRODUCTS_DESCRIPTION = 'Explore edm.clothes: oversized hoodies, deconstructed denim, longsleeves and bottoms made in Ukraine. Worldwide shipping.'
+
+function usefulMeta(value, fallback, minLength = 60) {
+  const text = String(value || '').trim()
+  return text.length >= minLength ? text : fallback
+}
 
 function stableRandomRank(product) {
   const input = String(product?.id ?? product?.slug ?? product?.name ?? '')
@@ -25,12 +32,12 @@ export async function generateMetadata() {
     const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
     const s = res.ok ? await res.json() : {}
     return {
-      title: s.seo_products_title || 'Shop',
-      description: s.seo_products_description || 'Browse our full collection.',
+      title: usefulMeta(s.seo_products_title, SEO_PRODUCTS_TITLE, 10),
+      description: usefulMeta(s.seo_products_description, SEO_PRODUCTS_DESCRIPTION),
       alternates: localizedAlternates('/products'),
     }
   } catch {
-    return { title: 'Shop', description: 'Browse our full collection.', alternates: localizedAlternates('/products') }
+    return { title: SEO_PRODUCTS_TITLE, description: SEO_PRODUCTS_DESCRIPTION, alternates: localizedAlternates('/products') }
   }
 }
 
@@ -282,7 +289,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
                 key={product.id}
                 product={product}
                 colorSiblings={colorSiblingsMap[product.id] || []}
-                imagePriority={index < 4}
+                imagePriority={index < 2}
                 locale={locale}
                 uahRate={uahRate}
               />

@@ -6,11 +6,12 @@ import { useAuth } from '../context/AuthContext'
 import { useWishlist } from '../context/WishlistContext'
 import { getApiUrl } from '../lib/api'
 import { getMessages, localeFromPathname, pathForLocale, switchLocalePath, translateCategory } from '../lib/i18n'
+import { collectionPathForCategory } from '../lib/collections'
 
 const SHOP_ROUTES = [
   { key: 'allProducts', href: '/products' },
-  { key: 'newArrivals', href: '/products?special=new' },
-  { key: 'sale',        href: '/products?special=sale' },
+  { key: 'newArrivals', href: '/collections/new' },
+  { key: 'sale',        href: '/collections/sale' },
 ]
 
 const INFO_ROUTES = [
@@ -83,6 +84,10 @@ export default function NavBar() {
     label: d.nav[item.key],
     href: pathForLocale(item.href, locale),
   }))
+  const categoryHref = (category) => pathForLocale(
+    collectionPathForCategory(category) || `/products?category=${encodeURIComponent(category)}`,
+    locale,
+  )
 
   function rememberPreferredLocale(nextLocale) {
     try {
@@ -183,7 +188,7 @@ export default function NavBar() {
 
           {/* CENTER — desktop nav links only */}
           <div className="nav-center-links">
-            <a href={pathForLocale('/products?special=new', locale)}
+            <a href={pathForLocale('/collections/new', locale)}
               onMouseEnter={() => setOpenMenu(null)}
               style={{ color: '#1a1a18', textDecoration: 'none', fontSize: 13, fontWeight: 500, letterSpacing: '0.05em' }}>
               {d.nav.newArrivals}
@@ -313,7 +318,7 @@ export default function NavBar() {
                       <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.categories}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {categories.map(cat => (
-                          <a key={cat} href={pathForLocale(`/products?category=${encodeURIComponent(cat)}`, locale)}
+                          <a key={cat} href={categoryHref(cat)}
                             onClick={() => setOpenMenu(null)} style={megaLink}>{translateCategory(cat, locale)}</a>
                         ))}
                       </div>
@@ -410,7 +415,7 @@ export default function NavBar() {
 
               <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.shop}</p>
               <div style={{ marginBottom: 24 }}>
-                {[...shopStatic, ...categories.map(cat => ({ label: translateCategory(cat, locale), href: pathForLocale(`/products?category=${encodeURIComponent(cat)}`, locale) }))].map(item => (
+                {[...shopStatic, ...categories.map(cat => ({ label: translateCategory(cat, locale), href: categoryHref(cat) }))].map(item => (
                   <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
                     style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
                     {item.label}

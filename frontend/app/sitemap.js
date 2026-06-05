@@ -1,6 +1,7 @@
 import { getApiUrl } from './lib/api'
 import { DEFAULT_LOCALE, UK_LOCALE, pathForLocale } from './lib/i18n'
 import { absoluteLanguageAlternates, absoluteUrl } from './lib/seo'
+import { COLLECTION_SLUGS, collectionPath } from './lib/collections'
 
 // Approximate last-modified dates for static pages
 const STATIC_PAGES = [
@@ -16,6 +17,13 @@ const STATIC_PAGES = [
   { path: '/terms',      priority: 0.3, changeFrequency: 'yearly',  lastModified: new Date('2026-05-26') },
   { path: '/imprint',    priority: 0.2, changeFrequency: 'yearly',  lastModified: new Date('2026-05-26') },
 ]
+
+const COLLECTION_PAGES = COLLECTION_SLUGS.map(slug => ({
+  path: collectionPath(slug),
+  priority: slug === 'new' ? 0.8 : 0.7,
+  changeFrequency: 'weekly',
+  lastModified: new Date('2026-06-05'),
+}))
 
 function sitemapEntry({ path, locale, images, ...entry }) {
   return {
@@ -59,5 +67,9 @@ export default async function sitemap() {
     [DEFAULT_LOCALE, UK_LOCALE].map(locale => sitemapEntry({ ...page, locale })),
   )
 
-  return [...staticPages, ...productPages]
+  const collectionPages = COLLECTION_PAGES.flatMap(page =>
+    [DEFAULT_LOCALE, UK_LOCALE].map(locale => sitemapEntry({ ...page, locale })),
+  )
+
+  return [...staticPages, ...collectionPages, ...productPages]
 }

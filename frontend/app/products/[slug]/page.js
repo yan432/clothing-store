@@ -3,7 +3,6 @@ import WishlistButton from '../../components/WishlistButton'
 import ProductGallery from '../../components/ProductGallery'
 import ProductCard from '../../components/ProductCard'
 import RecommendationsCarousel from '../../components/RecommendationsCarousel'
-import GaViewItemEvent from '../../components/GaViewItemEvent'
 import ProductDetailsEventTracker from '../../components/ProductDetailsEventTracker'
 import Link from 'next/link'
 import { getApiUrl } from '../../lib/api'
@@ -13,6 +12,58 @@ import { notFound } from 'next/navigation'
 import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
 import { localizedAlternates, openGraphLocale } from '../../lib/seo'
 import { getUahRate, currencyForLocale, priceForLocale, formatPrice } from '../../lib/money'
+
+function cleanMetaText(value = '') {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([,.])/g, '$1')
+    .trim()
+}
+
+function firstSentence(value = '') {
+  const text = cleanMetaText(value)
+  if (!text) return ''
+  const match = text.match(/^(.+?[.!?])\s/)
+  return cleanMetaText(match ? match[1] : text)
+}
+
+function materialLine(value = '') {
+  const text = String(value || '')
+  const match = text.match(/(?:Material|Матеріал):\s*([^\n.]+)/i)
+  return match ? cleanMetaText(match[1]) : ''
+}
+
+function compactMetaDescription(parts, maxLength = 170) {
+  const uniqueParts = []
+  const seen = new Set()
+  for (const part of parts.map(cleanMetaText).filter(Boolean)) {
+    const key = part.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    uniqueParts.push(part)
+  }
+
+  let description = ''
+  for (const part of uniqueParts) {
+    const next = description ? `${description} ${part}` : part
+    if (next.length <= maxLength) {
+      description = next
+    } else if (!description) {
+      description = `${part.slice(0, maxLength - 3).trim()}...`
+    }
+  }
+  return description || 'Shop edm.clothes essentials, made in Ukraine.'
+}
+
+function buildProductMetaDescription(product) {
+  const material = materialLine(product.material_care)
+  return compactMetaDescription([
+    firstSentence(product.description),
+    firstSentence(product.product_details),
+    material ? `Material: ${material}.` : '',
+    'Made in Ukraine.',
+  ])
+}
 
 async function getProduct(slug) {
   try {
@@ -74,7 +125,7 @@ export async function generateMetadata({ params, locale = 'en' }) {
   if (!product) return { title: 'Product not found' }
   const displayProduct = localizeProduct(product, locale)
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
-  const desc = displayProduct.description || `${displayProduct.name} - available at edm.clothes`
+  const desc = buildProductMetaDescription(displayProduct)
 
   return {
     title: displayProduct.name,
@@ -205,14 +256,6 @@ export default async function ProductPage({ params, locale = 'en' }) {
           name: displayProduct.name,
           price: product.price,
           category: product.category,
-        }}
-      />
-      <GaViewItemEvent
-        item={{
-          item_id:       product.color_group_id || product.slug || slug || String(product.id),
-          item_name:     displayProduct.name || 'Product',
-          item_category: product.category || undefined,
-          price:         Number(product.price) || 0,
         }}
       />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
