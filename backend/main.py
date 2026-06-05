@@ -442,6 +442,12 @@ def first_non_empty(*values: Any) -> Optional[str]:
     return None
 
 
+def localized_product_name(product: dict, fallback: Any = None, locale: Optional[str] = None) -> str:
+    if normalize_preferred_locale(locale) == "uk":
+        return first_non_empty(product.get("name_uk"), product.get("name"), fallback) or "Product"
+    return first_non_empty(product.get("name"), fallback, product.get("name_uk")) or "Product"
+
+
 def extract_shipping_fields(session_obj: dict) -> dict:
     shipping = as_dict(session_obj.get("shipping_details"))
     address = as_dict(shipping.get("address"))
@@ -3129,7 +3135,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 db_image_urls = []
         if not db_image_url and isinstance(db_image_urls, list) and db_image_urls:
             db_image_url = db_image_urls[0]
-        product_name = db_product.get("name") or item.name
+        product_name = localized_product_name(db_product, item.name, preferred_locale)
         # Accumulate volumetric weight from DB (default 0.3 kg per item)
         total_vol_weight += float(db_product.get("volumetric_weight") or 0.3) * qty
         normalized_item = {
@@ -3245,7 +3251,7 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         line_items.append({
             "price_data": {
                 "currency": charge_currency,
-                "product_data": {"name": "Shipping"},
+                "product_data": {"name": "Доставка" if preferred_locale == "uk" else "Shipping"},
                 "unit_amount": int(round(shipping_charge * 100)),
             },
             "quantity": 1,

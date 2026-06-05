@@ -243,6 +243,8 @@ function CheckoutPage({ locale = 'en' }) {
   const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [showAuthConfirmPassword, setShowAuthConfirmPassword] = useState(false)
   const [errors, setErrors] = useState({})
+  const activeAuthInputRef = useRef(null)
+  const authPasswordInputRef = useRef(null)
 
   const [form, setForm] = useState({
     firstName: '', lastName: '',
@@ -254,6 +256,31 @@ function CheckoutPage({ locale = 'en' }) {
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+
+  function rememberAuthInput(e) {
+    activeAuthInputRef.current = e.currentTarget
+  }
+
+  function restoreAuthCaret() {
+    const restore = () => {
+      const input = activeAuthInputRef.current?.isConnected
+        ? activeAuthInputRef.current
+        : authPasswordInputRef.current
+      if (!input || !input.isConnected) return
+      input.focus({ preventScroll: true })
+      try {
+        const end = input.value.length
+        input.setSelectionRange(end, end)
+      } catch (_) {}
+    }
+    requestAnimationFrame(restore)
+    setTimeout(restore, 60)
+  }
+
+  function showAuthError(text) {
+    setAuthError(text)
+    restoreAuthCaret()
+  }
 
   // Fire InitiateCheckout pixel event once when cart is non-empty
   const initiateTracked = useRef(false)
@@ -380,16 +407,16 @@ function CheckoutPage({ locale = 'en' }) {
     setLoading(true)
     if (mode === 'login') {
       const { error } = await signIn(authEmail, authPassword)
-      if (error) setAuthError(error.message)
+      if (error) showAuthError(error.message)
       else { setForm(f => ({...f, email: authEmail})); setMode('guest') }
     } else {
       if (!isRegisterPasswordValid) {
-        setAuthError(d.checkout.auth.passwordRequirements)
+        showAuthError(d.checkout.auth.passwordRequirements)
         setLoading(false)
         return
       }
       if (authPassword !== authConfirmPassword) {
-        setAuthError(d.checkout.auth.passwordMismatch)
+        showAuthError(d.checkout.auth.passwordMismatch)
         setLoading(false)
         return
       }
@@ -397,8 +424,8 @@ function CheckoutPage({ locale = 'en' }) {
         preferredLocale: locale,
         redirectPath: pathForLocale('/auth', locale),
       })
-      if (error) setAuthError(error.message)
-      else if (isExistingUser) setAuthError(d.checkout.auth.existingUser)
+      if (error) showAuthError(error.message)
+      else if (isExistingUser) showAuthError(d.checkout.auth.existingUser)
       else {
         const normalizedEmail = authEmail.trim().toLowerCase()
         setPendingVerifyEmail(normalizedEmail)
@@ -423,6 +450,7 @@ function CheckoutPage({ locale = 'en' }) {
       }
     }
     setLoading(false)
+    restoreAuthCaret()
   }
 
   async function handleForgotPassword() {
@@ -430,12 +458,12 @@ function CheckoutPage({ locale = 'en' }) {
     setAuthMessage('')
     const targetEmail = authEmail.trim().toLowerCase() || form.email.trim().toLowerCase()
     if (!targetEmail) {
-      setAuthError(d.checkout.auth.enterEmailFirst)
+      showAuthError(d.checkout.auth.enterEmailFirst)
       return
     }
     setLoading(true)
     const { error } = await requestPasswordReset(targetEmail)
-    if (error) setAuthError(error.message)
+    if (error) showAuthError(error.message)
     else setAuthMessage(d.checkout.auth.passwordResetSent)
     setLoading(false)
   }
@@ -446,7 +474,7 @@ function CheckoutPage({ locale = 'en' }) {
     setAuthMessage('')
     setLoading(true)
     const { error } = await resendSignUpVerification(pendingVerifyEmail)
-    if (error) setAuthError(error.message)
+    if (error) showAuthError(error.message)
     else setAuthMessage(d.checkout.auth.newVerificationSent)
     setLoading(false)
   }
@@ -551,10 +579,10 @@ function CheckoutPage({ locale = 'en' }) {
                       {authMessage}
                     </div>
                   )}
-                  <input type="email" placeholder="Email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} required
+                  <input type="email" placeholder="Email" value={authEmail} onFocus={rememberAuthInput} onChange={e => setAuthEmail(e.target.value)} required
                     style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none'}}/>
                   <div style={{position:'relative'}}>
-                    <input type={showAuthPassword ? 'text' : 'password'} placeholder={d.checkout.auth.password} value={authPassword} onChange={e => setAuthPassword(e.target.value)} required
+                    <input type={showAuthPassword ? 'text' : 'password'} placeholder={d.checkout.auth.password} value={authPassword} ref={authPasswordInputRef} onFocus={rememberAuthInput} onChange={e => setAuthPassword(e.target.value)} required
                       style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
                     <button
                       type="button"
@@ -577,7 +605,7 @@ function CheckoutPage({ locale = 'en' }) {
                   {mode === 'register' && (
                     <>
                       <div style={{position:'relative'}}>
-                        <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder={d.checkout.auth.confirmPassword} value={authConfirmPassword} onChange={e => setAuthConfirmPassword(e.target.value)} required
+                        <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder={d.checkout.auth.confirmPassword} value={authConfirmPassword} onFocus={rememberAuthInput} onChange={e => setAuthConfirmPassword(e.target.value)} required
                           style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
                         <button
                           type="button"

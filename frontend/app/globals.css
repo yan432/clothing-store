@@ -19,8 +19,10 @@
 .announcement-track {
   display: flex;
   width: max-content;
+  min-width: max-content;
   animation: marquee 32s linear infinite;
   will-change: transform;
+  contain: layout paint style;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }

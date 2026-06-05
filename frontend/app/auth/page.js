@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
@@ -99,10 +99,37 @@ export default function AuthPage({ locale = 'en' }) {
   const [loading, setLoading] = useState(false)
   const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
   const router = useRouter()
+  const activeAuthInputRef = useRef(null)
+  const passwordInputRef = useRef(null)
 
   useEffect(() => {
     if (user) router.push(pathForLocale('/', preferredLocale))
   }, [preferredLocale, router, user])
+
+  function rememberAuthInput(e) {
+    activeAuthInputRef.current = e.currentTarget
+  }
+
+  function restoreAuthCaret() {
+    const restore = () => {
+      const input = activeAuthInputRef.current?.isConnected
+        ? activeAuthInputRef.current
+        : passwordInputRef.current
+      if (!input || !input.isConnected) return
+      input.focus({ preventScroll: true })
+      try {
+        const end = input.value.length
+        input.setSelectionRange(end, end)
+      } catch (_) {}
+    }
+    requestAnimationFrame(restore)
+    setTimeout(restore, 60)
+  }
+
+  function showAuthError(text) {
+    setError(text)
+    restoreAuthCaret()
+  }
 
   const passwordChecks = [
     { id: 'length', label: t.checks.length, valid: password.length >= 8 },
@@ -123,16 +150,16 @@ export default function AuthPage({ locale = 'en' }) {
 
     if (mode === 'signin') {
       const { error } = await signIn(email, password)
-      if (error) setError(error.message)
+      if (error) showAuthError(error.message)
       else router.push(pathForLocale('/', preferredLocale))
     } else {
       if (!isPasswordValid) {
-        setError(t.passwordRequired)
+        showAuthError(t.passwordRequired)
         setLoading(false)
         return
       }
       if (password !== confirmPassword) {
-        setError(t.passwordMismatch)
+        showAuthError(t.passwordMismatch)
         setLoading(false)
         return
       }
@@ -140,8 +167,8 @@ export default function AuthPage({ locale = 'en' }) {
         preferredLocale,
         redirectPath: pathForLocale('/auth', preferredLocale),
       })
-      if (error) setError(error.message)
-      else if (isExistingUser) setError(t.existingUser)
+      if (error) showAuthError(error.message)
+      else if (isExistingUser) showAuthError(t.existingUser)
       else {
         const normalizedEmail = email.trim().toLowerCase()
         setPendingVerificationEmail(normalizedEmail)
@@ -165,6 +192,7 @@ export default function AuthPage({ locale = 'en' }) {
       }
     }
     setLoading(false)
+    restoreAuthCaret()
   }
 
   async function handleForgotPassword() {
@@ -172,12 +200,12 @@ export default function AuthPage({ locale = 'en' }) {
     setMessage('')
     const targetEmail = email.trim().toLowerCase()
     if (!targetEmail) {
-      setError(t.enterEmail)
+      showAuthError(t.enterEmail)
       return
     }
     setLoading(true)
     const { error } = await requestPasswordReset(targetEmail)
-    if (error) setError(error.message)
+    if (error) showAuthError(error.message)
     else setMessage(t.resetSent)
     setLoading(false)
   }
@@ -188,7 +216,7 @@ export default function AuthPage({ locale = 'en' }) {
     setMessage('')
     setLoading(true)
     const { error } = await resendSignUpVerification(pendingVerificationEmail)
-    if (error) setError(error.message)
+    if (error) showAuthError(error.message)
     else setMessage(t.newVerification)
     setLoading(false)
   }
@@ -222,6 +250,7 @@ export default function AuthPage({ locale = 'en' }) {
             type="email"
             placeholder="Email"
             value={email}
+            onFocus={rememberAuthInput}
             onChange={e => setEmail(e.target.value)}
             required
             style={{padding:'14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
@@ -233,6 +262,8 @@ export default function AuthPage({ locale = 'en' }) {
               type={showPassword ? 'text' : 'password'}
               placeholder={t.password}
               value={password}
+              ref={passwordInputRef}
+              onFocus={rememberAuthInput}
               onChange={e => setPassword(e.target.value)}
               required
               style={{padding:'14px 72px 14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
@@ -264,6 +295,7 @@ export default function AuthPage({ locale = 'en' }) {
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder={t.confirmPassword}
                   value={confirmPassword}
+                  onFocus={rememberAuthInput}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
                   style={{padding:'14px 72px 14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
