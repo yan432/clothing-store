@@ -13,6 +13,23 @@ const imageHosts = Array.from(new Set([
   'assets.bigcartel.com',
 ].filter(Boolean)))
 
+const archivedProductRedirects = [
+  ['complrmintation-knit-sweater', '/collections/tops'],
+  ['complemintation-sweater', '/collections/tops'],
+  ['superstar-tank-top', '/collections/tops'],
+  ['tribal-shirt', '/collections/tops'],
+  ['delirium-t-shirt', '/collections/tops'],
+  ['unity-v2-t-shirt', '/collections/tops'],
+  ['yourself-tank-top', '/collections/tops'],
+  ['delirium-hoodie', '/collections/tops'],
+  ['eclipse-vest', '/collections/tops'],
+  ['empty-world-pants', '/collections/bottoms'],
+].flatMap(([slug, destination]) => [
+  { source: `/product/${slug}`, destination, permanent: true },
+  { source: `/products/${slug}`, destination, permanent: true },
+  { source: `/products/${slug}-:num(\\d+)`, destination, permanent: true },
+])
+
 const cspHeader = [
   "default-src 'self'",
   // Scripts: self + Next.js inline chunks + Stripe + Google Analytics + Google Ads + Meta Pixel + TikTok Pixel + Microsoft Clarity
@@ -63,6 +80,7 @@ const nextConfig = {
         permanent: true,
       },
       // Legacy BigCartel URLs — preserve SEO equity and stop 404s
+      ...archivedProductRedirects,
       {
         source: '/product/edm-module-longsleeve',
         destination: '/products/edm-module-longsleeve-black',
