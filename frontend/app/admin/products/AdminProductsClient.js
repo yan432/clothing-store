@@ -5,6 +5,7 @@ import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import AdminTopBar from '../../components/AdminTopBar'
 import NewProductClient from './new/NewProductClient'
 import InventoryClient from '../inventory/InventoryClient'
+import { isUnlistedProduct } from '../../lib/productAccess'
 
 async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
   const controller = new AbortController()
@@ -77,7 +78,8 @@ export default function AdminProductsClient() {
         if (isArchivedName || isArchivedCategory) return false
       }
       if (visibilityFilter === 'hidden') return Boolean(p.is_hidden)
-      if (visibilityFilter === 'visible') return !Boolean(p.is_hidden)
+      if (visibilityFilter === 'visible') return !Boolean(p.is_hidden) && !isUnlistedProduct(p)
+      if (visibilityFilter === 'unlisted') return !Boolean(p.is_hidden) && isUnlistedProduct(p)
       if (!q) return true
       const source = [p.name, p.category, String(p.id)].join(' ').toLowerCase()
       if (!source.includes(q)) return false
@@ -398,7 +400,8 @@ export default function AdminProductsClient() {
             onChange={(e) => setVisibilityFilter(e.target.value)}
             style={{border:'1px solid #ddd',borderRadius:10,padding:'8px 10px',fontSize:13}}>
             <option value="all">Visibility: All</option>
-            <option value="visible">Visibility: Visible</option>
+            <option value="visible">Visibility: Catalog visible</option>
+            <option value="unlisted">Visibility: Unlisted</option>
             <option value="hidden">Visibility: Hidden</option>
           </select>
           <select
@@ -571,14 +574,14 @@ export default function AdminProductsClient() {
                         </span>
                       ) : (
                         <span style={{
-                          border:'1px solid ' + (p.is_hidden ? '#fde68a' : '#bbf7d0'),
-                          background:p.is_hidden ? '#fffbeb' : '#ecfdf3',
-                          color:p.is_hidden ? '#92400e' : '#166534',
+                          border:'1px solid ' + (p.is_hidden ? '#fde68a' : isUnlistedProduct(p) ? '#c7d2fe' : '#bbf7d0'),
+                          background:p.is_hidden ? '#fffbeb' : isUnlistedProduct(p) ? '#eef2ff' : '#ecfdf3',
+                          color:p.is_hidden ? '#92400e' : isUnlistedProduct(p) ? '#3730a3' : '#166534',
                           borderRadius:999,
                           padding:'3px 8px',
                           display:'inline-block',
                         }}>
-                          {p.is_hidden ? 'Hidden' : 'Visible'}
+                          {p.is_hidden ? 'Hidden' : isUnlistedProduct(p) ? 'Unlisted' : 'Visible'}
                         </span>
                       )}
                     </td>

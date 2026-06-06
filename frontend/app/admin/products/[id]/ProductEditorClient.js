@@ -6,8 +6,9 @@ import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { buildSizeTags, parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 import { eurToUah, DEFAULT_UAH_EUR_RATE } from '../../../lib/money'
+import { EXCLUSIVE_TAG_PREFIX, UNLISTED_ACCESS_TAG, exclusiveSlugForProduct, isUnlistedProduct, normalizeExclusiveSlug } from '../../../lib/productAccess'
 
-const MANAGED_TAG_PREFIXES = ['new', 'sale', 'order:fixed', 'order:random', 'order:priority:', 'size:']
+const MANAGED_TAG_PREFIXES = ['new', 'sale', 'order:fixed', 'order:random', 'order:priority:', 'size:', UNLISTED_ACCESS_TAG, EXCLUSIVE_TAG_PREFIX]
 
 export default function ProductEditorClient({ id }) {
   const [loading, setLoading] = useState(true)
@@ -40,6 +41,8 @@ export default function ProductEditorClient({ id }) {
     available_stock: '0',
     reserved_stock: '0',
     is_hidden: false,
+    is_unlisted: false,
+    exclusive_slug: '',
     is_new: false,
     is_sale: false,
     selected_sizes: [],
@@ -101,6 +104,8 @@ export default function ProductEditorClient({ id }) {
           available_stock: String(p.available_stock ?? p.stock ?? 0),
           reserved_stock: String(p.reserved_stock ?? 0),
           is_hidden: Boolean(p.is_hidden),
+          is_unlisted: isUnlistedProduct(p),
+          exclusive_slug: exclusiveSlugForProduct(p),
           is_new: tags.includes('new'),
           is_sale: tags.includes('sale') || hasCompareSale,
           selected_sizes: selectedPresetSizes,
@@ -178,6 +183,8 @@ export default function ProductEditorClient({ id }) {
           ...baseTags,
           form.is_new ? 'new' : null,
           form.is_sale ? 'sale' : null,
+          form.is_unlisted ? UNLISTED_ACCESS_TAG : null,
+          form.exclusive_slug ? `${EXCLUSIVE_TAG_PREFIX}${normalizeExclusiveSlug(form.exclusive_slug)}` : null,
           ...buildSizeTags(form.selected_sizes, form.custom_sizes),
           ...orderTags,
         ].filter(Boolean),
@@ -604,6 +611,38 @@ export default function ProductEditorClient({ id }) {
               />
               Hidden (not visible in storefront)
             </label>
+
+            <div style={{border:'1px solid #e5e5df',borderRadius:10,padding:12,background:'#fafaf8'}}>
+              <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.is_unlisted)}
+                  onChange={(e) => setField('is_unlisted', e.target.checked)}
+                />
+                Unlisted / direct-link product
+              </label>
+              <p style={{fontSize:11,color:'#888',margin:'6px 0 10px'}}>
+                Published but hidden from catalog, homepage, collections, color variants, sitemap, and feeds.
+              </p>
+              <label style={{fontSize:13,color:'#444'}}>Exclusive page slug
+                <div style={{display:'flex',alignItems:'center',gap:0,marginTop:6,border:'1px solid #ddd',borderRadius:10,overflow:'hidden',background:'#fff'}}>
+                  <span style={{padding:'10px 10px',background:'#f5f5f3',color:'#888',fontSize:13,borderRight:'1px solid #ddd',whiteSpace:'nowrap'}}>/exclusive/</span>
+                  <input
+                    value={form.exclusive_slug}
+                    onChange={(e) => {
+                      const next = normalizeExclusiveSlug(e.target.value)
+                      setField('exclusive_slug', next)
+                      if (next) setField('is_unlisted', true)
+                    }}
+                    placeholder="sample-drop"
+                    style={{flex:1,border:'none',outline:'none',padding:'10px 12px',fontSize:14}}
+                  />
+                </div>
+                <span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>
+                  Same slug on several products puts them on one private page.
+                </span>
+              </label>
+            </div>
             <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
               <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
                 <input

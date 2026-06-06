@@ -12,6 +12,7 @@ import { notFound } from 'next/navigation'
 import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
 import { localizedAlternates, openGraphLocale } from '../../lib/seo'
 import { getUahRate, currencyForLocale, priceForLocale, formatPrice } from '../../lib/money'
+import { exclusiveSlugForProduct, isUnlistedProduct } from '../../lib/productAccess'
 
 function cleanMetaText(value = '') {
   return String(value || '')
@@ -126,11 +127,13 @@ export async function generateMetadata({ params, locale = 'en' }) {
   const displayProduct = localizeProduct(product, locale)
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
   const desc = buildProductMetaDescription(displayProduct)
+  const isUnlisted = isUnlistedProduct(product)
 
   return {
     title: displayProduct.name,
     description: desc,
     alternates: localizedAlternates(`/products/${slug}`, locale),
+    ...(isUnlisted ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title: displayProduct.name,
       description: desc,
@@ -170,6 +173,8 @@ export default async function ProductPage({ params, locale = 'en' }) {
   const displayPrice = priceForLocale(product, locale, uahRate)
   const priceLabel = formatPrice(displayPrice, currency)
   const sizeOptions = parseSizeOptionsFromTags(product.tags)
+  const exclusiveSlug = exclusiveSlugForProduct(product)
+  const backHref = exclusiveSlug ? `/exclusive/${exclusiveSlug}` : '/products'
 
   const productImages = Array.isArray(product.image_urls) && product.image_urls.length
     ? product.image_urls
@@ -259,7 +264,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
         }}
       />
       <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
-        <Link href={pathForLocale('/products', locale)} style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>{d.product.back}</Link>
+        <Link href={pathForLocale(backHref, locale)} style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>{d.product.back}</Link>
 
         <div
           className="product-detail-grid"

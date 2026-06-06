@@ -5,6 +5,7 @@ import AdminOnly from '../../../components/AdminOnly'
 import AdminTopBar from '../../../components/AdminTopBar'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import { buildSizeTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
+import { EXCLUSIVE_TAG_PREFIX, UNLISTED_ACCESS_TAG, normalizeExclusiveSlug } from '../../../lib/productAccess'
 
 export default function NewProductClient({ inTab = false }) {
   const [saving, setSaving] = useState(false)
@@ -30,6 +31,8 @@ export default function NewProductClient({ inTab = false }) {
     compare_price: '',
     available_stock: '0',
     is_hidden: true,
+    is_unlisted: false,
+    exclusive_slug: '',
     is_new: false,
     is_sale: false,
     selected_sizes: [],
@@ -80,6 +83,8 @@ export default function NewProductClient({ inTab = false }) {
         tags: [
           form.is_new ? 'new' : null,
           form.is_sale ? 'sale' : null,
+          form.is_unlisted ? UNLISTED_ACCESS_TAG : null,
+          form.exclusive_slug ? `${EXCLUSIVE_TAG_PREFIX}${normalizeExclusiveSlug(form.exclusive_slug)}` : null,
           ...buildSizeTags(form.selected_sizes, form.custom_sizes),
           ...orderTags,
         ].filter(Boolean),
@@ -136,6 +141,8 @@ export default function NewProductClient({ inTab = false }) {
         compare_price: '',
         available_stock: '0',
         is_hidden: true,
+        is_unlisted: false,
+        exclusive_slug: '',
         is_new: false,
         is_sale: false,
         selected_sizes: [],
@@ -239,6 +246,38 @@ export default function NewProductClient({ inTab = false }) {
             />
             Create as hidden (draft)
           </label>
+
+          <div style={{border:'1px solid #e5e5df',borderRadius:10,padding:12,background:'#fafaf8'}}>
+            <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+              <input
+                type="checkbox"
+                checked={Boolean(form.is_unlisted)}
+                onChange={(e) => setField('is_unlisted', e.target.checked)}
+              />
+              Unlisted / direct-link product
+            </label>
+            <p style={{fontSize:11,color:'#888',margin:'6px 0 10px'}}>
+              Published but hidden from catalog, homepage, collections, color variants, sitemap, and feeds.
+            </p>
+            <label style={{fontSize:13,color:'#444'}}>Exclusive page slug
+              <div style={{display:'flex',alignItems:'center',gap:0,marginTop:6,border:'1px solid #ddd',borderRadius:10,overflow:'hidden',background:'#fff'}}>
+                <span style={{padding:'10px 10px',background:'#f5f5f3',color:'#888',fontSize:13,borderRight:'1px solid #ddd',whiteSpace:'nowrap'}}>/exclusive/</span>
+                <input
+                  value={form.exclusive_slug}
+                  onChange={(e) => {
+                    const next = normalizeExclusiveSlug(e.target.value)
+                    setField('exclusive_slug', next)
+                    if (next) setField('is_unlisted', true)
+                  }}
+                  placeholder="sample-drop"
+                  style={{flex:1,border:'none',outline:'none',padding:'10px 12px',fontSize:14}}
+                />
+              </div>
+              <span style={{fontSize:11,color:'#aaa',marginTop:3,display:'block'}}>
+                Same slug on several products puts them on one private page.
+              </span>
+            </label>
+          </div>
 
           <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
             <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>

@@ -1551,6 +1551,53 @@ def get_visible_product_row(product_id: int) -> dict:
     return data.data[0]
 
 
+UNLISTED_ACCESS_TAG = "access:unlisted"
+EXCLUSIVE_TAG_PREFIX = "exclusive:"
+
+
+def product_tags(product: dict) -> list[str]:
+    tags = product.get("tags") or []
+    if isinstance(tags, list):
+        return [str(tag) for tag in tags]
+    return []
+
+
+def is_unlisted_product(product: dict) -> bool:
+    tags = product_tags(product)
+    return UNLISTED_ACCESS_TAG in tags or any(tag.startswith(EXCLUSIVE_TAG_PREFIX) for tag in tags)
+
+
+def exclusive_slug_for_product(product: dict) -> Optional[str]:
+    for tag in product_tags(product):
+        if tag.startswith(EXCLUSIVE_TAG_PREFIX):
+            slug = tag[len(EXCLUSIVE_TAG_PREFIX):].strip()
+            if slug:
+                return slug
+    return None
+
+
+def product_storefront_payload(product: dict, stock_by_product: Optional[dict] = None) -> dict:
+    db_urls = product.get("image_urls") or []
+    if isinstance(db_urls, str):
+        try:
+            db_urls = json.loads(db_urls)
+        except Exception:
+            db_urls = []
+    cover = product.get("image_url")
+    if cover and cover not in db_urls:
+        db_urls = [cover, *db_urls]
+    return {
+        **product,
+        "image_urls": db_urls,
+        "image_url": db_urls[0] if db_urls else cover,
+        **stock_snapshot_for_product(product),
+        "tags": compute_auto_tags(product),
+        "compare_price": product.get("compare_price"),
+        "discount_percent": compute_discount_percent(product.get("price"), product.get("compare_price")),
+        "size_stock": (stock_by_product or {}).get(product["id"], {}),
+    }
+
+
 def _storage_public_urls_for_product(product_id: int) -> list[str]:
     folder = str(product_id)
     files = supabase.storage.from_("product-images").list(folder)
@@ -1916,7 +1963,7 @@ def root():
 @app.get("/products")
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    products = data.data or []
+    products = [p for p in (data.data or []) if not is_unlisted_product(p)]
     try:
         size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
     except Exception:
@@ -1927,39 +1974,17 @@ def get_products():
         if pid not in stock_by_product:
             stock_by_product[pid] = {}
         stock_by_product[pid][row["size"]] = row["stock"]
-    result = []
-    for p in products:
-        db_urls = p.get("image_urls") or []
-        if isinstance(db_urls, str):
-            try:
-                import json as _json
-                db_urls = _json.loads(db_urls)
-            except Exception:
-                db_urls = []
-        cover = p.get("image_url")
-        if cover and cover not in db_urls:
-            db_urls = [cover, *db_urls]
-        result.append({
-            **p,
-            "image_urls": db_urls,
-            "image_url": db_urls[0] if db_urls else cover,
-            **stock_snapshot_for_product(p),
-            "tags": compute_auto_tags(p),
-            "compare_price": p.get("compare_price"),
-            "discount_percent": compute_discount_percent(p.get("price"), p.get("compare_price")),
-            "size_stock": stock_by_product.get(p["id"], {}),
-        })
-    return result
+    return [product_storefront_payload(p, stock_by_product) for p in products]
 
 
 @app.get("/categories")
 def get_categories():
     """Return distinct non-empty categories from visible products, sorted alphabetically."""
-    data = supabase.table("products").select("category").eq("is_hidden", False).execute()
+    data = supabase.table("products").select("category,tags").eq("is_hidden", False).execute()
     cats = sorted({
         p["category"].strip()
         for p in (data.data or [])
-        if p.get("category") and p["category"].strip()
+        if p.get("category") and p["category"].strip() and not is_unlisted_product(p)
     })
     return cats
 
@@ -1977,10 +2002,12 @@ def _get_color_variants(product: dict) -> list:
     if not group_id:
         return []
     rows = supabase.table("products").select(
-        "id, name, slug, color_name, color_hex, image_url, image_urls, available_stock, stock, is_hidden"
+        "id, name, slug, color_name, color_hex, image_url, image_urls, available_stock, stock, is_hidden, tags"
     ).eq("color_group_id", group_id).eq("is_hidden", False).execute()
     variants = []
     for row in (rows.data or []):
+        if is_unlisted_product(row):
+            continue
         if row["id"] == product["id"]:
             continue
         cover = row.get("image_url")
@@ -1997,6 +2024,31 @@ def _get_color_variants(product: dict) -> list:
             "is_hidden": bool(row.get("is_hidden")),
         })
     return variants
+
+
+@app.get("/products/exclusive/{slug}")
+def get_exclusive_products(slug: str):
+    clean_slug = re.sub(r"[^a-z0-9-]", "-", str(slug or "").strip().lower())
+    clean_slug = re.sub(r"-+", "-", clean_slug).strip("-")
+    if not clean_slug:
+        raise HTTPException(status_code=404, detail="Exclusive page not found")
+
+    tag = f"{EXCLUSIVE_TAG_PREFIX}{clean_slug}"
+    data = supabase.table("products").select("*").eq("is_hidden", False).execute()
+    products = [p for p in (data.data or []) if tag in product_tags(p)]
+
+    try:
+        size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+    except Exception:
+        size_stocks_raw = type("R", (), {"data": []})()
+    stock_by_product: dict = {}
+    for row in (size_stocks_raw.data or []):
+        pid = row["product_id"]
+        if pid not in stock_by_product:
+            stock_by_product[pid] = {}
+        stock_by_product[pid][row["size"]] = row["stock"]
+
+    return [product_storefront_payload(p, stock_by_product) for p in products]
 
 
 @app.get("/products/{product_id}")

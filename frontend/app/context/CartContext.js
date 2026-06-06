@@ -28,6 +28,8 @@ export function CartProvider({ children }) {
     }, 0)
 
     // Sync against server: remove items whose products are now hidden/archived.
+    // Check each product directly so unlisted direct-link products stay cartable
+    // without exposing them through the public catalog endpoint.
     if (initial.length === 0) {
       return () => {
         cancelled = true
@@ -36,15 +38,19 @@ export function CartProvider({ children }) {
     }
     ;(async () => {
       try {
-        const res = await fetch(getApiUrl('/products'), { cache: 'no-store' })
-        if (!res.ok) return
-        const products = await res.json()
-        if (!Array.isArray(products)) return
-        const visible = new Set(
-          products
-            .filter(p => !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]'))
-            .map(p => p.id)
-        )
+        const ids = Array.from(new Set(initial.map(item => item.id).filter(Boolean)))
+        const checks = await Promise.all(ids.map(async (id) => {
+          try {
+            const res = await fetch(getApiUrl(`/products/${id}`), { cache: 'no-store' })
+            if (!res.ok) return null
+            const product = await res.json()
+            if (!product || product.is_hidden || (product.name || '').startsWith('[ARCHIVED]')) return null
+            return product.id
+          } catch {
+            return null
+          }
+        }))
+        const visible = new Set(checks.filter(Boolean))
         const filtered = initial.filter(item => visible.has(item.id))
         if (filtered.length !== initial.length) {
           if (!cancelled) {
