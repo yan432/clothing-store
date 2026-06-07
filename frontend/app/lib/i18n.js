@@ -763,6 +763,7 @@ export function switchLocalePath(pathname = '/', locale = DEFAULT_LOCALE) {
     stripped === '/products' ||
     stripped.startsWith('/products/') ||
     stripped.startsWith('/collections/') ||
+    stripped.startsWith('/exclusive/') ||
     stripped === '/about' ||
     stripped === '/contact' ||
     stripped === '/shipping' ||
