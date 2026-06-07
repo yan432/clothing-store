@@ -81,6 +81,7 @@ export default async function ExclusivePage({ params, locale = 'en' }) {
         background: '#111',
       }}>
         <video
+          className="exclusive-hero-video"
           aria-hidden="true"
           autoPlay
           muted
@@ -98,6 +99,21 @@ export default async function ExclusivePage({ params, locale = 'en' }) {
         >
           <source src="/exclusive/exclusive-samples-hero.mp4" type="video/mp4" />
         </video>
+        <picture className="exclusive-hero-motion">
+          <source media="(max-width: 767px)" srcSet="/exclusive/exclusive-samples-hero-mobile.gif" type="image/gif" />
+          <img
+            src="/exclusive/exclusive-samples-hero.jpg"
+            alt=""
+            loading="eager"
+            decoding="async"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        </picture>
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0, 0, 0, 0.6)' }} />
         <div style={{
           position: 'relative',
@@ -147,6 +163,25 @@ export default async function ExclusivePage({ params, locale = 'en' }) {
           </div>
         )}
       </section>
+      <style>{`
+        .exclusive-hero-motion {
+          display: none;
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+        }
+
+        @media (max-width: 767px) {
+          .exclusive-hero-video {
+            display: none;
+          }
+
+          .exclusive-hero-motion {
+            display: block;
+          }
+        }
+      `}</style>
     </main>
   )
 }
