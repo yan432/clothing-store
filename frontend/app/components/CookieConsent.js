@@ -195,10 +195,6 @@ export default function CookieConsent() {
     commit({ marketing: true, analytics: true, personalization: true })
   }
 
-  function handleRejectAll() {
-    commit({ marketing: false, analytics: false, personalization: false })
-  }
-
   function handleSavePreferences() {
     commit(prefs)
   }
@@ -380,21 +376,6 @@ export default function CookieConsent() {
               }}
             >
               {c.acceptAll}
-            </button>
-            <button
-              onClick={handleRejectAll}
-              style={{
-                background:     'transparent',
-                border:         'none',
-                color:          '#555',
-                fontSize:       14,
-                fontWeight:     500,
-                cursor:         'pointer',
-                textDecoration: 'underline',
-                padding:        0,
-              }}
-            >
-              {c.rejectAll}
             </button>
           </div>
         </div>
