@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getMessages, pathForLocale } from '../lib/i18n'
+import { buildHomepageImageAlt } from '../lib/seoText'
 
 export default function HomeAboutTeaser({ locale = 'en' }) {
   const d = getMessages(locale)
@@ -58,12 +59,11 @@ export default function HomeAboutTeaser({ locale = 'en' }) {
       <div ref={photoRef} className="home-about-photo">
         <Image
           src="/about/cover-hero.jpg"
-          alt=""
+          alt={buildHomepageImageAlt(d.home.storyTitle, locale, { fallback: 'edm.clothes story and Ukrainian streetwear' })}
           fill
           sizes="100vw"
           quality={65}
           loading="lazy"
-          aria-hidden="true"
         />
       </div>
       <div className="home-about-overlay" aria-hidden="true" />

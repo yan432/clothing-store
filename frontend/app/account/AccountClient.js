@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { getApiUrl } from '../lib/api'
 import { trackNewsletterSignup } from '../lib/track'
 import { normalizeLocale, pathForLocale } from '../lib/i18n'
+import { buildItemImageAlt } from '../lib/seoText'
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],
@@ -673,7 +674,7 @@ function OrdersSection({ user, locale = 'en' }) {
                 {thumbs.map((item, i) => (
                   <div key={i} style={{ position: 'relative' }}>
                     <img
-                      src={item.image_url} alt={item.name || ''}
+                      src={item.image_url} alt={buildItemImageAlt(item, preferredLocale)}
                       style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid #ecece8', display: 'block' }}
                     />
                     {item.quantity > 1 && (

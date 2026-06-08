@@ -2,12 +2,13 @@ import { getApiUrl } from '../lib/api'
 import { Truck, Package, Gift, Globe } from 'lucide-react'
 import { pathForLocale } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const revalidate = 60
 
 export const metadata = {
   title: 'Shipping Info — EDM Clothes',
-  description: 'Shipping rates, delivery times and tracking information.',
+  description: staticPageDescription('shipping'),
   alternates: localizedAlternates('/shipping'),
 }
 

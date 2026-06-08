@@ -1,13 +1,7 @@
-import ProductsPage from '../../products/page'
-import { localizedAlternates } from '../../lib/seo'
+import ProductsPage, { generateMetadata as generateProductsMetadata } from '../../products/page'
 
-export const metadata = {
-  title: 'Магазин',
-  description: 'Переглянь повну колекцію edm.clothes.',
-  alternates: localizedAlternates('/products', 'uk'),
-  openGraph: {
-    locale: 'uk_UA',
-  },
+export async function generateMetadata(args) {
+  return generateProductsMetadata({ ...args, locale: 'uk' })
 }
 
 export default function UkrainianProductsPage(props) {

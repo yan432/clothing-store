@@ -91,7 +91,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
       }}>
         <Image
           src={s.image}
-          alt={s.title}
+          alt={s.alt || s.title}
           fill
           sizes="100vw"
           quality={75}

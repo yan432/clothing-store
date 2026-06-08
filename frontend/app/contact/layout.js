@@ -1,8 +1,9 @@
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const metadata = {
   title: 'Contact — EDM Clothes',
-  description: 'Get in touch with EDM Clothes. We typically respond within 24 hours.',
+  description: staticPageDescription('contact'),
   alternates: localizedAlternates('/contact'),
 }
 

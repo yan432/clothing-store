@@ -5,6 +5,7 @@ import { getApiUrl } from '../../lib/api'
 import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
 import { safeJsonLd } from '../../lib/safeJsonLd'
 import { absoluteUrl, localizedAlternates, openGraphLocale } from '../../lib/seo'
+import { buildProductMetaDescription } from '../../lib/seoText'
 import { getUahRate } from '../../lib/money'
 import { COLLECTION_SLUGS, collectionCopy, collectionPath, getCollection } from '../../lib/collections'
 
@@ -146,6 +147,7 @@ export default async function CollectionPage({ params, locale = 'en' }) {
         item: {
           '@type': 'Product',
           name: displayProduct.name,
+          description: buildProductMetaDescription(displayProduct, locale),
           image: product.image_url,
           category: product.category,
           brand: { '@type': 'Brand', name: 'edm.clothes' },

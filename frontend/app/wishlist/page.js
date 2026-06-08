@@ -9,6 +9,7 @@ import NotifyMePopup from '../components/NotifyMePopup'
 import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildItemImageAlt } from '../lib/seoText'
 
 function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
   const { addToCart, setDrawerOpen } = useCart()
@@ -81,7 +82,7 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
       <div style={{ position: 'relative' }}>
         <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)} className="wishlist-card-img" style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden', borderRadius: 16 }}>
           {img
-            ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            ? <img src={img} alt={buildItemImageAlt(product, locale)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 12 }}>{labels.noImage}</div>
           }
         </a>

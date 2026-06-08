@@ -1,10 +1,11 @@
 import { localizedAlternates } from '../../lib/seo'
+import { staticPageDescription } from '../../lib/seoText'
 
 export const metadata = {
   title: 'Реквізити — EDM Clothes',
-  description: 'Юридична інформація про EDM Clothes.',
+  description: staticPageDescription('imprint', 'uk'),
   alternates: localizedAlternates('/imprint', 'uk'),
-  openGraph: { locale: 'uk_UA' },
+  openGraph: { description: staticPageDescription('imprint', 'uk'), locale: 'uk_UA' },
 }
 
 export default function UkrainianImprintPage() {

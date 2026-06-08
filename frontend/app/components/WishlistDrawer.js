@@ -9,6 +9,7 @@ import { parseSizeOptionsFromTags } from '../lib/sizeOptions'
 import { getMessages, localeFromPathname, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildItemImageAlt } from '../lib/seoText'
 
 function WishlistItem({ product, onRemove, locale, labels }) {
   const { addToCart, setDrawerOpen: openCart } = useCart()
@@ -58,7 +59,7 @@ function WishlistItem({ product, onRemove, locale, labels }) {
       <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)}
         style={{ flexShrink: 0, width: 72, height: 90, borderRadius: 8, overflow: 'hidden', background: '#f5f5f3', display: 'block' }}>
         {img
-          ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ? <img src={img} alt={buildItemImageAlt(product, locale)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <div style={{ width: '100%', height: '100%' }} />
         }
       </a>

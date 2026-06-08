@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import ShopTheLookDrawer from './ShopTheLookDrawer'
 import { localeFromPathname, pathForLocale } from '../lib/i18n'
+import { buildHomepageImageAlt } from '../lib/seoText'
 
 function CartIcon() {
   return (
@@ -32,11 +33,12 @@ export default function HomepagePhotoTiles({ tiles }) {
       <div className="photo-tiles-grid">
         {tiles.map(tile => {
           const hasProducts = Array.isArray(tile.product_ids) && tile.product_ids.length > 0
+          const imageAlt = buildHomepageImageAlt(tile.alt_text || tile.title || tile.caption, locale, { fallback: 'Shop this look' })
           const inner = (
             <div className="photo-tile-inner">
               <Image
                 src={tile.image_url}
-                alt=""
+                alt={imageAlt}
                 fill
                 sizes="(max-width: 680px) 50vw, 25vw"
                 className="photo-tile-img"
@@ -55,7 +57,7 @@ export default function HomepagePhotoTiles({ tiles }) {
                 key={tile.id}
                 type="button"
                 className="photo-tile"
-                aria-label="Shop this look"
+                aria-label={imageAlt}
                 onClick={(e) => openDrawer(tile, e)}
                 style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'block', textAlign: 'left' }}
               >

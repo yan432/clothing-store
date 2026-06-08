@@ -1,10 +1,11 @@
 import { localizedAlternates } from '../../lib/seo'
+import { staticPageDescription } from '../../lib/seoText'
 
 export const metadata = {
   title: 'Умови користування — EDM Clothes',
-  description: 'Умови покупки та користування сайтом EDM Clothes.',
+  description: staticPageDescription('terms', 'uk'),
   alternates: localizedAlternates('/terms', 'uk'),
-  openGraph: { locale: 'uk_UA' },
+  openGraph: { description: staticPageDescription('terms', 'uk'), locale: 'uk_UA' },
 }
 
 export default function UkrainianTermsPage() {

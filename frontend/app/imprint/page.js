@@ -1,8 +1,9 @@
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const metadata = {
   title: 'Imprint — EDM Clothes',
-  description: 'Legal information about EDM Clothes.',
+  description: staticPageDescription('imprint'),
   alternates: localizedAlternates('/imprint'),
 }
 

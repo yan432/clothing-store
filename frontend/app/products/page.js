@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { getApiUrl } from '../lib/api'
 import { safeJsonLd } from '../lib/safeJsonLd'
 import { getMessages, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
-import { localizedAlternates } from '../lib/seo'
+import { localizedAlternates, openGraphLocale } from '../lib/seo'
+import { buildProductMetaDescription, staticPageDescription, staticPageTitle } from '../lib/seoText'
 import { getUahRate, currencyForLocale, priceForLocale } from '../lib/money'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
-const SEO_PRODUCTS_TITLE = 'Shop Ukrainian Streetwear, Hoodies & Denim'
-const SEO_PRODUCTS_DESCRIPTION = 'Explore edm.clothes: oversized hoodies, deconstructed denim, longsleeves and bottoms made in Ukraine. Worldwide shipping.'
+const SEO_PRODUCTS_TITLE = staticPageTitle('products')
+const SEO_PRODUCTS_DESCRIPTION = staticPageDescription('products')
 
 function usefulMeta(value, fallback, minLength = 60) {
   const text = String(value || '').trim()
@@ -27,17 +28,35 @@ function stableRandomRank(product) {
   return (hash >>> 0) / 4294967295
 }
 
-export async function generateMetadata() {
+export async function generateMetadata({ locale = 'en' } = {}) {
+  const fallbackTitle = staticPageTitle('products', locale)
+  const fallbackDescription = staticPageDescription('products', locale)
   try {
     const res = await fetch(getApiUrl('/settings'), { next: { revalidate: 300 } })
     const s = res.ok ? await res.json() : {}
+    const title = locale === 'uk' ? fallbackTitle : usefulMeta(s.seo_products_title, fallbackTitle, 10)
+    const description = locale === 'uk' ? fallbackDescription : usefulMeta(s.seo_products_description, fallbackDescription)
     return {
-      title: usefulMeta(s.seo_products_title, SEO_PRODUCTS_TITLE, 10),
-      description: usefulMeta(s.seo_products_description, SEO_PRODUCTS_DESCRIPTION),
-      alternates: localizedAlternates('/products'),
+      title,
+      description,
+      alternates: localizedAlternates('/products', locale),
+      openGraph: {
+        title,
+        description,
+        locale: openGraphLocale(locale),
+      },
     }
   } catch {
-    return { title: SEO_PRODUCTS_TITLE, description: SEO_PRODUCTS_DESCRIPTION, alternates: localizedAlternates('/products') }
+    return {
+      title: fallbackTitle,
+      description: fallbackDescription,
+      alternates: localizedAlternates('/products', locale),
+      openGraph: {
+        title: fallbackTitle,
+        description: fallbackDescription,
+        locale: openGraphLocale(locale),
+      },
+    }
   }
 }
 
@@ -181,6 +200,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
         item: {
           '@type': 'Product',
           name: displayProduct.name,
+          description: buildProductMetaDescription(displayProduct, locale),
           image: p.image_url,
           offers: { '@type': 'Offer', price: priceForLocale(p, locale, uahRate), priceCurrency: currency },
         },

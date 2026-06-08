@@ -6,6 +6,7 @@ import ProductCard from './components/ProductCard'
 import DropCountdown from './components/DropCountdown'
 import { getMessages, localizeProduct, pathForLocale, translateCategory } from './lib/i18n'
 import { localizedAlternates } from './lib/seo'
+import { buildCollectionImageAlt, buildHomepageImageAlt } from './lib/seoText'
 // All below-fold sections are lazy-loaded via a 'use client' wrapper so
 // each gets its own JS chunk instead of bloating the initial bundle.
 import {
@@ -78,6 +79,7 @@ async function getLandingContent(locale = 'en') {
         subtitle: localizedSetting(map, 'landing_hero_subtitle', locale),
         cta:      localizedSetting(map, 'landing_hero_cta', locale),
         image:    map.landing_hero_image    || null,
+        mobileImage: map.landing_hero_image_mobile || null,
         overlay:  map.landing_hero_overlay != null ? Number(map.landing_hero_overlay) : null,
       },
       promoTiles: map.landing_promo_tiles ? (() => { try { return JSON.parse(map.landing_promo_tiles) } catch { return null } })() : null,
@@ -101,6 +103,12 @@ async function getDropTimer() {
 }
 
 const W = 1160
+
+function nextImageSrcSet(src, widths = [], quality = 75) {
+  if (!src || String(src).startsWith('data:')) return ''
+  const encoded = encodeURIComponent(src)
+  return widths.map(width => `/_next/image?url=${encoded}&w=${width}&q=${quality} ${width}w`).join(', ')
+}
 
 const UK_SLIDE_TITLE_BY_SLUG = {
   'deconstructed-washed-jeans': 'Deconstructed джинси',
@@ -140,12 +148,18 @@ export default async function Home({ searchParams, locale = 'en' }) {
     ...(locale === 'uk' ? d.home.hero : {}),
     ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
   }
+  const heroMobileImage = hero.mobileImage || '/homepage-hero-mobile.jpg'
+  const heroMobileSrcSet = nextImageSrcSet(heroMobileImage, [390, 640, 750, 828], 75)
   const promoTiles = landingContent?.promoTiles || homepageContent.promoTiles
-  const localizedPromoTiles = promoTiles.map(tile => ({
-    ...tile,
-    title: translateCategory(tile.title, locale),
-    href: pathForLocale(tile.href, locale),
-  }))
+  const localizedPromoTiles = promoTiles.map(tile => {
+    const title = translateCategory(tile.title, locale)
+    return {
+      ...tile,
+      title,
+      alt: buildCollectionImageAlt(tile.title, locale),
+      href: pathForLocale(tile.href, locale),
+    }
+  })
   const overlayPct = landingContent?.hero?.overlay ?? 72
   const ov = overlayPct / 100
   const newArrivals = allProducts
@@ -210,21 +224,29 @@ export default async function Home({ searchParams, locale = 'en' }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         {hero.image && (
-          <Image
-            src={hero.image}
-            alt=""
-            fill
-            preload
-            fetchPriority="high"
-            quality={65}
-            sizes="100vw"
-            // 1x1 dark JPEG so the section never flashes flat black before
-            // the full Supabase image lands — feels instant on mobile.
-            placeholder="blur"
-            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AL+AB//Z"
-            aria-hidden="true"
-            style={{ objectFit: 'cover', objectPosition: 'center' }}
-          />
+          <picture style={{ position: 'absolute', inset: 0, display: 'block' }}>
+            {heroMobileSrcSet && (
+              <source
+                media="(max-width: 767px)"
+                sizes="100vw"
+                srcSet={heroMobileSrcSet}
+              />
+            )}
+            <Image
+              src={hero.image}
+              alt={buildHomepageImageAlt(hero.title, locale, { fallback: 'edm.clothes Ukrainian streetwear collection' })}
+              fill
+              fetchPriority="high"
+              loading="eager"
+              quality={75}
+              sizes="100vw"
+              // 1x1 dark JPEG so the section never flashes flat black before
+              // the full Supabase image lands on slower mobile connections.
+              placeholder="blur"
+              blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AL+AB//Z"
+              style={{ objectFit: 'cover', objectPosition: 'center' }}
+            />
+          </picture>
         )}
         <div style={{
           position: 'absolute', inset: 0,
@@ -253,7 +275,17 @@ export default async function Home({ searchParams, locale = 'en' }) {
       {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
         <section style={{ marginTop: 0 }}>
-          <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: localizeSlideTitle(s), href: pathForLocale(s.href || '/products', locale), link_label: localizeSlideCta(s.link_label), label: '' }))} fullWidth />
+          <HeroCarousel slides={slides.map(s => {
+            const title = localizeSlideTitle(s)
+            return {
+              image: s.image_url,
+              title,
+              alt: buildHomepageImageAlt(title, locale, { fallback: 'edm.clothes collection slide' }),
+              href: pathForLocale(s.href || '/products', locale),
+              link_label: localizeSlideCta(s.link_label),
+              label: '',
+            }
+          })} fullWidth />
         </section>
       )}
 
@@ -298,7 +330,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
               <div className="category-tile-img" style={{ position: 'relative', aspectRatio: '4/5' }} aria-label={tile.title}>
                 <Image
                   src={tile.image}
-                  alt=""
+                  alt={tile.alt}
                   fill
                   sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
                   style={{ objectFit: 'cover', objectPosition: 'center' }}

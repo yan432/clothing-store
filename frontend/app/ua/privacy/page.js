@@ -1,10 +1,11 @@
 import { localizedAlternates } from '../../lib/seo'
+import { staticPageDescription } from '../../lib/seoText'
 
 export const metadata = {
   title: 'Політика конфіденційності — EDM Clothes',
-  description: 'Як EDM Clothes збирає, використовує та захищає персональні дані.',
+  description: staticPageDescription('privacy', 'uk'),
   alternates: localizedAlternates('/privacy', 'uk'),
-  openGraph: { locale: 'uk_UA' },
+  openGraph: { description: staticPageDescription('privacy', 'uk'), locale: 'uk_UA' },
 }
 
 export default function UkrainianPrivacyPage() {

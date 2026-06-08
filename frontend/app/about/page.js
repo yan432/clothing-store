@@ -7,6 +7,7 @@ import Reveal from './Reveal'
 import MosaicReveal from './MosaicReveal'
 import { pathForLocale } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 const secondaryCitiesEn = [
   'Madrid', 'Kaunas', 'Poznań', 'Odesa', 'Augsburg',
@@ -20,7 +21,7 @@ const secondaryCitiesUk = [
 
 export const metadata = {
   title: 'About',
-  description: 'Garments made from what was already there — the story of edm.clothes.',
+  description: staticPageDescription('about'),
   alternates: localizedAlternates('/about'),
 }
 

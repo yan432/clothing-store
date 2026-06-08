@@ -1,8 +1,9 @@
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const metadata = {
   title: 'Privacy Policy — EDM Clothes',
-  description: 'How EDM Clothes collects, uses, and protects your personal data.',
+  description: staticPageDescription('privacy'),
   alternates: localizedAlternates('/privacy'),
 }
 

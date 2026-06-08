@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { localeFromPathname, localizeProduct, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildProductImageAlt } from '../lib/seoText'
 
 export default function ProductCarousel({ products }) {
   const pathname = usePathname() || '/'
@@ -75,7 +76,7 @@ export default function ProductCarousel({ products }) {
                 {img && (
                   <Image
                     src={img}
-                    alt={p.name}
+                    alt={buildProductImageAlt(p, locale)}
                     fill
                     sizes="200px"
                     loading="lazy"

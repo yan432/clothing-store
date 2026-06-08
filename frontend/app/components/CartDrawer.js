@@ -7,6 +7,7 @@ import { Sparkles } from 'lucide-react'
 import { getMessages, localeFromPathname, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, eurToUah, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildItemImageAlt } from '../lib/seoText'
 
 const DEFAULT_THRESHOLD = 120
 
@@ -153,7 +154,7 @@ export default function CartDrawer({ open, onClose }) {
                   }}>
                   <a href={pathForLocale(`/products/${item.slug || item.id}`, locale)} onClick={onClose}
                     style={{width:80,height:80,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'block'}}>
-                    {item.image_url && <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+                    {item.image_url && <img src={item.image_url} alt={buildItemImageAlt(item, locale)} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
                   </a>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>

@@ -103,7 +103,7 @@ export default async function ExclusivePage({ params, locale = 'en' }) {
           <source media="(max-width: 767px)" srcSet="/exclusive/exclusive-samples-hero-mobile.gif" type="image/gif" />
           <img
             src="/exclusive/exclusive-samples-hero.jpg"
-            alt=""
+            alt="Exclusive edm.clothes sample selection"
             loading="eager"
             decoding="async"
             style={{

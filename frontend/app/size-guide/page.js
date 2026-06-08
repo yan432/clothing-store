@@ -1,9 +1,10 @@
 import SizeGuideClient from './SizeGuideClient'
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const metadata = {
   title: 'Size Guide — EDM Clothes',
-  description: 'Find your perfect size with our size chart and interactive size calculator.',
+  description: staticPageDescription('sizeGuide'),
   alternates: localizedAlternates('/size-guide'),
 }
 

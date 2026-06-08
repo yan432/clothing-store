@@ -11,60 +11,9 @@ import { safeJsonLd } from '../../lib/safeJsonLd'
 import { notFound } from 'next/navigation'
 import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
 import { localizedAlternates, openGraphLocale } from '../../lib/seo'
+import { buildProductImageAlt, buildProductMetaDescription } from '../../lib/seoText'
 import { getUahRate, currencyForLocale, priceForLocale, formatPrice } from '../../lib/money'
 import { exclusiveSlugForProduct, isUnlistedProduct } from '../../lib/productAccess'
-
-function cleanMetaText(value = '') {
-  return String(value || '')
-    .replace(/\s+/g, ' ')
-    .replace(/\s+([,.])/g, '$1')
-    .trim()
-}
-
-function firstSentence(value = '') {
-  const text = cleanMetaText(value)
-  if (!text) return ''
-  const match = text.match(/^(.+?[.!?])\s/)
-  return cleanMetaText(match ? match[1] : text)
-}
-
-function materialLine(value = '') {
-  const text = String(value || '')
-  const match = text.match(/(?:Material|Матеріал):\s*([^\n.]+)/i)
-  return match ? cleanMetaText(match[1]) : ''
-}
-
-function compactMetaDescription(parts, maxLength = 170) {
-  const uniqueParts = []
-  const seen = new Set()
-  for (const part of parts.map(cleanMetaText).filter(Boolean)) {
-    const key = part.toLowerCase()
-    if (seen.has(key)) continue
-    seen.add(key)
-    uniqueParts.push(part)
-  }
-
-  let description = ''
-  for (const part of uniqueParts) {
-    const next = description ? `${description} ${part}` : part
-    if (next.length <= maxLength) {
-      description = next
-    } else if (!description) {
-      description = `${part.slice(0, maxLength - 3).trim()}...`
-    }
-  }
-  return description || 'Shop edm.clothes essentials, made in Ukraine.'
-}
-
-function buildProductMetaDescription(product) {
-  const material = materialLine(product.material_care)
-  return compactMetaDescription([
-    firstSentence(product.description),
-    firstSentence(product.product_details),
-    material ? `Material: ${material}.` : '',
-    'Made in Ukraine.',
-  ])
-}
 
 async function getProduct(slug) {
   try {
@@ -126,7 +75,8 @@ export async function generateMetadata({ params, locale = 'en' }) {
   if (!product) return { title: 'Product not found' }
   const displayProduct = localizeProduct(product, locale)
   const image = (Array.isArray(product.image_urls) && product.image_urls[0]) || product.image_url
-  const desc = buildProductMetaDescription(displayProduct)
+  const desc = buildProductMetaDescription(displayProduct, locale)
+  const imageAlt = buildProductImageAlt(displayProduct, locale)
   const isUnlisted = isUnlistedProduct(product)
 
   return {
@@ -138,7 +88,7 @@ export async function generateMetadata({ params, locale = 'en' }) {
       title: displayProduct.name,
       description: desc,
       locale: openGraphLocale(locale),
-      images: image ? [{ url: image, width: 800, height: 800, alt: displayProduct.name }] : [],
+      images: image ? [{ url: image, width: 800, height: 800, alt: imageAlt }] : [],
       // og:type is emitted as "product" via <meta> in the page body so Pinterest
       // Rich Pins / Facebook can read product-extension tags. Next.js's openGraph
       // type field has no 'product' case (only website/article/book/…), so omit it
@@ -161,6 +111,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
   const sizeStock = product ? await getSizeStock(product.id) : {}
   if (!product) return <div style={{padding:48,textAlign:'center',color:'#aaa'}}>{d.product.unavailable}</div>
   const displayProduct = localizeProduct(product, locale)
+  const metaDescription = buildProductMetaDescription(displayProduct, locale)
   const recommendations = buildRecommendations(product, allProducts)
   const availableStock = product.available_stock ?? product.stock ?? 0
   const isInStock = availableStock > 0
@@ -183,7 +134,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: displayProduct.name,
-    description: displayProduct.description,
+    description: metaDescription,
     image: productImages,
     sku: String(product.id),
     category: product.category,

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 
 export default function HomeCategoriesCarousel({ tiles }) {
   const trackRef = useRef(null)
@@ -74,13 +75,19 @@ export default function HomeCategoriesCarousel({ tiles }) {
           >
             <div
               style={{
+                position: 'relative',
                 aspectRatio: '4/5',
-                backgroundImage: `url(${tile.image})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                overflow: 'hidden',
               }}
-              aria-label={tile.title}
-            />
+            >
+              <Image
+                src={tile.image}
+                alt={tile.alt || tile.title}
+                fill
+                sizes="(max-width: 1023px) 33vw, 25vw"
+                style={{ objectFit: 'cover', objectPosition: 'center' }}
+              />
+            </div>
             <div style={{ background: '#fff', padding: '14px 16px', textAlign: 'center' }}>
               <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{tile.title}</p>
             </div>

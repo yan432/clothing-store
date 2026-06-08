@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { getMessages } from '../lib/i18n'
+import { buildProductImageAlt } from '../lib/seoText'
 
 export default function ProductGallery({ product, locale = 'en' }) {
   const d = getMessages(locale)
@@ -118,7 +119,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
               }}>
               <Image
                 src={src}
-                alt={product.name + ' thumbnail ' + (index + 1)}
+                alt={buildProductImageAlt(product, locale, { index })}
                 fill
                 sizes="80px"
                 loading="lazy"
@@ -151,7 +152,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
                 <Image
                   className="product-gallery-main-image"
                   src={src}
-                  alt={product.name + ' image ' + (index + 1)}
+                  alt={buildProductImageAlt(product, locale, { index })}
                   fill
                   sizes="(max-width: 760px) 100vw, 58vw"
                   loading={index === 0 ? 'eager' : 'lazy'}

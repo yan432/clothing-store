@@ -2,12 +2,13 @@ import { getApiUrl } from '../lib/api'
 import { Package, RefreshCw, CheckCircle2, Mail } from 'lucide-react'
 import { pathForLocale } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const revalidate = 60
 
 export const metadata = {
   title: 'Returns & Exchanges — EDM Clothes',
-  description: 'Our return and exchange policy.',
+  description: staticPageDescription('returns'),
   alternates: localizedAlternates('/returns'),
 }
 

@@ -1,8 +1,9 @@
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const metadata = {
   title: 'Terms & Conditions — EDM Clothes',
-  description: 'Terms and conditions for purchasing from EDM Clothes.',
+  description: staticPageDescription('terms'),
   alternates: localizedAlternates('/terms'),
 }
 

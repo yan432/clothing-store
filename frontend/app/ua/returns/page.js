@@ -1,10 +1,12 @@
 import ReturnsPage from '../../returns/page'
 import { localizedAlternates } from '../../lib/seo'
+import { staticPageDescription } from '../../lib/seoText'
 
 export const metadata = {
   title: 'Повернення та обмін',
+  description: staticPageDescription('returns', 'uk'),
   alternates: localizedAlternates('/returns', 'uk'),
-  openGraph: { locale: 'uk_UA' },
+  openGraph: { description: staticPageDescription('returns', 'uk'), locale: 'uk_UA' },
 }
 
 export default function UkrainianReturnsPage() {

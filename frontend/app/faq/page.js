@@ -2,12 +2,13 @@ import { getApiUrl } from '../lib/api'
 import FaqAccordion from '../components/FaqAccordion'
 import { pathForLocale } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
+import { staticPageDescription } from '../lib/seoText'
 
 export const revalidate = 60
 
 export const metadata = {
   title: 'FAQ — EDM Clothes',
-  description: 'Frequently asked questions about orders, shipping, returns and more.',
+  description: staticPageDescription('faq'),
   alternates: localizedAlternates('/faq'),
 }
 

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../../context/AuthContext'
 import { getApiUrl } from '../../../lib/api'
 import { normalizeLocale, pathForLocale } from '../../../lib/i18n'
+import { buildItemImageAlt } from '../../../lib/seoText'
 import { ThumbsUp, Package } from 'lucide-react'
 
 const ORDER_COPY = {
@@ -296,7 +297,7 @@ export default function AccountOrderDetailsClient({ orderId, locale = 'en' }) {
                         {item.image_url ? (
                           <img
                             src={item.image_url}
-                            alt={item.name || t.item}
+                            alt={buildItemImageAlt(item, preferredLocale)}
                             style={{width:52,height:52,objectFit:'cover',borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}}
                           />
                         ) : (

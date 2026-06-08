@@ -6,6 +6,7 @@ import WishlistButton from './WishlistButton'
 import { getMessages, localeFromPathname, localizeProduct, pathForLocale, translateCategory, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildProductImageAlt } from '../lib/seoText'
 
 export default function ProductCard({ product, colorSiblings = [], imagePriority = false, locale, uahRate = null }) {
   const pathname = usePathname() || '/'
@@ -23,7 +24,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const leaveTimerRef = useRef(null)
 
   // When a swatch is hovered, show that variant's photo
-  const activeProduct = swatchVariant || displayProduct
+  const activeProduct = swatchVariant ? { ...displayProduct, ...swatchVariant, name: swatchVariant.name || displayProduct.name } : displayProduct
   const activeSlug = swatchVariant ? (swatchVariant.slug || swatchVariant.id) : (displayProduct.slug || displayProduct.id)
 
   const currency = currencyForLocale(activeLocale)
@@ -141,7 +142,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
             }}>
               <Image
                 src={primaryImage}
-                alt={displayProduct.name}
+                alt={buildProductImageAlt(activeProduct, activeLocale, { index: 0 })}
                 fill
                 sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
                 loading={imagePriority ? 'eager' : 'lazy'}
@@ -158,7 +159,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
               {secondaryImage && (hovered || secondaryReady) && (
                 <Image
                   src={secondaryImage}
-                  alt=""
+                  alt={buildProductImageAlt(activeProduct, activeLocale, { index: 1 })}
                   fill
                   sizes="(max-width: 679px) 50vw, (max-width: 1023px) 33vw, 25vw"
                   loading="lazy"

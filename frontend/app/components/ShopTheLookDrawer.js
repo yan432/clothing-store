@@ -8,6 +8,7 @@ import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOption
 import { getMessages, localeFromPathname, localizeProduct, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildProductImageAlt } from '../lib/seoText'
 
 function sortSizes(arr) {
   return [...arr].sort((a, b) => {
@@ -63,7 +64,7 @@ function LookItem({ product, locale }) {
       <a href={pathForLocale(`/products/${displayProduct.slug || displayProduct.id}`, locale)}
         style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', borderRadius: 4, overflow: 'hidden' }}>
         {displayProduct.image_url && (
-          <img src={displayProduct.image_url} alt={displayProduct.name}
+          <img src={displayProduct.image_url} alt={buildProductImageAlt(displayProduct, locale)}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         )}
       </a>

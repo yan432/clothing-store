@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { getApiUrl } from '../lib/api'
 import AdminOnly from '../components/AdminOnly'
+import { buildItemImageAlt } from '../lib/seoText'
 
 export default function UploadPage() {
   const [products, setProducts] = useState([])
@@ -90,7 +91,7 @@ export default function UploadPage() {
 
                 <div style={{width:72,height:72,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
                   {product.image_url
-                    ? <img src={product.image_url} alt={product.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    ? <img src={product.image_url} alt={buildItemImageAlt(product)} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                     : <span style={{fontSize:11,color:'#ccc'}}>No photo</span>
                   }
                 </div>
