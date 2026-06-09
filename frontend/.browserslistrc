@@ -1,8 +1,10 @@
 [production]
-> 0.5%
-last 2 versions
+chrome >= 91
+edge >= 91
+firefox >= 90
+safari >= 15.4
+ios_saf >= 15.4
 not dead
-not IE 11
 not op_mini all
 
 [development]

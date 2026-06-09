@@ -96,8 +96,8 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           sizes="100vw"
           quality={75}
           draggable={false}
-          loading="lazy"
-          fetchPriority="low"
+          loading={isActive ? 'eager' : 'lazy'}
+          fetchPriority={isActive ? 'high' : 'low'}
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
         <div className="hero-carousel-caption" style={{
