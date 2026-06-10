@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import { preload } from 'react-dom'
 import { redirect } from 'next/navigation'
 import { homepageContent } from './lib/homepageContent'
 import { getApiUrl } from './lib/api'
@@ -150,6 +151,9 @@ export default async function Home({ searchParams, locale = 'en' }) {
   }
   const heroMobileImage = hero.mobileImage || '/homepage-hero-mobile.jpg'
   const heroMobileSrcSet = nextImageSrcSet(heroMobileImage, [390, 640, 750, 828], 75)
+  // Must mirror the <Image sizes="100vw" quality={75}> srcset exactly
+  // (all deviceSizes from next.config.mjs) or the preload is wasted.
+  const heroDesktopSrcSet = nextImageSrcSet(hero.image, [390, 480, 640, 750, 828, 1080, 1200, 1920], 75)
   const promoTiles = landingContent?.promoTiles || homepageContent.promoTiles
   const localizedPromoTiles = promoTiles.map(tile => {
     const title = translateCategory(tile.title, locale)
@@ -160,6 +164,28 @@ export default async function Home({ searchParams, locale = 'en' }) {
       href: pathForLocale(tile.href, locale),
     }
   })
+  // Preload the hero (LCP) image into <head>. next/image can't do this
+  // itself: the hero <Image> sits inside a <picture> with a mobile <source>,
+  // so its automatic preload is suppressed — and would lack the media split
+  // anyway, forcing mobile to also download the desktop image.
+  if (hero.image && heroMobileSrcSet) {
+    preload(heroMobileImage, {
+      as: 'image',
+      imageSrcSet: heroMobileSrcSet,
+      imageSizes: '100vw',
+      media: '(max-width: 767px)',
+      fetchPriority: 'high',
+    })
+  }
+  if (hero.image && heroDesktopSrcSet) {
+    preload(hero.image, {
+      as: 'image',
+      imageSrcSet: heroDesktopSrcSet,
+      imageSizes: '100vw',
+      media: '(min-width: 768px)',
+      fetchPriority: 'high',
+    })
+  }
   const overlayPct = landingContent?.hero?.overlay ?? 72
   const ov = overlayPct / 100
   const newArrivals = allProducts

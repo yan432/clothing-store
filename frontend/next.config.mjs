@@ -43,9 +43,9 @@ const cspHeader = [
   // Fonts: self
   "font-src 'self' data:",
   // Frames: Stripe payment iframe
-  "frame-src https://js.stripe.com https://hooks.stripe.com https://td.doubleclick.net",
+  "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://td.doubleclick.net",
   // Connect: self + backend API + Supabase + Stripe + GA + Google Ads + Meta + TikTok + ipapi
-  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://ad.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://*.tiktokw.us https://*.clarity.ms`,
+  `connect-src 'self' ${BACKEND_URL} ${SUPABASE_URL} http://localhost:8000 http://127.0.0.1:8000 https://api.stripe.com https://checkout.stripe.com https://www.google-analytics.com https://*.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://ad.doubleclick.net https://td.doubleclick.net https://www.googletagmanager.com https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.google.com https://www.google.de https://www.google.co.uk https://www.google.fr https://www.google.es https://www.google.it https://www.google.nl https://www.google.at https://www.google.pl https://www.google.ca https://www.facebook.com https://connect.facebook.net https://analytics.tiktok.com https://ads.tiktok.com https://*.tiktokw.us https://*.clarity.ms`,
   // Object: none
   "object-src 'none'",
   // Base URI: self only (prevents base tag injection)
@@ -123,6 +123,15 @@ const nextConfig = {
 
   async headers() {
     return [
+      {
+        // Static assets in /public ship with max-age=0 on Vercel by default.
+        // 30 days (not immutable) — filenames are stable across deploys, so a
+        // replaced image must still be able to refresh within a month.
+        source: '/:path((?:.*)\\.(?:jpg|jpeg|png|gif|webp|avif|svg|ico|mp4))',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' },
+        ],
+      },
       {
         source: '/(.*)',
         headers: [

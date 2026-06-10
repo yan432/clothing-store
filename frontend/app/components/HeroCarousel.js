@@ -96,8 +96,12 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           sizes="100vw"
           quality={75}
           draggable={false}
-          loading={isActive ? 'eager' : 'lazy'}
-          fetchPriority={isActive ? 'high' : 'low'}
+          // Never eager/high here: the carousel sits below the fold on the
+          // homepage, and React 19 emits a media-less head preload for any
+          // SSR'd <img fetchPriority="high"> — that download competed with
+          // the real LCP hero image on slow connections.
+          loading="lazy"
+          fetchPriority="low"
           style={{ objectFit: 'cover', objectPosition: 'center center' }}
         />
         <div className="hero-carousel-caption" style={{

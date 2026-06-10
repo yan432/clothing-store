@@ -54,8 +54,11 @@ export default function MarketingPixels({ disabled = false }) {
 
   return (
     <>
-      <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="afterInteractive" />
-      <Script id="ga-config" strategy="afterInteractive">{`
+      {/* lazyOnload keeps gtag's ~250ms eval off the main thread until after
+          load. No data loss: gtag calls queue in the dataLayer stub installed
+          by the consent-defaults script in layout.js. */}
+      <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="lazyOnload" />
+      <Script id="ga-config" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.__gaConfigured) {
           window.dataLayer = window.dataLayer || [];
           window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);}
