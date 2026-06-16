@@ -41,6 +41,10 @@ function hasExpressPaymentMethods(paymentMethods) {
   return Object.values(paymentMethods).some(Boolean)
 }
 
+function trimmedString(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
   ['AG','Antigua and Barbuda'],['AR','Argentina'],['AM','Armenia'],['AU','Australia'],
@@ -634,23 +638,32 @@ function CheckoutPage({ locale = 'en' }) {
           if (!cancelled) setExpressReady(false)
         }
 
-        const billingName = `${form.firstName} ${form.lastName}`.trim()
-        const paymentElement = elements.create('payment', {
+        const billingName = `${trimmedString(form.firstName)} ${trimmedString(form.lastName)}`.trim()
+        const billingDetails = {}
+        const billingEmail = trimmedString(form.email).toLowerCase()
+        const billingPhone = trimmedString(form.phone)
+        const billingAddress = {}
+        const billingLine1 = trimmedString(checkoutShippingLine1)
+        const billingCity = trimmedString(checkoutShippingCity)
+        const billingPostalCode = trimmedString(checkoutShippingZip)
+        const billingCountry = trimmedString(form.country)
+        if (billingName) billingDetails.name = billingName
+        if (billingEmail) billingDetails.email = billingEmail
+        if (billingPhone) billingDetails.phone = billingPhone
+        if (billingLine1) billingAddress.line1 = billingLine1
+        if (billingCity) billingAddress.city = billingCity
+        if (billingPostalCode) billingAddress.postal_code = billingPostalCode
+        if (billingCountry) billingAddress.country = billingCountry
+        if (Object.keys(billingAddress).length) billingDetails.address = billingAddress
+
+        const paymentElementOptions = {
           layout: 'accordion',
-          defaultValues: {
-            billingDetails: {
-              name: billingName || undefined,
-              email: form.email.trim().toLowerCase() || undefined,
-              phone: form.phone.trim() || undefined,
-              address: {
-                line1: checkoutShippingLine1.trim() || undefined,
-                city: checkoutShippingCity.trim() || undefined,
-                postal_code: checkoutShippingZip.trim() || undefined,
-                country: form.country || undefined,
-              },
-            },
-          },
-        })
+        }
+        if (Object.keys(billingDetails).length) {
+          paymentElementOptions.defaultValues = { billingDetails }
+        }
+
+        const paymentElement = elements.create('payment', paymentElementOptions)
         paymentElement.on('ready', () => {
           if (!cancelled) setPaymentElementReady(true)
         })
