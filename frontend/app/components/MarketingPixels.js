@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react'
 import Script from 'next/script'
 
 const STORAGE_KEY = 'cookie_consent'
-const ANALYTICS_DELAY_MS = 6500
-const MARKETING_DELAY_MS = 8500
+const ANALYTICS_DELAY_MS = 11000
+const MARKETING_DELAY_MS = 13000
 
 function consentGranted() {
   try {
