@@ -150,7 +150,8 @@ export default async function Home({ searchParams, locale = 'en' }) {
     ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
   }
   const heroMobileImage = hero.mobileImage || '/homepage-hero-mobile.jpg'
-  const heroMobileSrcSet = nextImageSrcSet(heroMobileImage, [390, 640, 750, 828], 75)
+  const heroMobileSizes = '60vw'
+  const heroMobileSrcSet = nextImageSrcSet(heroMobileImage, [390, 480], 75)
   // Must mirror the <Image sizes="100vw" quality={75}> srcset exactly
   // (all deviceSizes from next.config.mjs) or the preload is wasted.
   const heroDesktopSrcSet = nextImageSrcSet(hero.image, [390, 480, 640, 750, 828, 1080, 1200, 1920], 75)
@@ -172,7 +173,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
     preload(heroMobileImage, {
       as: 'image',
       imageSrcSet: heroMobileSrcSet,
-      imageSizes: '100vw',
+      imageSizes: heroMobileSizes,
       media: '(max-width: 767px)',
       fetchPriority: 'high',
     })
@@ -254,7 +255,7 @@ export default async function Home({ searchParams, locale = 'en' }) {
             {heroMobileSrcSet && (
               <source
                 media="(max-width: 767px)"
-                sizes="100vw"
+                sizes={heroMobileSizes}
                 srcSet={heroMobileSrcSet}
               />
             )}

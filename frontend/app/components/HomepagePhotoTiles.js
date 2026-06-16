@@ -40,7 +40,7 @@ export default function HomepagePhotoTiles({ tiles }) {
                 src={tile.image_url}
                 alt={imageAlt}
                 fill
-                sizes="(max-width: 680px) 50vw, 25vw"
+                sizes="(max-width: 680px) 45vw, 25vw"
                 className="photo-tile-img"
                 loading="lazy"
                 quality={60}

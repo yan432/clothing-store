@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Script from 'next/script'
 
 const STORAGE_KEY = 'cookie_consent'
+const ANALYTICS_DELAY_MS = 6500
+const MARKETING_DELAY_MS = 8500
 
 function consentGranted() {
   try {
@@ -13,8 +15,46 @@ function consentGranted() {
   }
 }
 
+function scheduleAfterLoadIdle(start, delayMs) {
+  let loadListener = null
+  let delayId = null
+  let idleId = null
+
+  const runWhenIdle = () => {
+    delayId = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(start, { timeout: 1600 })
+      } else {
+        start()
+      }
+    }, delayMs)
+  }
+
+  if (document.readyState === 'complete') {
+    runWhenIdle()
+  } else {
+    loadListener = runWhenIdle
+    window.addEventListener('load', loadListener, { once: true })
+  }
+
+  return () => {
+    if (loadListener) window.removeEventListener('load', loadListener)
+    if (delayId) window.clearTimeout(delayId)
+    if (idleId && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId)
+  }
+}
+
 export default function MarketingPixels({ disabled = false }) {
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false)
   const [marketingEnabled, setMarketingEnabled] = useState(false)
+
+  useEffect(() => {
+    if (disabled || window.__edmTrackingDisabled) {
+      return undefined
+    }
+
+    return scheduleAfterLoadIdle(() => setAnalyticsEnabled(true), ANALYTICS_DELAY_MS)
+  }, [disabled])
 
   useEffect(() => {
     if (disabled || window.__edmTrackingDisabled) {
@@ -29,14 +69,8 @@ export default function MarketingPixels({ disabled = false }) {
         setMarketingEnabled(false)
         return
       }
-      const start = () => setMarketingEnabled(true)
-      if ('requestIdleCallback' in window) {
-        const id = window.requestIdleCallback(start, { timeout: 1800 })
-        cancelScheduledStart = () => window.cancelIdleCallback(id)
-      } else {
-        const id = window.setTimeout(start, 900)
-        cancelScheduledStart = () => window.clearTimeout(id)
-      }
+      if (cancelScheduledStart) cancelScheduledStart()
+      cancelScheduledStart = scheduleAfterLoadIdle(() => setMarketingEnabled(true), MARKETING_DELAY_MS)
     }
 
     initialSync = window.setTimeout(sync, 0)
@@ -54,9 +88,10 @@ export default function MarketingPixels({ disabled = false }) {
 
   return (
     <>
-      {/* lazyOnload keeps gtag's ~250ms eval off the main thread until after
-          load. No data loss: gtag calls queue in the dataLayer stub installed
-          by the consent-defaults script in layout.js. */}
+      {/* gtag calls queue in the dataLayer stub installed by layout.js; delay
+          the heavy network/eval work until after LCP-sensitive startup. */}
+      {analyticsEnabled && (
+        <>
       <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="lazyOnload" />
       <Script id="ga-config" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.__gaConfigured) {
@@ -69,6 +104,8 @@ export default function MarketingPixels({ disabled = false }) {
           window.dispatchEvent(new Event('ga-configured'));
         }
       `}</Script>
+        </>
+      )}
       {marketingEnabled && (
         <>
       <Script id="meta-pixel" strategy="lazyOnload">{`
