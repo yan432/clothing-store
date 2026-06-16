@@ -15,9 +15,16 @@ export default function SuccessPage() {
   const { clearCart } = useCart()
 
   useEffect(() => {
-    const sessionId = new URLSearchParams(window.location.search).get('session_id')
+    const params = new URLSearchParams(window.location.search)
+    const sessionId = params.get('session_id')
+    const paymentIntentId = params.get('payment_intent')
     if (sessionId) {
       fetch(getApiUrl(`/checkout/sync-session/${encodeURIComponent(sessionId)}`), {
+        method: 'POST',
+      }).catch(() => {})
+    }
+    if (paymentIntentId) {
+      fetch(getApiUrl(`/checkout/sync-payment-intent/${encodeURIComponent(paymentIntentId)}`), {
         method: 'POST',
       }).catch(() => {})
     }
@@ -27,13 +34,13 @@ export default function SuccessPage() {
       // Only clear cart and track purchase if we actually came from checkout
       if (pendingOrder) {
         clearCart()
-        const purchaseKey = `purchase_tracked:${pendingOrder.order_id || pendingOrder.id || sessionId || 'unknown'}`
+        const purchaseKey = `purchase_tracked:${pendingOrder.order_id || pendingOrder.id || sessionId || paymentIntentId || 'unknown'}`
         const alreadyTracked = sessionStorage.getItem(purchaseKey)
         if (!alreadyTracked) {
           trackPurchase({
             orderId:  pendingOrder.order_id || pendingOrder.id || 'unknown',
             total:    Number(pendingOrder.total || pendingOrder.amount_total || 0),
-            currency: 'EUR',
+            currency: pendingOrder.currency || 'EUR',
             items:    pendingOrder.items || [],
             utm:      getStoredUtm(),
           })

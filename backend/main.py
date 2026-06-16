@@ -90,6 +90,7 @@ app.add_middleware(
     allow_origins=[
         FRONTEND_URL,
         "http://localhost:3000",
+        "http://127.0.0.1:3000",
         "https://www.edmclothes.net",
         "https://edmclothes.net",
     ],
@@ -324,12 +325,17 @@ class CheckoutRequest(BaseModel):
     city: Optional[str] = None
     zip: Optional[str] = None
     country: Optional[str] = None
+    shipping_method: Optional[str] = None
+    nova_poshta_city: Optional[str] = None
+    nova_poshta_branch: Optional[str] = None
     promo_code: Optional[str] = None
     comment: Optional[str] = None
     quick: bool = False  # True = quick checkout from cart; Stripe collects shipping
+    ui_mode: Optional[str] = None  # hosted_page, embedded, or elements (Payment Element)
     utm: Optional[dict] = None  # { utm_source, utm_medium, utm_campaign, utm_content, utm_term }
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
+    return_url: Optional[str] = None
     meta: Optional[dict] = None  # Meta Pixel/CAPI attribution: fbp, fbc, consent
     preferred_locale: Optional[str] = None
     locale: Optional[str] = None
@@ -462,6 +468,21 @@ def extract_shipping_fields(session_obj: dict) -> dict:
         "shipping_state": first_non_empty(address.get("state"), customer_address.get("state")),
         "shipping_postal_code": first_non_empty(address.get("postal_code"), customer_address.get("postal_code")),
         "shipping_country": first_non_empty(address.get("country"), customer_address.get("country")),
+    }
+
+
+def extract_payment_intent_shipping_fields(intent_obj: dict) -> dict:
+    shipping = as_dict(intent_obj.get("shipping"))
+    address = as_dict(shipping.get("address"))
+    return {
+        "phone": first_non_empty(shipping.get("phone")),
+        "shipping_name": first_non_empty(shipping.get("name")),
+        "shipping_line1": first_non_empty(address.get("line1")),
+        "shipping_line2": first_non_empty(address.get("line2")),
+        "shipping_city": first_non_empty(address.get("city")),
+        "shipping_state": first_non_empty(address.get("state")),
+        "shipping_postal_code": first_non_empty(address.get("postal_code")),
+        "shipping_country": first_non_empty(address.get("country")),
     }
 
 
@@ -1905,7 +1926,19 @@ def restore_sold_stock(items: list[dict]) -> None:
         print(f"restore_sold_stock size-level: {exc}")
 
 
-def find_order(client_reference_id: Optional[str], stripe_session_id: Optional[str]) -> Optional[dict]:
+def find_order(
+    client_reference_id: Optional[str] = None,
+    stripe_session_id: Optional[str] = None,
+    stripe_payment_intent_id: Optional[str] = None,
+    order_id: Optional[Any] = None,
+) -> Optional[dict]:
+    if order_id:
+        try:
+            by_id = supabase.table("orders").select("*").eq("id", int(order_id)).limit(1).execute()
+            if by_id.data:
+                return by_id.data[0]
+        except Exception:
+            pass
     if client_reference_id:
         by_ref = supabase.table("orders").select("*").eq("client_reference_id", client_reference_id).limit(1).execute()
         if by_ref.data:
@@ -1914,6 +1947,16 @@ def find_order(client_reference_id: Optional[str], stripe_session_id: Optional[s
         by_session = supabase.table("orders").select("*").eq("stripe_session_id", stripe_session_id).limit(1).execute()
         if by_session.data:
             return by_session.data[0]
+    if stripe_payment_intent_id:
+        by_intent = (
+            supabase.table("orders")
+            .select("*")
+            .eq("stripe_payment_intent_id", stripe_payment_intent_id)
+            .limit(1)
+            .execute()
+        )
+        if by_intent.data:
+            return by_intent.data[0]
     return None
 
 
@@ -2711,6 +2754,7 @@ DEFAULT_SHIPPING_CONFIG: dict = {
     "uah_eur_rate": 0.019372,
     # Ukraine domestic (Nova Poshta)
     "ukraine": {
+        "address_surcharge_uah": 35,
         "brackets": [
             {"max_kg": 1.0,  "price_uah": 80,  "label": "До 1 кг"},
             {"max_kg": 2.0,  "price_uah": 90,  "label": "До 2 кг (мала)"},
@@ -2970,7 +3014,16 @@ def get_shipping_config() -> dict:
     return DEFAULT_SHIPPING_CONFIG
 
 
-def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config: dict) -> dict:
+def normalize_ukraine_shipping_method(value: Optional[str], default: str = "nova_poshta_branch") -> str:
+    raw = str(value or "").strip().lower().replace("-", "_")
+    if raw in {"nova_poshta_branch", "nova_poshta_warehouse", "branch", "warehouse", "pickup", "np_branch"}:
+        return "nova_poshta_branch"
+    if raw in {"address", "nova_poshta_address", "courier", "home", "door"}:
+        return "address"
+    return default
+
+
+def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config: dict, shipping_method: Optional[str] = None) -> dict:
     """
     Calculate cheapest shipping option (Nova Poshta or Ukr Poshta).
     If a country is covered by both carriers, both prices are calculated
@@ -2983,21 +3036,25 @@ def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config:
     weight = _math.ceil(weight * 10) / 10.0
     uah_eur = float(config.get("uah_eur_rate", 0.023))
 
-    # Ukraine domestic — Nova Poshta only
+    # Ukraine domestic — Nova Poshta to branch or address.
     if cc == "UA":
         ukraine = config.get("ukraine", DEFAULT_SHIPPING_CONFIG["ukraine"])
         brackets = ukraine.get("brackets", DEFAULT_SHIPPING_CONFIG["ukraine"]["brackets"])
+        delivery_method = normalize_ukraine_shipping_method(shipping_method)
         price_uah = float(brackets[-1]["price_uah"]) if brackets else 200.0
         for b in brackets:
             if weight <= float(b["max_kg"]):
                 price_uah = float(b["price_uah"])
                 break
+        if delivery_method == "address":
+            price_uah += float(ukraine.get("address_surcharge_uah", DEFAULT_SHIPPING_CONFIG["ukraine"].get("address_surcharge_uah", 35)))
         return {
             "price_eur": ceil_to_half_eur(price_uah * uah_eur),
             "price_uah": round(price_uah, 2),
             "zone": "UA",
             "carrier": "nova_poshta",
-            "label": "Nova Poshta Ukraine",
+            "label": "Nova Poshta address delivery" if delivery_method == "address" else "Nova Poshta branch pickup",
+            "delivery_method": delivery_method,
             "weight_kg": round(weight, 3),
         }
 
@@ -3070,6 +3127,7 @@ def compute_shipping_cost(country_code: str, total_vol_weight_kg: float, config:
 class ShippingCalculateRequest(BaseModel):
     country: str
     items: list[dict]  # [{id, quantity}]
+    shipping_method: Optional[str] = None
 
 
 @app.post("/shipping/calculate")
@@ -3091,7 +3149,7 @@ def shipping_calculate(payload: ShippingCalculateRequest):
         total_vol_weight += float(vol_w) * qty
         subtotal += price * qty
     total_vol_weight = max(0.1, total_vol_weight)
-    result = compute_shipping_cost(payload.country, total_vol_weight, config)
+    result = compute_shipping_cost(payload.country, total_vol_weight, config, payload.shipping_method)
 
     # Free shipping above threshold — match Stripe checkout behaviour
     free_threshold, _ = get_shipping_settings()
@@ -3099,6 +3157,8 @@ def shipping_calculate(payload: ShippingCalculateRequest):
         result = {
             **result,
             "price_eur": 0.0,
+            **({"price_uah": 0.0} if result.get("price_uah") is not None else {}),
+            **({"price_usd": 0.0} if result.get("price_usd") is not None else {}),
             "free_shipping_applied": True,
             "free_shipping_threshold": free_threshold,
         }
@@ -3144,6 +3204,12 @@ def get_shipping_settings() -> tuple[float, float]:
 def create_checkout(payload: CheckoutRequest, http_request: Request):
     if not payload.items:
         raise HTTPException(status_code=400, detail="Cart is empty")
+
+    checkout_ui_mode = str(payload.ui_mode or "elements").strip().lower()
+    if checkout_ui_mode not in ("hosted", "hosted_page", "embedded", "embedded_page", "elements", "payment_element"):
+        raise HTTPException(status_code=400, detail="Unsupported checkout UI mode")
+    embedded_checkout = checkout_ui_mode in ("embedded", "embedded_page")
+    elements_checkout = checkout_ui_mode in ("elements", "payment_element")
 
     preferred_locale = (
         normalize_preferred_locale(payload.preferred_locale)
@@ -3221,8 +3287,13 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         })
 
     # Calculate shipping via Nova Poshta / Ukr Poshta zone table (server-authoritative)
-    _country = str(payload.country or "DE")
-    _ship_result = compute_shipping_cost(_country, total_vol_weight, _shipping_cfg)
+    _country = str(payload.country or "DE").upper().strip()
+    if _country == "UA":
+        default_ua_method = "address" if str(payload.address or "").strip() else "nova_poshta_branch"
+        _shipping_method = normalize_ukraine_shipping_method(payload.shipping_method, default_ua_method)
+    else:
+        _shipping_method = "address"
+    _ship_result = compute_shipping_cost(_country, total_vol_weight, _shipping_cfg, _shipping_method)
     if _ship_result.get("price_eur") is None:
         raise HTTPException(status_code=400, detail=f"Delivery to {_country} is currently not available")
     shipping_cost_cfg = float(_ship_result["price_eur"])  # EUR — canonical
@@ -3235,6 +3306,19 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             shipping_charge = eur_to_uah(shipping_cost_cfg, uah_rate)
     else:
         shipping_charge = shipping_cost_cfg
+
+    shipping_name = f"{payload.first_name or ''} {payload.last_name or ''}".strip()
+    shipping_line1 = str(payload.address or "").strip()
+    shipping_city = str(payload.city or "").strip()
+    shipping_postal_code = str(payload.zip or "").strip()
+    if _country == "UA" and _shipping_method == "nova_poshta_branch":
+        branch_city = str(payload.nova_poshta_city or payload.city or "").strip()
+        branch = str(payload.nova_poshta_branch or "").strip()
+        if not branch_city or not branch:
+            raise HTTPException(status_code=400, detail="Nova Poshta city and branch are required")
+        shipping_line1 = f"Nova Poshta branch: {branch}"
+        shipping_city = branch_city
+        shipping_postal_code = shipping_postal_code or ""
 
     free_threshold, _ = get_shipping_settings()
     qualifies_free_shipping = subtotal >= free_threshold
@@ -3331,8 +3415,9 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                 if k in allowed_utm and isinstance(v, str) and v:
                     metadata_json[k] = v[:200]
         checkout_success_url = checkout_frontend_url(payload.success_url, http_request, "/success")
+        checkout_return_url = checkout_frontend_url(payload.return_url or payload.success_url, http_request, "/success")
         checkout_cancel_url = checkout_frontend_url(payload.cancel_url, http_request, "/cart")
-        metadata_json["event_source_url"] = checkout_success_url.split("?", 1)[0]
+        metadata_json["event_source_url"] = (checkout_return_url if (embedded_checkout or elements_checkout) else checkout_success_url).split("?", 1)[0]
         meta_tracking = sanitize_meta_tracking(payload.meta)
         if meta_tracking.get("consent") == "granted":
             metadata_json["client_ip_address"] = _client_ip(http_request)[:100]
@@ -3357,7 +3442,11 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         # Shipping carrier info (server-computed)
         metadata_json["shipping_carrier"] = _ship_result.get("carrier") or ""
         metadata_json["shipping_label"] = _ship_result.get("label") or ""
+        metadata_json["shipping_delivery_method"] = _ship_result.get("delivery_method") or _shipping_method
         metadata_json["shipping_cost_eur"] = round(shipping_cost_cfg, 2)
+        if _country == "UA" and _shipping_method == "nova_poshta_branch":
+            metadata_json["nova_poshta_city"] = shipping_city
+            metadata_json["nova_poshta_branch"] = str(payload.nova_poshta_branch or "").strip()
         # EUR-equivalent order total — used for analytics (Meta/TikTok CAPI) so
         # ROAS reporting stays in the settlement currency regardless of charge ccy.
         metadata_json["amount_total_eur"] = round(
@@ -3378,11 +3467,11 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "preferred_locale": preferred_locale,
             "email": payload.customer_email,
             "phone": payload.phone,
-            "shipping_name": f"{payload.first_name or ''} {payload.last_name or ''}".strip(),
-            "shipping_line1": payload.address,
-            "shipping_city": payload.city,
-            "shipping_postal_code": payload.zip,
-            "shipping_country": payload.country,
+            "shipping_name": shipping_name,
+            "shipping_line1": shipping_line1,
+            "shipping_city": shipping_city,
+            "shipping_postal_code": shipping_postal_code,
+            "shipping_country": _country,
             "created_at": now_iso(),
             "updated_at": now_iso(),
         }).execute()
@@ -3401,10 +3490,10 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
                     "first_name": payload.first_name,
                     "last_name": payload.last_name,
                     "phone": payload.phone,
-                    "address": payload.address,
-                    "city": payload.city,
-                    "zip": payload.zip,
-                    "country": payload.country,
+                    "address": payload.address if _shipping_method == "address" else None,
+                    "city": shipping_city,
+                    "zip": shipping_postal_code if _shipping_method == "address" else None,
+                    "country": _country,
                 }.items():
                     clean = str(value or "").strip()
                     if clean:
@@ -3422,30 +3511,89 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
         # Discount is already baked into product line item prices above.
         # No Stripe coupons needed — they would apply to shipping too.
 
+        payment_metadata = {
+            "client_reference_id": client_reference_id,
+            "order_id": str(created_order.get("id")),
+            "promo_code": str(promo.get("code")) if promo else "",
+            "preferred_locale": preferred_locale,
+            "shipping_method": _ship_result.get("delivery_method") or _shipping_method,
+            **({"order_note": payload.comment[:500]} if payload.comment else {}),
+        }
+        if _country == "UA" and _shipping_method == "nova_poshta_branch":
+            payment_metadata["nova_poshta_city"] = shipping_city[:200]
+            payment_metadata["nova_poshta_branch"] = str(payload.nova_poshta_branch or "").strip()[:200]
+
+        if elements_checkout:
+            expires_at_iso = (datetime.now(tz=timezone.utc) + timedelta(minutes=CHECKOUT_SESSION_TTL_MINUTES)).isoformat()
+            payment_intent_params: dict = {
+                "amount": int(round(amount_total * 100)),
+                "currency": charge_currency,
+                "description": f"EDM Clothes order #{created_order.get('id')}",
+                "metadata": payment_metadata,
+                "shipping": {
+                    "name": shipping_name or "Customer",
+                    "address": {
+                        "line1": shipping_line1,
+                        "city": shipping_city,
+                        "postal_code": shipping_postal_code,
+                        "country": _country,
+                    },
+                },
+            }
+            if payload.customer_email:
+                payment_intent_params["receipt_email"] = payload.customer_email
+            if payload.phone:
+                payment_intent_params["shipping"]["phone"] = payload.phone
+            payment_intent_params["automatic_payment_methods"] = {"enabled": True}
+
+            intent = stripe.PaymentIntent.create(**payment_intent_params)
+            intent_dict = stripe_obj_to_dict(intent)
+            supabase.table("orders").update({
+                "stripe_payment_intent_id": intent.id,
+                "stripe_customer_id": intent_dict.get("customer"),
+                "session_json": intent_dict,
+                "expires_at": expires_at_iso,
+                "updated_at": now_iso(),
+            }).eq("id", created_order["id"]).execute()
+            return {
+                "order_id": created_order.get("id"),
+                "payment_intent_id": intent.id,
+                "client_secret": intent_dict.get("client_secret"),
+                "amount": intent_dict.get("amount"),
+                "currency": intent_dict.get("currency"),
+            }
+
         # Shipping and customer contact details are collected before Stripe.
         # Do not force billing address collection in Checkout; wallets like
         # Apple Pay can otherwise ask for the same address again.
         # Klarna/PayPal don't support UAH presentment — restrict to card (covers
         # Apple Pay / Google Pay) for Ukrainian-currency checkouts.
-        payment_methods = ["card"] if charge_currency == "uah" else ["card", "klarna", "paypal"]
         stripe_session_params: dict = dict(
-            payment_method_types=payment_methods,
             line_items=line_items,
             mode="payment",
             client_reference_id=client_reference_id,
             customer_email=payload.customer_email,
             expires_at=int((datetime.now(tz=timezone.utc) + timedelta(minutes=CHECKOUT_SESSION_TTL_MINUTES)).timestamp()),
-            metadata={
-                "client_reference_id": client_reference_id,
-                "order_id": str(created_order.get("id")),
-                "promo_code": str(promo.get("code")) if promo else "",
-                "preferred_locale": preferred_locale,
-                **({"order_note": payload.comment[:500]} if payload.comment else {}),
-            },
+            metadata=payment_metadata,
             locale="auto",
-            success_url=f"{checkout_success_url}{'&' if '?' in checkout_success_url else '?'}session_id={{CHECKOUT_SESSION_ID}}",
-            cancel_url=checkout_cancel_url,
         )
+        if charge_currency == "uah":
+            stripe_session_params["payment_method_types"] = ["card"]
+        def _with_checkout_session_id(raw_url: str) -> str:
+            if "{CHECKOUT_SESSION_ID}" in raw_url:
+                return raw_url
+            return f"{raw_url}{'&' if '?' in raw_url else '?'}session_id={{CHECKOUT_SESSION_ID}}"
+
+        completion_url = _with_checkout_session_id(checkout_return_url if embedded_checkout else checkout_success_url)
+        if embedded_checkout:
+            stripe_session_params.update({
+                "ui_mode": "embedded",
+                "return_url": completion_url,
+                "redirect_on_completion": "if_required",
+            })
+        else:
+            stripe_session_params["success_url"] = completion_url
+            stripe_session_params["cancel_url"] = checkout_cancel_url
         session = stripe.checkout.Session.create(**stripe_session_params)
         session_dict = stripe_obj_to_dict(session)
         expires_at_epoch = session_dict.get("expires_at")
@@ -3467,7 +3615,12 @@ def create_checkout(payload: CheckoutRequest, http_request: Request):
             "expires_at": expires_at_iso,
             "updated_at": now_iso(),
         }).eq("id", created_order["id"]).execute()
-        return {"url": session.url, "order_id": created_order.get("id")}
+        response = {"order_id": created_order.get("id"), "session_id": session.id}
+        if embedded_checkout:
+            response["client_secret"] = session_dict.get("client_secret")
+        else:
+            response["url"] = session.url
+        return response
 
     except HTTPException as exc:
         if stock_reserved:
@@ -3633,6 +3786,109 @@ def process_checkout_session_event(event_type: str, data_obj: dict, event_dict: 
     return {"received": True, "order_id": order.get("id"), "status": updated_status}
 
 
+def process_payment_intent_event(event_type: str, data_obj: dict, event_dict: Optional[dict] = None) -> dict:
+    event_dict = event_dict or {
+        "type": event_type,
+        "data": {"object": data_obj},
+    }
+    metadata = as_dict(data_obj.get("metadata"))
+    payment_intent_id = data_obj.get("id")
+    order = find_order(
+        client_reference_id=metadata.get("client_reference_id"),
+        stripe_payment_intent_id=payment_intent_id,
+        order_id=metadata.get("order_id"),
+    )
+
+    if not order:
+        return {"received": True, "warning": "order_not_found"}
+
+    current_status = order.get("status")
+    target_status = None
+    intent_status = data_obj.get("status")
+    if event_type == "payment_intent.succeeded" or intent_status == "succeeded":
+        target_status = ORDER_PAID
+    elif event_type == "payment_intent.canceled" or intent_status == "canceled":
+        target_status = ORDER_CANCELLED
+
+    items = order.get("items_json") or []
+    changed = False
+    send_confirmation = False
+    if target_status == ORDER_PAID and current_status == ORDER_PENDING:
+        for field, value in extract_payment_intent_shipping_fields(data_obj).items():
+            if first_non_empty(value) is not None and not first_non_empty(order.get(field)):
+                order[field] = value
+        finalize_paid_stock(items)
+        increment_promo_usage_if_needed(order)
+        changed = True
+        send_confirmation = True
+    elif target_status == ORDER_CANCELLED and current_status == ORDER_PENDING:
+        release_reserved_stock(items)
+        release_reserved_promo_if_needed(order)
+        changed = True
+
+    webhook_shipping_fields = {
+        k: v for k, v in extract_payment_intent_shipping_fields(data_obj).items()
+        if first_non_empty(v) is not None and not first_non_empty(order.get(k))
+    }
+    amount_cents = data_obj.get("amount_received") or data_obj.get("amount")
+    update_payload = {
+        "updated_at": now_iso(),
+        "event_json": event_dict,
+        "session_json": data_obj,
+        "stripe_payment_intent_id": payment_intent_id or order.get("stripe_payment_intent_id"),
+        "stripe_customer_id": data_obj.get("customer") or order.get("stripe_customer_id"),
+        "email": order.get("email") or data_obj.get("receipt_email"),
+        "shipping_json": data_obj.get("shipping") or order.get("shipping_json"),
+        "currency": data_obj.get("currency") or order.get("currency"),
+        "amount_total": (amount_cents / 100.0) if amount_cents else order.get("amount_total"),
+        **webhook_shipping_fields,
+    }
+
+    if target_status and (changed or current_status != ORDER_PAID):
+        update_payload["status"] = target_status
+        if target_status == ORDER_PAID:
+            update_payload["paid_at"] = now_iso()
+        elif target_status == ORDER_CANCELLED:
+            update_payload["cancelled_at"] = now_iso()
+
+    supabase.table("orders").update(update_payload).eq("id", order["id"]).execute()
+
+    updated_status = update_payload.get("status") or current_status
+    updated_order = {**order, **update_payload, "status": updated_status}
+
+    if target_status == ORDER_PAID and changed:
+        order_email = update_payload.get("email") or order.get("email")
+        _mark_abandoned_cart_completed(order_email)
+        record_user_event(
+            session_id=order.get("client_reference_id") or "webhook",
+            event_type="purchase",
+            email=order_email,
+            order_id=order.get("id"),
+            metadata={
+                "amount_total": float(update_payload.get("amount_total") or order.get("amount_total") or 0),
+                "items_count": len(order.get("items_json") or []),
+            },
+        )
+        send_meta_purchase_event(updated_order, event_dict)
+        send_tiktok_purchase_event(updated_order, event_dict)
+
+    if send_confirmation:
+        try:
+            send_order_confirmation_emails(updated_order)
+        except Exception as exc:
+            print(f"order confirmation email failed for order {order.get('id')}: {type(exc).__name__}: {exc}")
+
+    capture_subscriber_email(
+        update_payload.get("email") or order.get("email"),
+        "order_webhook",
+        {
+            "order_id": order.get("id"),
+            "status": updated_status,
+        },
+    )
+    return {"received": True, "order_id": order.get("id"), "status": updated_status}
+
+
 def _session_event_type_from_snapshot(session_dict: dict) -> str:
     if session_dict.get("status") == "expired":
         return "checkout.session.expired"
@@ -3677,13 +3933,51 @@ def reconcile_expired_pending_order(order: dict) -> dict:
             print(f"Expired checkout cleanup skipped order {order.get('id')}: Stripe retrieve failed: {type(exc).__name__}: {exc}")
             return {"order_id": order.get("id"), "status": order.get("status"), "source": "stripe_error"}
 
+    payment_intent_id = order.get("stripe_payment_intent_id")
+    if payment_intent_id:
+        try:
+            intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+            intent_dict = stripe_obj_to_dict(intent)
+            status = intent_dict.get("status")
+            if status == "succeeded":
+                result = process_payment_intent_event("payment_intent.succeeded", intent_dict)
+                return {
+                    "order_id": order.get("id"),
+                    "status": result.get("status"),
+                    "source": "stripe",
+                    "stripe_payment_intent_status": status,
+                }
+            if status == "processing":
+                return {
+                    "order_id": order.get("id"),
+                    "status": order.get("status"),
+                    "source": "stripe",
+                    "stripe_payment_intent_status": status,
+                }
+            if status != "canceled":
+                try:
+                    intent = stripe.PaymentIntent.cancel(payment_intent_id)
+                    intent_dict = stripe_obj_to_dict(intent)
+                except stripe.error.StripeError as exc:
+                    print(f"Expired checkout PaymentIntent cancel failed for order {order.get('id')}: {type(exc).__name__}: {exc}")
+            result = process_payment_intent_event("payment_intent.canceled", intent_dict)
+            return {
+                "order_id": order.get("id"),
+                "status": result.get("status"),
+                "source": "stripe",
+                "stripe_payment_intent_status": intent_dict.get("status"),
+            }
+        except stripe.error.StripeError as exc:
+            print(f"Expired checkout cleanup skipped order {order.get('id')}: PaymentIntent retrieve failed: {type(exc).__name__}: {exc}")
+            return {"order_id": order.get("id"), "status": order.get("status"), "source": "stripe_error"}
+
     return _cancel_expired_pending_order_from_local_state(order)
 
 
 def cleanup_expired_pending_orders(limit: int = CHECKOUT_CLEANUP_BATCH_SIZE) -> dict:
     result = (
         supabase.table("orders")
-        .select("id,client_reference_id,stripe_session_id,status,items_json,metadata_json,expires_at")
+        .select("id,client_reference_id,stripe_session_id,stripe_payment_intent_id,status,items_json,metadata_json,expires_at")
         .eq("status", ORDER_PENDING)
         .lte("expires_at", now_iso())
         .order("expires_at")
@@ -3755,7 +4049,12 @@ async def stripe_webhook(request: Request):
     is_new_event = save_webhook_event_once(event_dict)
     event_type = event_dict.get("type")
     data_obj = event_dict.get("data", {}).get("object", {})
-    result = process_checkout_session_event(event_type, data_obj, event_dict)
+    if str(event_type or "").startswith("checkout.session."):
+        result = process_checkout_session_event(event_type, data_obj, event_dict)
+    elif str(event_type or "").startswith("payment_intent."):
+        result = process_payment_intent_event(event_type, data_obj, event_dict)
+    else:
+        result = {"received": True, "ignored": event_type}
     if not is_new_event:
         result["duplicate"] = True
     return result
@@ -3783,6 +4082,36 @@ def sync_checkout_session(session_id: str):
     result = process_checkout_session_event(event_type, session_dict)
     try:
         result["order"] = get_order(session_id)
+    except Exception:
+        pass
+    return result
+
+
+@app.post("/checkout/sync-payment-intent/{payment_intent_id}")
+def sync_payment_intent(payment_intent_id: str):
+    """Verify a PaymentIntent server-side and apply paid/cancelled state."""
+    if not re.fullmatch(r"pi_[A-Za-z0-9]+", payment_intent_id or ""):
+        raise HTTPException(status_code=400, detail="Invalid payment intent id")
+    try:
+        intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+    except stripe.error.StripeError as exc:
+        print(f"Stripe PaymentIntent retrieve failed for {payment_intent_id[:12]}...: {type(exc).__name__}: {exc}")
+        raise HTTPException(status_code=502, detail="Failed to verify payment with Stripe") from exc
+
+    intent_dict = stripe_obj_to_dict(intent)
+    status = intent_dict.get("status")
+    if status == "succeeded":
+        event_type = "payment_intent.succeeded"
+    elif status == "canceled":
+        event_type = "payment_intent.canceled"
+    elif status == "processing":
+        event_type = "payment_intent.processing"
+    else:
+        event_type = "payment_intent.payment_failed"
+
+    result = process_payment_intent_event(event_type, intent_dict)
+    try:
+        result["order"] = get_order(payment_intent_id)
     except Exception:
         pass
     return result
@@ -3870,6 +4199,18 @@ def get_order(id_or_session: str):
         if result.data:
             row = result.data[0]
             return {**row, "order_number": 10000 + int(row.get("id") or 0)}
+
+        if str(id_or_session or "").startswith("pi_"):
+            result = (
+                supabase.table("orders")
+                .select(public_cols)
+                .eq("stripe_payment_intent_id", id_or_session)
+                .limit(1)
+                .execute()
+            )
+            if result.data:
+                row = result.data[0]
+                return {**row, "order_number": 10000 + int(row.get("id") or 0)}
 
         if _UUID_RE.match(id_or_session):
             result = (

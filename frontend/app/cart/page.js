@@ -5,18 +5,13 @@ import { trackViewCart } from '../lib/track'
 import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildItemImageAlt } from '../lib/seoText'
 
 export default function CartPage({ locale = 'en' }) {
   const d = getMessages(locale)
   const currency = currencyForLocale(locale)
   const uahRate = useUahRate(locale === UK_LOCALE)
   const lineUnit = (item) => priceForLocale(item, locale, uahRate)
-  const steps = [
-    { n: 1, label: d.cartPage.steps[0], active: true },
-    { n: 2, label: d.cartPage.steps[1], active: false },
-    { n: 3, label: d.cartPage.steps[2], disabled: true },
-    { n: 4, label: d.cartPage.steps[3], disabled: true },
-  ]
   const { cart, removeFromCart, updateQty, clearCart } = useCart()
   const total = cart.reduce((sum, i) => sum + lineUnit(i) * i.qty, 0)
   const viewTracked = useRef(false)
@@ -29,27 +24,6 @@ export default function CartPage({ locale = 'en' }) {
 
   return (
     <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
-      <div style={{display:'flex',alignItems:'center',marginBottom:40}}>
-        {steps.map((s, i) => (
-          <div key={s.n} style={{display:'flex',alignItems:'center',flex: i < steps.length - 1 ? 1 : 'none'}}>
-            <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-              <div style={{
-                width:32,height:32,borderRadius:'50%',
-                background: s.active ? '#000' : 'transparent',
-                border: s.active ? 'none' : '1.5px solid #ccc',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:13,fontWeight:500,
-                color: s.active ? '#fff' : s.disabled ? '#ccc' : '#888',
-              }}>{s.n}</div>
-              <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555'}}>{s.label}</p>
-            </div>
-            {i < steps.length - 1 && (
-              <div style={{flex:1,height:1,background:'#e5e5e3',margin:'0 8px',marginBottom:20}}/>
-            )}
-          </div>
-        ))}
-      </div>
-
       {cart.length === 0 ? (
         <div style={{textAlign:'center',padding:'80px 0'}}>
           <p style={{fontSize:18,color:'#aaa',marginBottom:24}}>{d.cartPage.empty}</p>
@@ -73,7 +47,7 @@ export default function CartPage({ locale = 'en' }) {
                   <a href={pathForLocale(`/products/${item.slug || item.id}`, locale)}
                     style={{width:90,height:90,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'block'}}>
                     {item.image_url
-                      ? <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                      ? <img src={item.image_url} alt={buildItemImageAlt(item, locale)} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                       : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#ccc'}}>{d.cartPage.noImage}</div>
                     }
                   </a>
@@ -122,7 +96,7 @@ export default function CartPage({ locale = 'en' }) {
               {cart.map(item => (
                 <div key={item.id+(item.size||'')} style={{display:'flex',gap:12,alignItems:'center'}}>
                   <div style={{width:52,height:52,borderRadius:8,overflow:'hidden',background:'#eee',flexShrink:0}}>
-                    {item.image_url && <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+                    {item.image_url && <img src={item.image_url} alt={buildItemImageAlt(item, locale)} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
                   </div>
                   <div style={{flex:1}}>
                     <p style={{fontSize:14,fontWeight:500,margin:'0 0 2px'}}>{item.name}</p>

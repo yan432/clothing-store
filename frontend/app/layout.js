@@ -19,6 +19,7 @@ import { Suspense } from 'react'
 import { headers } from 'next/headers'
 import { localeFromPathname } from './lib/i18n'
 import { shouldSuppressMarketingTracking } from './lib/trackingFilter'
+import { staticPageDescription } from './lib/seoText'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -37,7 +38,7 @@ export async function generateMetadata() {
   const s = await getSeoSettings()
   const siteName = s.seo_site_name || 'edm.clothes'
   const homeTitle = s.seo_home_title || `${siteName} — Minimal Clothing`
-  const description = s.seo_home_description || 'Minimal essentials designed for everyday wear. Made in Ukraine.'
+  const description = s.seo_home_description || staticPageDescription('home')
 
   return {
     metadataBase: new URL('https://www.edmclothes.net'),
@@ -64,6 +65,7 @@ export default async function RootLayout({ children }) {
   const referrer = requestHeaders.get('referer') || ''
   const hostname = requestHeaders.get('host') || ''
   const locale = localeFromPathname(pathname)
+  const isCheckoutShell = pathname === '/checkout' || pathname === '/ua/checkout'
   const suppressMarketingTracking = shouldSuppressMarketingTracking({
     pathname,
     search,
@@ -118,13 +120,13 @@ export default async function RootLayout({ children }) {
         <AuthProvider>
           <WishlistProvider>
           <CartProvider>
-            <AnnouncementBar />
-            <NavBar />
-            <DrawerWrapper />
-            <EmailCapturePopup />
+            {!isCheckoutShell && <AnnouncementBar />}
+            {!isCheckoutShell && <NavBar />}
+            {!isCheckoutShell && <DrawerWrapper />}
+            {!isCheckoutShell && <EmailCapturePopup />}
             <Suspense fallback={null}><UtmCapture /></Suspense>
             {children}
-            <Footer />
+            {!isCheckoutShell && <Footer />}
             <CookieConsent />
             <MarketingPixels disabled={suppressMarketingTracking} />
             {!suppressMarketingTracking && (

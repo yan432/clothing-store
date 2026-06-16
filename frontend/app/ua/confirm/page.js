@@ -1,13 +1,5 @@
-import ConfirmPage from '../../confirm/page'
+import { redirect } from 'next/navigation'
 
-export const metadata = {
-  title: 'Підтвердження замовлення',
-  alternates: { canonical: '/ua/confirm' },
-  openGraph: {
-    locale: 'uk_UA',
-  },
-}
-
-export default function UkrainianConfirmPage() {
-  return <ConfirmPage locale="uk" />
+export default function UkrainianConfirmRedirect() {
+  redirect('/ua/checkout')
 }
