@@ -335,7 +335,6 @@ export const messages = {
       settingsTitle: 'Cookie preferences',
       save: 'Save preferences',
       acceptAll: 'Accept all',
-      rejectAll: 'Reject all',
       necessary: {
         title: 'Strictly necessary',
         body: 'Required for the website to function properly — for example, signing in or adding items to your cart.',
@@ -755,7 +754,6 @@ export const messages = {
       settingsTitle: 'Налаштування cookies',
       save: 'Зберегти вибір',
       acceptAll: 'Прийняти все',
-      rejectAll: 'Відхилити все',
       necessary: {
         title: 'Необхідні для роботи',
         body: 'Потрібні, щоб сайт працював коректно — наприклад, для входу в акаунт або додавання товарів у кошик.',
