@@ -1,7 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
-import AdminOnly from '../../../components/AdminOnly'
 import { Package, Mail } from 'lucide-react'
 
 function fmtDate(value) {
@@ -195,42 +194,35 @@ export default function OrderDetailsClient({ id }) {
   const metadata = order?.metadata_json || {}
 
   if (loading) return (
-    <AdminOnly>
-      <main style={{maxWidth:960,margin:'0 auto',padding:'48px 24px'}}>
-        <p style={{color:'#888'}}>{retryCount === 0 ? 'Loading order…' : `Connecting to server… (attempt ${retryCount + 1}/7)`}</p>
-        {retryCount > 0 && (
-          <p style={{fontSize:12,color:'#bbb',marginTop:4}}>Server is waking up, please wait…</p>
-        )}
-      </main>
-    </AdminOnly>
+    <div style={{maxWidth:960}}>
+      <p style={{color:'#888'}}>{retryCount === 0 ? 'Loading order…' : `Connecting to server… (attempt ${retryCount + 1}/7)`}</p>
+      {retryCount > 0 && (
+        <p style={{fontSize:12,color:'#bbb',marginTop:4}}>Server is waking up, please wait…</p>
+      )}
+    </div>
   )
 
   if (error) return (
-    <AdminOnly>
-      <main style={{maxWidth:960,margin:'0 auto',padding:'48px 24px'}}>
-        <a href="/admin/orders" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to orders</a>
-        <p style={{color:'#b91c1c',marginTop:16}}>Error: {error}</p>
-        <button onClick={load} style={{marginTop:12,padding:'8px 18px',borderRadius:8,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>
-          Retry
-        </button>
-      </main>
-    </AdminOnly>
+    <div style={{maxWidth:960}}>
+      <a href="/admin/orders" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to orders</a>
+      <p style={{color:'#b91c1c',marginTop:16}}>Error: {error}</p>
+      <button onClick={load} style={{marginTop:12,padding:'8px 18px',borderRadius:8,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>
+        Retry
+      </button>
+    </div>
   )
 
   if (!order) return (
-    <AdminOnly>
-      <main style={{maxWidth:960,margin:'0 auto',padding:'48px 24px'}}>
-        <a href="/admin/orders" style={{fontSize:14,color:'#666'}}>← Back to orders</a>
-        <p style={{marginTop:16,color:'#888'}}>Order not found</p>
-      </main>
-    </AdminOnly>
+    <div style={{maxWidth:960}}>
+      <a href="/admin/orders" style={{fontSize:14,color:'#666'}}>← Back to orders</a>
+      <p style={{marginTop:16,color:'#888'}}>Order not found</p>
+    </div>
   )
 
   const inp = { padding:'10px 12px', borderRadius:8, border:'1px solid #e5e5e3', fontSize:13, outline:'none', width:'100%', boxSizing:'border-box', background:'#fff' }
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:960,margin:'0 auto',padding:'40px 24px 80px'}}>
+    <div style={{maxWidth:960}}>
         <a href="/admin/orders" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to orders</a>
 
         {/* Header */}
@@ -462,7 +454,6 @@ export default function OrderDetailsClient({ id }) {
             </section>
           </div>
         </div>
-      </main>
-    </AdminOnly>
+    </div>
   )
 }

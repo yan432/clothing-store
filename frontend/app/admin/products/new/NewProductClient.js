@@ -1,8 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import AdminOnly from '../../../components/AdminOnly'
-import AdminTopBar from '../../../components/AdminTopBar'
+import PageHeader from '../../_components/PageHeader'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
 import { buildSizeTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 
@@ -349,13 +348,10 @@ export default function NewProductClient({ inTab = false }) {
   if (inTab) return <div style={{maxWidth:760}}>{inner}</div>
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:760,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <Link href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</Link>
-        <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Create product</h1>
-        <AdminTopBar active="products-new" />
-        {inner}
-      </main>
-    </AdminOnly>
+    <div style={{maxWidth:760}}>
+      <Link href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</Link>
+      <PageHeader title="Create product" />
+      {inner}
+    </div>
   )
 }

@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import AdminOnly from '../../components/AdminOnly'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 const FIELDS = [
@@ -172,30 +171,24 @@ export default function SettingsClient() {
   const btnBase = { borderRadius: 10, padding: '9px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd' }
 
   return (
-    <AdminOnly>
-      <main style={{ maxWidth: 740, margin: '0 auto', padding: '32px 24px' }}>
+    <div style={{ maxWidth: 740 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
+        <button onClick={() => setPreview(p => p === 'customer' ? null : 'customer')}
+          style={{ ...btnBase, background: preview === 'customer' ? '#f3f3f0' : '#fff', fontWeight: preview === 'customer' ? 600 : 400 }}>
+          Preview — Customer
+        </button>
+        <button onClick={() => setPreview(p => p === 'admin' ? null : 'admin')}
+          style={{ ...btnBase, background: preview === 'admin' ? '#f3f3f0' : '#fff', fontWeight: preview === 'admin' ? 600 : 400 }}>
+          Preview — Admin alert
+        </button>
+        <button onClick={save} disabled={saving}
+          style={{ ...btnBase, border: 'none', background: '#111', color: '#fff', opacity: saving ? 0.7 : 1 }}>
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
 
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Settings</h1>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={() => setPreview(p => p === 'customer' ? null : 'customer')}
-              style={{ ...btnBase, background: preview === 'customer' ? '#f3f3f0' : '#fff', fontWeight: preview === 'customer' ? 600 : 400 }}>
-              Preview — Customer
-            </button>
-            <button onClick={() => setPreview(p => p === 'admin' ? null : 'admin')}
-              style={{ ...btnBase, background: preview === 'admin' ? '#f3f3f0' : '#fff', fontWeight: preview === 'admin' ? 600 : 400 }}>
-              Preview — Admin alert
-            </button>
-            <button onClick={save} disabled={saving}
-              style={{ ...btnBase, border: 'none', background: '#111', color: '#fff', opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          </div>
-        </div>
-
-        {message && <div style={{ background: '#ecfdf3', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>{message}</div>}
-        {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>{error}</div>}
+      {message && <div style={{ background: '#ecfdf3', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>{message}</div>}
+      {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>{error}</div>}
 
         {/* Previews */}
         {preview && (
@@ -278,7 +271,6 @@ export default function SettingsClient() {
             </div>
           </div>
         )}
-      </main>
-    </AdminOnly>
+    </div>
   )
 }

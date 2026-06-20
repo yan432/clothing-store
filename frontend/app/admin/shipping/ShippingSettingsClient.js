@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import AdminOnly from '../../components/AdminOnly'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 import { getAdminApiUrl } from '../../lib/api'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -98,25 +97,27 @@ export default function ShippingSettingsClient() {
     })
   }
 
-  if (loading) return <AdminOnly><AdminTopBar active="shipping" /><div style={{padding:40,textAlign:'center',color:'#aaa'}}>Loading…</div></AdminOnly>
+  if (loading) return <div style={{padding:40,textAlign:'center',color:'#aaa'}}>Loading…</div>
 
   const zones = cfg?.europe_zones || {}
   const zoneKeys = Object.keys(zones).sort((a,b) => Number(a)-Number(b))
 
   return (
-    <AdminOnly>
-      <AdminTopBar active="shipping" />
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>Shipping Settings</h1>
+    <>
+      <PageHeader
+        title="Shipping rates"
+        subtitle="Zones, weight tiers and free-shipping thresholds."
+        actions={(
           <button
             onClick={save}
             disabled={saving}
-            style={{ background: '#000', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}
+            style={{ background: '#000', color: '#fff', border: 'none', padding: '10px 22px', borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}
           >
             {saving ? 'Saving…' : 'Save all'}
           </button>
-        </div>
+        )}
+      />
+      <div style={{ maxWidth: 860 }}>
         {msg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: '#166534', marginBottom: 16 }}>{msg}</div>}
         {err && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 16px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>{err}</div>}
 
@@ -362,6 +363,6 @@ export default function ShippingSettingsClient() {
           </button>
         </div>
       </div>
-    </AdminOnly>
+    </>
   )
 }

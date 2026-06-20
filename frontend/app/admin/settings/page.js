@@ -1,14 +1,13 @@
-import AdminOnly from '../../components/AdminOnly'
 import SettingsClient from './SettingsClient'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 
 export const metadata = { title: 'Settings' }
 
 export default function SettingsPage() {
   return (
-    <AdminOnly>
-      <AdminTopBar active="settings" />
+    <>
+      <PageHeader title="Settings" subtitle="SEO, emails, announcement bar and other site-wide configuration." />
       <SettingsClient />
-    </AdminOnly>
+    </>
   )
 }

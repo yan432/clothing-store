@@ -1,11 +1,13 @@
-import AdminTopBar from '../../components/AdminTopBar'
 import PagesClient from './PagesClient'
+import PageHeader from '../_components/PageHeader'
+
+export const metadata = { title: 'Static pages' }
 
 export default function AdminPagesPage() {
   return (
-    <main style={{ maxWidth: 900, margin: '0 auto', padding: '32px 20px 80px' }}>
-      <AdminTopBar active="pages" />
+    <>
+      <PageHeader title="Static pages" subtitle="About, returns, shipping policy and other CMS pages." />
       <PagesClient />
-    </main>
+    </>
   )
 }

@@ -2,8 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 import OrdersTable from './OrdersTable'
-import AdminOnly from '../../components/AdminOnly'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 
 export default function AdminOrdersClient() {
   const [orders, setOrders] = useState([])
@@ -40,15 +39,12 @@ export default function AdminOrdersClient() {
   }, [load])
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:1200,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:20}}>
-          <h1 style={{fontSize:30,fontWeight:600,margin:0}}>Orders</h1>
-          <p style={{fontSize:14,color:'#80807a',margin:0}}>{orders.length} total</p>
-        </div>
-        <AdminTopBar active="orders" />
-
-        {loading ? (
+    <>
+      <PageHeader
+        title="Orders"
+        subtitle={loading ? null : `${orders.length} total`}
+      />
+      {loading ? (
           <div>
             <p style={{color:'#888'}}>{retryCount === 0 ? 'Loading orders…' : `Connecting to server… (${retryCount + 1}/7)`}</p>
             {retryCount > 0 && <p style={{fontSize:12,color:'#bbb',marginTop:4}}>Server is waking up, please wait…</p>}
@@ -59,9 +55,8 @@ export default function AdminOrdersClient() {
             <button onClick={() => load()} style={{marginTop:8,padding:'8px 16px',borderRadius:8,border:'1px solid #ddd',background:'#fff',cursor:'pointer',fontSize:13}}>Retry</button>
           </div>
         ) : (
-          <OrdersTable orders={orders} />
-        )}
-      </main>
-    </AdminOnly>
+        <OrdersTable orders={orders} />
+      )}
+    </>
   )
 }

@@ -1,9 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import AdminOnly from '../../../components/AdminOnly'
+import PageHeader from '../../_components/PageHeader'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
-import AdminTopBar from '../../../components/AdminTopBar'
 import { buildSizeTags, parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../../../lib/sizeOptions'
 import { eurToUah, DEFAULT_UAH_EUR_RATE } from '../../../lib/money'
 
@@ -367,13 +366,10 @@ export default function ProductEditorClient({ id }) {
   }
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:760,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <Link href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</Link>
-        <h1 style={{fontSize:30,fontWeight:600,margin:'14px 0 18px'}}>Edit product #{id}</h1>
-        <AdminTopBar active="products" />
-
-        {loading ? (
+    <div style={{maxWidth:760}}>
+      <Link href="/admin/products" style={{fontSize:14,color:'#666',textDecoration:'none'}}>← Back to products</Link>
+      <PageHeader title={`Edit product #${id}`} />
+      {loading ? (
           <p style={{color:'#888'}}>Loading product...</p>
         ) : (
           <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:12,background:'#fff',border:'1px solid #ecece8',borderRadius:12,padding:16}}>
@@ -713,7 +709,6 @@ export default function ProductEditorClient({ id }) {
             </button>
           </form>
         )}
-      </main>
-    </AdminOnly>
+    </div>
   )
 }

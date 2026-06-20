@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import AdminOnly from '../../components/AdminOnly'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 function randomCode(length = 8) {
@@ -235,12 +234,9 @@ export default function PromoCodesClient() {
   }
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:1100,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <h1 style={{fontSize:30,fontWeight:600,margin:'0 0 18px'}}>Promo codes</h1>
-        <AdminTopBar active="promos" />
-
-        <form onSubmit={handleCreate} style={{display:'flex',flexDirection:'column',gap:12,background:'#fff',border:'1px solid #ecece8',borderRadius:12,padding:16,marginBottom:18}}>
+    <>
+      <PageHeader title="Promo codes" subtitle="Discounts and gift codes for the storefront." />
+      <form onSubmit={handleCreate} style={{display:'flex',flexDirection:'column',gap:12,background:'#fff',border:'1px solid #ecece8',borderRadius:12,padding:16,marginBottom:18}}>
           {error && <div style={{background:'#fef2f2',border:'1px solid #fecaca',color:'#b91c1c',borderRadius:10,padding:'10px 12px',fontSize:14}}>{error}</div>}
           {message && <div style={{background:'#ecfdf3',border:'1px solid #bbf7d0',color:'#166534',borderRadius:10,padding:'10px 12px',fontSize:14}}>{message}</div>}
 
@@ -471,7 +467,6 @@ export default function PromoCodesClient() {
             </div>
           </div>
         )}
-      </main>
-    </AdminOnly>
+    </>
   )
 }

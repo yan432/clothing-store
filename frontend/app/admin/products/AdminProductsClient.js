@@ -1,10 +1,8 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
-import AdminOnly from '../../components/AdminOnly'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 import NewProductClient from './new/NewProductClient'
-import InventoryClient from '../inventory/InventoryClient'
 
 async function fetchJsonWithTimeout(url, timeoutMs = 2500) {
   const controller = new AbortController()
@@ -356,27 +354,24 @@ export default function AdminProductsClient() {
   }
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:1200,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <h1 style={{fontSize:30,fontWeight:600,margin:'0 0 18px'}}>Products</h1>
-        <AdminTopBar active="products" />
+    <>
+      <PageHeader title="Products" subtitle="Browse, edit and publish catalog items." />
 
-        {/* Inner tabs */}
-        <div style={{display:'flex',gap:0,marginBottom:24,borderBottom:'2px solid #ecece8'}}>
-          {[['products','All Products'],['new','Add New'],['inventory','Inventory']].map(([id,label]) => (
-            <button key={id} onClick={() => setTab(id)} style={{
-              background:'none', border:'none', padding:'8px 18px', fontSize:14, cursor:'pointer',
-              fontWeight: tab === id ? 700 : 400,
-              color: tab === id ? '#111' : '#888',
-              borderBottom: tab === id ? '2px solid #111' : '2px solid transparent',
-              marginBottom: -2,
-            }}>{label}</button>
-          ))}
-        </div>
+      {/* Inner tabs */}
+      <div style={{display:'flex',gap:0,marginBottom:24,borderBottom:'1px solid #ecece8'}}>
+        {[['products','All products'],['new','Add new']].map(([id,label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{
+            background:'none', border:'none', padding:'8px 18px', fontSize:14, cursor:'pointer',
+            fontWeight: tab === id ? 700 : 400,
+            color: tab === id ? '#111' : '#888',
+            borderBottom: tab === id ? '2px solid #111' : '2px solid transparent',
+            marginBottom: -1,
+          }}>{label}</button>
+        ))}
+      </div>
 
-        {tab === 'new' && <NewProductClient inTab />}
-        {tab === 'inventory' && <InventoryClient />}
-        {tab === 'products' && <>
+      {tab === 'new' && <NewProductClient inTab />}
+      {tab === 'products' && <>
 
         <input
           value={query}
@@ -758,7 +753,6 @@ export default function AdminProductsClient() {
           </div>
         )}
         </>}
-      </main>
-    </AdminOnly>
+    </>
   )
 }

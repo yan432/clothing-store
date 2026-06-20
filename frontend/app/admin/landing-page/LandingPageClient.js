@@ -1,7 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import AdminOnly from '../../components/AdminOnly'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 import { getAdminApiUrl } from '../../lib/api'
 import { homepageContent } from '../../lib/homepageContent'
 
@@ -151,12 +150,9 @@ export default function LandingPageClient() {
     : null
 
   return (
-    <AdminOnly>
-      <div style={{ maxWidth: 700, margin: '0 auto', padding: '32px 24px', fontFamily: 'system-ui, sans-serif' }}>
-        <AdminTopBar active="landing-page" />
-
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 28px' }}>Landing Page</h1>
-
+    <>
+      <PageHeader title="Landing page" subtitle="Hero, overlay and promo tiles for the public landing." />
+      <div style={{ maxWidth: 700 }}>
         {loading ? (
           <p style={{ color: '#888', fontSize: 14 }}>Loading…</p>
         ) : (
@@ -273,6 +269,6 @@ export default function LandingPageClient() {
           </>
         )}
       </div>
-    </AdminOnly>
+    </>
   )
 }

@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import AdminOnly from '../../components/AdminOnly'
-import AdminTopBar from '../../components/AdminTopBar'
+import PageHeader from '../_components/PageHeader'
 import { getAdminApiUrl as getApiUrl } from '../../lib/api'
 
 export default function SubscribersClient() {
@@ -37,23 +36,20 @@ export default function SubscribersClient() {
   }
 
   return (
-    <AdminOnly>
-      <main style={{maxWidth:1200,margin:'0 auto',padding:'40px 24px 72px'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:18}}>
-          <h1 style={{fontSize:30,fontWeight:600,margin:0}}>Subscribers</h1>
-          <div style={{display:'flex',alignItems:'center',gap:12}}>
-            <p style={{fontSize:14,color:'#80807a',margin:0}}>{items.length} subscribed</p>
-            <a
-              href={getApiUrl('/email-subscribers/export.csv')}
-              style={{background:'#111',color:'#fff',padding:'8px 12px',borderRadius:10,fontSize:13,textDecoration:'none'}}
-            >
-              Download CSV
-            </a>
-          </div>
-        </div>
-        <AdminTopBar active="subscribers" />
-
-        {loading ? (
+    <>
+      <PageHeader
+        title="Subscribers"
+        subtitle={`${items.length} subscribed`}
+        actions={(
+          <a
+            href={getApiUrl('/email-subscribers/export.csv')}
+            style={{background:'#111',color:'#fff',padding:'8px 14px',borderRadius:8,fontSize:13,textDecoration:'none'}}
+          >
+            Download CSV
+          </a>
+        )}
+      />
+      {loading ? (
           <p style={{color:'#888'}}>Loading subscribers...</p>
         ) : error ? (
           <p style={{color:'#b91c1c'}}>Error: {error}</p>
@@ -88,7 +84,6 @@ export default function SubscribersClient() {
             </table>
           </div>
         )}
-      </main>
-    </AdminOnly>
+    </>
   )
 }
