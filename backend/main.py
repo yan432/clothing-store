@@ -332,6 +332,7 @@ class Product(BaseModel):
     color_group_id: Optional[str] = None
     volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
     brand_id: Optional[int] = None
+    hover_image_url: Optional[str] = None  # selected hover photo for the product card; null = use second image
 
 
 class ProductUpdate(BaseModel):
@@ -362,6 +363,7 @@ class ProductUpdate(BaseModel):
     color_group_id: Optional[str] = None
     volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
     brand_id: Optional[int] = None
+    hover_image_url: Optional[str] = None
 
 
 class ProductImageDelete(BaseModel):

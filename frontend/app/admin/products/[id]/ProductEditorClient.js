@@ -289,6 +289,30 @@ export default function ProductEditorClient({ id }) {
     }
   }
 
+  async function handleSetAsHover(imageUrl) {
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const nextHover = product?.hover_image_url === imageUrl ? null : imageUrl
+      const res = await fetch(getApiUrl('/products/' + id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hover_image_url: nextHover }),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || 'Failed to set hover photo')
+      }
+      await reloadProduct()
+      setMessage(nextHover ? 'Hover photo updated' : 'Hover photo cleared')
+    } catch (e) {
+      setError(e.message || 'Failed to set hover photo')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function handleReorderImage(fromIdx, toIdx) {
     const urls = [...(product.image_urls || [])]
     if (toIdx < 0 || toIdx >= urls.length) return
@@ -520,39 +544,55 @@ export default function ProductEditorClient({ id }) {
               </label>
               {Array.isArray(product?.image_urls) && product.image_urls.length > 0 && (
                 <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill, minmax(92px, 1fr))',gap:8,marginTop:10}}>
-                  {product.image_urls.map((url, idx) => (
-                    <div key={url} style={{position:'relative',aspectRatio:'4/5',borderRadius:8,overflow:'hidden',border: product.image_url === url ? '2px solid #111' : '1px solid #e8e8e2'}}>
-                      <img src={url} alt="product" style={{width:'100%',height:'100%',objectFit:'cover'}} />
-                      {/* Cover label */}
-                      {product.image_url === url && (
-                        <div style={{position:'absolute',left:4,bottom:4,background:'#111',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:5,pointerEvents:'none'}}>Cover</div>
-                      )}
-                      {/* Reorder arrows */}
-                      <div style={{position:'absolute',left:4,top:4,display:'flex',flexDirection:'column',gap:2}}>
-                        {idx > 0 && (
-                          <button type="button" onClick={() => handleReorderImage(idx, idx - 1)}
-                            style={{background:'rgba(255,255,255,0.9)',border:'none',borderRadius:4,width:20,height:20,fontSize:12,cursor:'pointer',lineHeight:1,padding:0}}>↑</button>
-                        )}
-                        {idx < product.image_urls.length - 1 && (
-                          <button type="button" onClick={() => handleReorderImage(idx, idx + 1)}
-                            style={{background:'rgba(255,255,255,0.9)',border:'none',borderRadius:4,width:20,height:20,fontSize:12,cursor:'pointer',lineHeight:1,padding:0}}>↓</button>
-                        )}
-                      </div>
-                      {/* Set cover / Delete */}
-                      <div style={{position:'absolute',top:4,right:4,display:'flex',flexDirection:'column',gap:2,alignItems:'flex-end'}}>
-                        {product.image_url !== url && (
-                          <button type="button" onClick={() => handleSetAsCover(url)}
-                            style={{background:'rgba(255,255,255,0.88)',color:'#111',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            ★ Cover
+                  {product.image_urls.map((url, idx) => {
+                    const isCover = product.image_url === url
+                    const isHover = product.hover_image_url === url
+                    const borderColor = isCover ? '#111' : (isHover ? '#2563eb' : '#e8e8e2')
+                    const borderWidth = (isCover || isHover) ? 2 : 1
+                    return (
+                      <div key={url} style={{position:'relative',aspectRatio:'4/5',borderRadius:8,overflow:'hidden',border: `${borderWidth}px solid ${borderColor}`}}>
+                        <img src={url} alt="product" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                        {/* Cover / Hover labels */}
+                        <div style={{position:'absolute',left:4,bottom:4,display:'flex',gap:4,pointerEvents:'none'}}>
+                          {isCover && (
+                            <div style={{background:'#111',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:5}}>Cover</div>
+                          )}
+                          {isHover && (
+                            <div style={{background:'#2563eb',color:'#fff',fontSize:10,fontWeight:700,padding:'2px 6px',borderRadius:5}}>Hover</div>
+                          )}
+                        </div>
+                        {/* Reorder arrows */}
+                        <div style={{position:'absolute',left:4,top:4,display:'flex',flexDirection:'column',gap:2}}>
+                          {idx > 0 && (
+                            <button type="button" onClick={() => handleReorderImage(idx, idx - 1)}
+                              style={{background:'rgba(255,255,255,0.9)',border:'none',borderRadius:4,width:20,height:20,fontSize:12,cursor:'pointer',lineHeight:1,padding:0}}>↑</button>
+                          )}
+                          {idx < product.image_urls.length - 1 && (
+                            <button type="button" onClick={() => handleReorderImage(idx, idx + 1)}
+                              style={{background:'rgba(255,255,255,0.9)',border:'none',borderRadius:4,width:20,height:20,fontSize:12,cursor:'pointer',lineHeight:1,padding:0}}>↓</button>
+                          )}
+                        </div>
+                        {/* Set cover / Set hover / Delete */}
+                        <div style={{position:'absolute',top:4,right:4,display:'flex',flexDirection:'column',gap:2,alignItems:'flex-end'}}>
+                          {!isCover && (
+                            <button type="button" onClick={() => handleSetAsCover(url)}
+                              style={{background:'rgba(255,255,255,0.88)',color:'#111',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer',whiteSpace:'nowrap'}}>
+                              ★ Cover
+                            </button>
+                          )}
+                          <button type="button" onClick={() => handleSetAsHover(url)}
+                            title={isHover ? 'Click to clear hover photo' : 'Show this photo when hovering the product card'}
+                            style={{background: isHover ? '#2563eb' : 'rgba(255,255,255,0.88)', color: isHover ? '#fff' : '#111', border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer',whiteSpace:'nowrap'}}>
+                            {isHover ? '✓ Hover' : '◐ Hover'}
                           </button>
-                        )}
-                        <button type="button" onClick={() => handleDeleteImage(url)}
-                          style={{background:'rgba(17,17,17,0.8)',color:'#fff',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer'}}>
-                          ✕
-                        </button>
+                          <button type="button" onClick={() => handleDeleteImage(url)}
+                            style={{background:'rgba(17,17,17,0.8)',color:'#fff',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer'}}>
+                            ✕
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
