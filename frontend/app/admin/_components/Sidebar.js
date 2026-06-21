@@ -22,6 +22,7 @@ const groups = [
     title: 'Catalog',
     items: [
       { href: '/admin/products', label: 'Products' },
+      { href: '/admin/brands', label: 'Brands' },
       { href: '/admin/inventory', label: 'Inventory' },
     ],
   },

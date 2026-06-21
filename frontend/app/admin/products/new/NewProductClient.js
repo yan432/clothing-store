@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import PageHeader from '../../_components/PageHeader'
 import { getAdminApiUrl as getApiUrl } from '../../../lib/api'
@@ -36,7 +36,18 @@ export default function NewProductClient({ inTab = false }) {
     order_mode: 'standard',
     order_priority: '0',
     volumetric_weight: '',
+    brand_id: '',
   })
+  const [brands, setBrands] = useState([])
+
+  useEffect(() => {
+    let alive = true
+    fetch(getApiUrl('/brands/admin'), { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (alive) setBrands(Array.isArray(d) ? d : []) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [])
 
   function setField(field, value) {
     setForm((f) => ({ ...f, [field]: value }))
@@ -76,6 +87,7 @@ export default function NewProductClient({ inTab = false }) {
         reserved_stock: 0,
         is_hidden: Boolean(form.is_hidden),
         volumetric_weight: form.volumetric_weight !== '' ? Number(form.volumetric_weight) : null,
+        brand_id: form.brand_id ? Number(form.brand_id) : null,
         tags: [
           form.is_new ? 'new' : null,
           form.is_sale ? 'sale' : null,
@@ -208,6 +220,13 @@ export default function NewProductClient({ inTab = false }) {
 
           <label style={{fontSize:13,color:'#444'}}>Category
             <input value={form.category} onChange={(e) => setField('category', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+          </label>
+
+          <label style={{fontSize:13,color:'#444'}}>Brand
+            <select value={form.brand_id} onChange={(e) => setField('brand_id', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#fff'}}>
+              <option value="">— None (own goods) —</option>
+              {brands.map(b => <option key={b.id} value={b.id}>{b.name}{b.is_active ? '' : ' (hidden)'}</option>)}
+            </select>
           </label>
 
           <label style={{fontSize:13,color:'#444'}}>Image URL (optional)

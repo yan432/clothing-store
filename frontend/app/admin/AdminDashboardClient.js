@@ -47,6 +47,7 @@ export default function AdminDashboardClient() {
   const [orders, setOrders] = useState(null)
   const [products, setProducts] = useState(null)
   const [subscribers, setSubscribers] = useState(null)
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -55,11 +56,13 @@ export default function AdminDashboardClient() {
       safeFetch(getApiUrl('/orders')),
       safeFetch(getApiUrl('/products/admin')),
       safeFetch(getApiUrl('/subscribers')),
-    ]).then(([o, p, s]) => {
+      safeFetch(getApiUrl('/admin/stats/views?period_days=7&limit=5')),
+    ]).then(([o, p, s, st]) => {
       if (!alive) return
       setOrders(Array.isArray(o) ? o : [])
       setProducts(Array.isArray(p) ? p : [])
       setSubscribers(Array.isArray(s) ? s : [])
+      setStats(st && typeof st === 'object' ? st : null)
       setLoading(false)
     })
     return () => { alive = false }
@@ -95,6 +98,83 @@ export default function AdminDashboardClient() {
           <StatTile label="Products" value={loading ? '…' : products.length} hint={loading ? null : `${hiddenProducts} hidden · ${archivedProducts} archived`} />
           <StatTile label="Subscribers" value={loading ? '…' : subscribers.length} />
         </div>
+      </section>
+
+      <section style={{ marginBottom: tokens.space.xxl }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: tokens.space.md }}>
+          <div style={tokens.font.label}>Top brands · 7d</div>
+          <Link href="/admin/brands" style={{ fontSize: 12, color: tokens.color.textMuted, textDecoration: 'none' }}>Manage brands →</Link>
+        </div>
+        <Card padding={0}>
+          {(!stats || !stats.top_brands || stats.top_brands.length === 0) ? (
+            <div style={{ padding: 20, color: tokens.color.textSubtle, fontSize: 13 }}>
+              {loading ? 'Loading…' : 'No views yet. Brand views start counting once tracking fires on storefront.'}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', background: tokens.color.bg, borderBottom: `1px solid ${tokens.color.border}` }}>
+                  <th style={{ padding: '10px 16px', ...tokens.font.label }}>Brand</th>
+                  <th style={{ padding: '10px 16px', ...tokens.font.label, textAlign: 'right' }}>Direct</th>
+                  <th style={{ padding: '10px 16px', ...tokens.font.label, textAlign: 'right' }}>Via products</th>
+                  <th style={{ padding: '10px 16px', ...tokens.font.label, textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.top_brands.map(b => (
+                  <tr key={b.brand_id} style={{ borderBottom: `1px solid ${tokens.color.border}` }}>
+                    <td style={{ padding: '12px 16px', fontSize: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: tokens.color.bg, overflow: 'hidden', flexShrink: 0 }}>
+                          {b.logo_url ? <img src={b.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                        </div>
+                        <span>{b.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, textAlign: 'right', color: tokens.color.textMuted }}>{b.direct_page_views}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, textAlign: 'right', color: tokens.color.textMuted }}>{b.product_views}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 14, textAlign: 'right', fontWeight: 600 }}>{b.views}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      </section>
+
+      <section style={{ marginBottom: tokens.space.xxl }}>
+        <div style={{ ...tokens.font.label, marginBottom: tokens.space.md }}>Top products · 7d</div>
+        <Card padding={0}>
+          {(!stats || !stats.top_products || stats.top_products.length === 0) ? (
+            <div style={{ padding: 20, color: tokens.color.textSubtle, fontSize: 13 }}>
+              {loading ? 'Loading…' : 'No product views yet.'}
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', background: tokens.color.bg, borderBottom: `1px solid ${tokens.color.border}` }}>
+                  <th style={{ padding: '10px 16px', ...tokens.font.label }}>Product</th>
+                  <th style={{ padding: '10px 16px', ...tokens.font.label, textAlign: 'right' }}>Views</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.top_products.map(p => (
+                  <tr key={p.product_id} style={{ borderBottom: `1px solid ${tokens.color.border}` }}>
+                    <td style={{ padding: '12px 16px', fontSize: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 40, borderRadius: 6, background: tokens.color.bg, overflow: 'hidden', flexShrink: 0 }}>
+                          {p.image_url ? <img src={p.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null}
+                        </div>
+                        <Link href={`/admin/products/${p.product_id}`} style={{ color: tokens.color.text, textDecoration: 'none' }}>{p.name}</Link>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontSize: 14, textAlign: 'right', fontWeight: 600 }}>{p.views}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
       </section>
 
       <section>

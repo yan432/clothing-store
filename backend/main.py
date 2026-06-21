@@ -146,6 +146,67 @@ def require_admin(request: Request):
     if header != ADMIN_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+
+def _trusted_proxy(request: Request) -> bool:
+    return request.headers.get("X-Admin-Secret", "") == ADMIN_SECRET
+
+
+def resolve_brand_user(request: Request) -> Optional[dict]:
+    """Look up the calling user's brand_users row, claiming any pending invite
+    that matches by email. Returns None if not a brand user.
+
+    Trusts X-Partner-User-Id and X-Partner-User-Email headers only when
+    X-Admin-Secret proves the request came from our proxy."""
+    if not _trusted_proxy(request):
+        return None
+    user_id = (request.headers.get("X-Partner-User-Id") or "").strip()
+    email = (request.headers.get("X-Partner-User-Email") or "").strip().lower()
+    if not user_id and not email:
+        return None
+
+    try:
+        # Try user_id link first.
+        if user_id:
+            existing = (
+                supabase.table("brand_users")
+                .select("*")
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                return existing.data[0]
+
+        # Claim a pending invite by email.
+        if user_id and email:
+            pending = (
+                supabase.table("brand_users")
+                .select("*")
+                .ilike("email", email)
+                .is_("user_id", "null")
+                .limit(1)
+                .execute()
+            )
+            if pending.data:
+                row = pending.data[0]
+                claimed = supabase.table("brand_users").update({
+                    "user_id": user_id,
+                    "claimed_at": now_iso(),
+                }).eq("id", row["id"]).execute()
+                if claimed.data:
+                    return claimed.data[0]
+    except Exception:
+        # brand_users table may not exist yet (migration 031 not applied).
+        return None
+    return None
+
+
+def require_brand_user(request: Request) -> dict:
+    bu = resolve_brand_user(request)
+    if not bu:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return bu
+
 def _hmac_hex(message: str) -> str:
     return hmac.new(ADMIN_SECRET.encode(), message.encode(), hashlib.sha256).hexdigest()
 
@@ -270,6 +331,7 @@ class Product(BaseModel):
     color_hex: Optional[str] = None
     color_group_id: Optional[str] = None
     volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
+    brand_id: Optional[int] = None
 
 
 class ProductUpdate(BaseModel):
@@ -299,6 +361,7 @@ class ProductUpdate(BaseModel):
     color_hex: Optional[str] = None
     color_group_id: Optional[str] = None
     volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
+    brand_id: Optional[int] = None
 
 
 class ProductImageDelete(BaseModel):
@@ -4269,6 +4332,446 @@ def update_settings(payload: dict):
             on_conflict="key"
         ).execute()
     return {"ok": True}
+
+
+# ── Brands ──────────────────────────────────────────────────────────────────
+
+class Brand(BaseModel):
+    slug: str
+    name: str
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    cover_url: Optional[str] = None
+    is_active: bool = True
+    sort_order: int = 0
+
+
+class BrandUpdate(BaseModel):
+    slug: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    logo_url: Optional[str] = None
+    cover_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    sort_order: Optional[int] = None
+
+
+def _normalize_brand_slug(value: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", (value or "").lower()).strip("-")
+    return base or ""
+
+
+@app.get("/brands")
+def list_brands_public():
+    try:
+        data = (
+            supabase.table("brands")
+            .select("id,slug,name,description,logo_url,cover_url,sort_order")
+            .eq("is_active", True)
+            .order("sort_order")
+            .order("name")
+            .execute()
+        )
+        return data.data or []
+    except Exception:
+        # Table may not exist yet (migration 030 not applied).
+        return []
+
+
+@app.get("/brands/admin", dependencies=[Depends(require_admin)])
+def list_brands_admin():
+    try:
+        data = (
+            supabase.table("brands")
+            .select("*")
+            .order("sort_order")
+            .order("name")
+            .execute()
+        )
+        return data.data or []
+    except Exception:
+        return []
+
+
+@app.post("/brands", dependencies=[Depends(require_admin)])
+def create_brand(payload: Brand):
+    name = (payload.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    slug = _normalize_brand_slug(payload.slug or name)
+    if not slug:
+        raise HTTPException(status_code=400, detail="slug is required")
+    existing = supabase.table("brands").select("id").eq("slug", slug).limit(1).execute()
+    if existing.data:
+        raise HTTPException(status_code=400, detail="Brand slug already exists")
+    row = {
+        "slug": slug,
+        "name": name,
+        "description": payload.description,
+        "logo_url": payload.logo_url,
+        "cover_url": payload.cover_url,
+        "is_active": bool(payload.is_active),
+        "sort_order": int(payload.sort_order or 0),
+    }
+    data = supabase.table("brands").insert(row).execute()
+    if not data.data:
+        raise HTTPException(status_code=500, detail="Failed to create brand")
+    return data.data[0]
+
+
+@app.put("/brands/{brand_id}", dependencies=[Depends(require_admin)])
+def update_brand(brand_id: int, payload: BrandUpdate):
+    updates = payload.dict(exclude_unset=True)
+    if "slug" in updates and updates["slug"] is not None:
+        updates["slug"] = _normalize_brand_slug(updates["slug"])
+        if not updates["slug"]:
+            raise HTTPException(status_code=400, detail="slug cannot be empty")
+        dup = supabase.table("brands").select("id").eq("slug", updates["slug"]).neq("id", brand_id).limit(1).execute()
+        if dup.data:
+            raise HTTPException(status_code=400, detail="Brand slug already exists")
+    if "name" in updates and updates["name"] is not None:
+        updates["name"] = updates["name"].strip()
+        if not updates["name"]:
+            raise HTTPException(status_code=400, detail="name cannot be empty")
+    updates["updated_at"] = now_iso()
+    data = supabase.table("brands").update(updates).eq("id", brand_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return data.data[0]
+
+
+@app.delete("/brands/{brand_id}", dependencies=[Depends(require_admin)])
+def delete_brand(brand_id: int):
+    data = supabase.table("brands").delete().eq("id", brand_id).execute()
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Brand not found")
+    return {"message": "Brand deleted"}
+
+
+# ── Brand users (admin-managed invite list) ─────────────────────────────────
+
+class BrandUserInvite(BaseModel):
+    email: str
+    role: Optional[str] = "owner"
+
+
+@app.get("/admin/brands/{brand_id}/users", dependencies=[Depends(require_admin)])
+def list_brand_users(brand_id: int):
+    try:
+        rows = (
+            supabase.table("brand_users")
+            .select("*")
+            .eq("brand_id", brand_id)
+            .order("created_at")
+            .execute()
+        ).data or []
+        return rows
+    except Exception:
+        return []
+
+
+@app.post("/admin/brands/{brand_id}/users", dependencies=[Depends(require_admin)])
+def invite_brand_user(brand_id: int, payload: BrandUserInvite):
+    email = (payload.email or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email required")
+    role = (payload.role or "owner").strip()
+    if role not in ("owner", "manager"):
+        raise HTTPException(status_code=400, detail="role must be owner or manager")
+
+    brand = supabase.table("brands").select("id").eq("id", brand_id).limit(1).execute()
+    if not brand.data:
+        raise HTTPException(status_code=404, detail="Brand not found")
+
+    try:
+        existing = (
+            supabase.table("brand_users")
+            .select("*")
+            .eq("brand_id", brand_id)
+            .ilike("email", email)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            return existing.data[0]
+
+        row = {
+            "brand_id": brand_id,
+            "email": email,
+            "role": role,
+        }
+        inserted = supabase.table("brand_users").insert(row).execute()
+        if not inserted.data:
+            raise HTTPException(status_code=500, detail="Failed to invite")
+        return inserted.data[0]
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"brand_users table unavailable ({exc})")
+
+
+@app.delete("/admin/brands/{brand_id}/users/{link_id}", dependencies=[Depends(require_admin)])
+def revoke_brand_user(brand_id: int, link_id: int):
+    data = (
+        supabase.table("brand_users")
+        .delete()
+        .eq("id", link_id)
+        .eq("brand_id", brand_id)
+        .execute()
+    )
+    if not data.data:
+        raise HTTPException(status_code=404, detail="Brand user link not found")
+    return {"message": "Revoked"}
+
+
+# ── Partner cabinet (scoped to caller's brand) ──────────────────────────────
+
+@app.get("/partner/me")
+def partner_me(request: Request):
+    bu = resolve_brand_user(request)
+    if not bu:
+        return {"is_partner": False}
+    brand = supabase.table("brands").select("*").eq("id", bu["brand_id"]).limit(1).execute()
+    return {
+        "is_partner": True,
+        "role": bu.get("role"),
+        "brand": brand.data[0] if brand.data else None,
+    }
+
+
+@app.get("/partner/products")
+def partner_products(bu: dict = Depends(require_brand_user)):
+    data = (
+        supabase.table("products")
+        .select("id,name,slug,category,price,compare_price,image_url,available_stock,stock,is_hidden,brand_id")
+        .eq("brand_id", bu["brand_id"])
+        .order("id", desc=True)
+        .execute()
+    )
+    return data.data or []
+
+
+@app.get("/partner/stats/views")
+def partner_stats_views(period_days: int = 7, bu: dict = Depends(require_brand_user)):
+    since = (datetime.now(timezone.utc) - timedelta(days=max(1, min(period_days, 365)))).isoformat()
+    brand_id = bu["brand_id"]
+
+    # Find products of this brand to filter product views.
+    prods = (
+        supabase.table("products")
+        .select("id,name,slug,image_url")
+        .eq("brand_id", brand_id)
+        .execute()
+    ).data or []
+    product_ids = [int(p["id"]) for p in prods]
+    products_by_id = {int(p["id"]): p for p in prods}
+
+    try:
+        rows = (
+            supabase.table("page_views")
+            .select("page_type,entity_id")
+            .gte("created_at", since)
+            .limit(20000)
+            .execute()
+        ).data or []
+    except Exception:
+        return {
+            "period_days": period_days,
+            "brand_views": 0,
+            "product_views_total": 0,
+            "top_products": [],
+            "migration_pending": True,
+        }
+
+    brand_views = 0
+    product_counts: dict[int, int] = {}
+    for r in rows:
+        eid = int(r.get("entity_id") or 0)
+        if r.get("page_type") == "brand" and eid == brand_id:
+            brand_views += 1
+        elif r.get("page_type") == "product" and eid in product_ids:
+            product_counts[eid] = product_counts.get(eid, 0) + 1
+
+    top_products = [
+        {
+            "product_id": pid,
+            "name": (products_by_id.get(pid) or {}).get("name") or "—",
+            "slug": (products_by_id.get(pid) or {}).get("slug"),
+            "image_url": (products_by_id.get(pid) or {}).get("image_url"),
+            "views": count,
+        }
+        for pid, count in sorted(product_counts.items(), key=lambda kv: kv[1], reverse=True)[:10]
+    ]
+
+    return {
+        "period_days": period_days,
+        "brand_views": brand_views,
+        "product_views_total": sum(product_counts.values()),
+        "top_products": top_products,
+    }
+
+
+# ── Page views (tracking + stats) ───────────────────────────────────────────
+
+class PageViewIn(BaseModel):
+    page_type: str  # 'product' | 'brand'
+    entity_id: int
+    session_id: Optional[str] = None
+    referrer: Optional[str] = None
+
+
+PAGE_VIEW_DEDUP_WINDOW_MIN = 30
+
+
+@app.post("/page-views")
+def track_page_view(payload: PageViewIn, request: Request):
+    page_type = (payload.page_type or "").strip().lower()
+    if page_type not in ("product", "brand"):
+        raise HTTPException(status_code=400, detail="page_type must be product or brand")
+    entity_id = int(payload.entity_id or 0)
+    if entity_id <= 0:
+        raise HTTPException(status_code=400, detail="entity_id required")
+
+    session_id = (payload.session_id or "").strip()[:64] or None
+
+    # Dedup: same session viewing same entity within window — skip.
+    if session_id:
+        try:
+            since = (datetime.now(timezone.utc) - timedelta(minutes=PAGE_VIEW_DEDUP_WINDOW_MIN)).isoformat()
+            existing = (
+                supabase.table("page_views")
+                .select("id")
+                .eq("session_id", session_id)
+                .eq("page_type", page_type)
+                .eq("entity_id", entity_id)
+                .gte("created_at", since)
+                .limit(1)
+                .execute()
+            )
+            if existing.data:
+                return {"ok": True, "deduped": True}
+        except Exception:
+            return {"ok": False, "stored": False}
+
+    country = request.headers.get("cf-ipcountry") or request.headers.get("x-vercel-ip-country") or None
+    referrer = (payload.referrer or request.headers.get("referer") or "")[:500] or None
+
+    try:
+        supabase.table("page_views").insert({
+            "page_type": page_type,
+            "entity_id": entity_id,
+            "session_id": session_id,
+            "country": country,
+            "referrer": referrer,
+        }).execute()
+    except Exception:
+        # Best-effort tracking — never break the storefront if the table is
+        # missing (migration 030 not applied) or the DB hiccups.
+        return {"ok": False, "stored": False}
+    return {"ok": True}
+
+
+@app.get("/admin/stats/views", dependencies=[Depends(require_admin)])
+def admin_stats_views(period_days: int = 7, limit: int = 5):
+    since = (datetime.now(timezone.utc) - timedelta(days=max(1, min(period_days, 365)))).isoformat()
+    try:
+        rows = (
+            supabase.table("page_views")
+            .select("page_type,entity_id")
+            .gte("created_at", since)
+            .limit(20000)
+            .execute()
+        ).data or []
+    except Exception:
+        return {
+            "period_days": period_days,
+            "total_product_views": 0,
+            "total_brand_views": 0,
+            "top_brands": [],
+            "top_products": [],
+            "migration_pending": True,
+        }
+
+    product_counts: dict[int, int] = {}
+    brand_counts: dict[int, int] = {}
+    for r in rows:
+        eid = int(r.get("entity_id") or 0)
+        if not eid:
+            continue
+        if r.get("page_type") == "product":
+            product_counts[eid] = product_counts.get(eid, 0) + 1
+        elif r.get("page_type") == "brand":
+            brand_counts[eid] = brand_counts.get(eid, 0) + 1
+
+    # Aggregate product views by brand too (a brand's reach via its products).
+    product_ids = list(product_counts.keys())
+    products_by_id: dict[int, dict] = {}
+    if product_ids:
+        prods = (
+            supabase.table("products")
+            .select("id,name,slug,image_url,brand_id")
+            .in_("id", product_ids)
+            .execute()
+        ).data or []
+        products_by_id = {int(p["id"]): p for p in prods}
+
+    brand_product_views: dict[int, int] = {}
+    for pid, count in product_counts.items():
+        p = products_by_id.get(pid) or {}
+        bid = p.get("brand_id")
+        if bid:
+            brand_product_views[int(bid)] = brand_product_views.get(int(bid), 0) + count
+
+    # Combine direct brand-page views + brand product views.
+    combined_brand: dict[int, int] = {}
+    for bid, count in brand_counts.items():
+        combined_brand[bid] = combined_brand.get(bid, 0) + count
+    for bid, count in brand_product_views.items():
+        combined_brand[bid] = combined_brand.get(bid, 0) + count
+
+    brand_ids = list(combined_brand.keys())
+    brands_by_id: dict[int, dict] = {}
+    if brand_ids:
+        bs = (
+            supabase.table("brands")
+            .select("id,name,slug,logo_url")
+            .in_("id", brand_ids)
+            .execute()
+        ).data or []
+        brands_by_id = {int(b["id"]): b for b in bs}
+
+    top_brands = [
+        {
+            "brand_id": bid,
+            "name": (brands_by_id.get(bid) or {}).get("name") or "—",
+            "slug": (brands_by_id.get(bid) or {}).get("slug"),
+            "logo_url": (brands_by_id.get(bid) or {}).get("logo_url"),
+            "views": total,
+            "direct_page_views": brand_counts.get(bid, 0),
+            "product_views": brand_product_views.get(bid, 0),
+        }
+        for bid, total in sorted(combined_brand.items(), key=lambda kv: kv[1], reverse=True)[:limit]
+    ]
+
+    top_products = [
+        {
+            "product_id": pid,
+            "name": (products_by_id.get(pid) or {}).get("name") or "—",
+            "slug": (products_by_id.get(pid) or {}).get("slug"),
+            "image_url": (products_by_id.get(pid) or {}).get("image_url"),
+            "brand_id": (products_by_id.get(pid) or {}).get("brand_id"),
+            "views": total,
+        }
+        for pid, total in sorted(product_counts.items(), key=lambda kv: kv[1], reverse=True)[:limit]
+    ]
+
+    return {
+        "period_days": period_days,
+        "total_product_views": sum(product_counts.values()),
+        "total_brand_views": sum(brand_counts.values()),
+        "top_brands": top_brands,
+        "top_products": top_products,
+    }
 
 
 # ── Homepage slides ─────────────────────────────────────────────────────────

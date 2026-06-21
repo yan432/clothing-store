@@ -50,10 +50,16 @@ export default function ProductEditorClient({ id }) {
     color_hex: '',
     color_group_id: '',
     volumetric_weight: '',
+    brand_id: '',
   })
+  const [brands, setBrands] = useState([])
 
   useEffect(() => {
     let mounted = true
+    fetch(getApiUrl('/brands/admin'), { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (mounted) setBrands(Array.isArray(d) ? d : []) })
+      .catch(() => {})
     async function load() {
       try {
         setLoading(true)
@@ -111,6 +117,7 @@ export default function ProductEditorClient({ id }) {
           color_hex: p.color_hex || '',
           color_group_id: p.color_group_id || '',
           volumetric_weight: p.volumetric_weight != null ? String(p.volumetric_weight) : '',
+          brand_id: p.brand_id != null ? String(p.brand_id) : '',
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -173,6 +180,7 @@ export default function ProductEditorClient({ id }) {
         color_hex: form.color_hex.trim() || null,
         color_group_id: form.color_group_id.trim() || null,
         volumetric_weight: form.volumetric_weight !== '' ? Number(form.volumetric_weight) : null,
+        brand_id: form.brand_id ? Number(form.brand_id) : null,
         tags: [
           ...baseTags,
           form.is_new ? 'new' : null,
@@ -480,6 +488,12 @@ export default function ProductEditorClient({ id }) {
 
             <label style={{fontSize:13,color:'#444'}}>Category
               <input value={form.category} onChange={(e) => setField('category', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
+            </label>
+            <label style={{fontSize:13,color:'#444'}}>Brand
+              <select value={form.brand_id} onChange={(e) => setField('brand_id', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14,background:'#fff'}}>
+                <option value="">— None (own goods) —</option>
+                {brands.map(b => <option key={b.id} value={b.id}>{b.name}{b.is_active ? '' : ' (hidden)'}</option>)}
+              </select>
             </label>
 
             <label style={{fontSize:13,color:'#444'}}>Image URL (cover)

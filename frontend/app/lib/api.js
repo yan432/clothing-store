@@ -24,4 +24,17 @@ export function getAdminApiUrl(path = '') {
   return `/api/backend${normalizedPath}`
 }
 
+/**
+ * For partner cabinet browser-side fetches: routes through the /api/partner
+ * proxy which forwards the caller's identity headers. Backend resolves the
+ * brand from brand_users.
+ */
+export function getPartnerApiUrl(path = '') {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  if (process.env.NODE_ENV === 'development') {
+    return `/api/partner${normalizedPath}`
+  }
+  return `/api/partner${normalizedPath}`
+}
+
 export { API_BASE_URL }
