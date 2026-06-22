@@ -293,20 +293,29 @@ export default function ProductEditorClient({ id }) {
     setSaving(true)
     setError('')
     setMessage('')
+    const nextHover = product?.hover_image_url === imageUrl ? null : imageUrl
     try {
-      const nextHover = product?.hover_image_url === imageUrl ? null : imageUrl
       const res = await fetch(getApiUrl('/products/' + id), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hover_image_url: nextHover }),
       })
-      if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text || 'Failed to set hover photo')
+      const body = await res.text()
+      // eslint-disable-next-line no-console
+      console.log('[hover] PUT /products/%s →', id, res.status, body?.slice(0, 240))
+      if (!res.ok) throw new Error(body || `HTTP ${res.status}`)
+      let parsed = null
+      try { parsed = JSON.parse(body) } catch {}
+      if (parsed && 'hover_image_url' in parsed && parsed.hover_image_url !== nextHover) {
+        // Backend silently dropped the field — most likely the column is
+        // missing in the DB (migration 032 not applied).
+        throw new Error('Saved, but backend returned a different hover_image_url. Has migration 032 been applied?')
       }
       await reloadProduct()
-      setMessage(nextHover ? 'Hover photo updated' : 'Hover photo cleared')
+      setMessage(nextHover ? 'Hover photo set' : 'Hover photo cleared')
     } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[hover] failed', e)
       setError(e.message || 'Failed to set hover photo')
     } finally {
       setSaving(false)
@@ -524,6 +533,38 @@ export default function ProductEditorClient({ id }) {
               <input value={form.image_url} onChange={(e) => setField('image_url', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />
             </label>
 
+            {/* Hover photo status — the photo that flips in when a user hovers a product card on storefront */}
+            <div style={{border:'1px solid #bfdbfe',background:'#eff6ff',borderRadius:10,padding:12,display:'flex',alignItems:'center',gap:14}}>
+              <div style={{width:56,height:72,borderRadius:8,overflow:'hidden',background:'#dbeafe',flexShrink:0,position:'relative'}}>
+                {product?.hover_image_url ? (
+                  <img src={product.hover_image_url} alt="hover" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                ) : (
+                  <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',color:'#3b82f6',fontSize:11,fontWeight:600}}>—</div>
+                )}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,fontWeight:700,color:'#1e3a8a',letterSpacing:0.3,textTransform:'uppercase',marginBottom:2}}>Hover photo</div>
+                {product?.hover_image_url ? (
+                  <>
+                    <div style={{fontSize:13,color:'#1e3a8a',marginBottom:2}}>Selected — this image is shown when a user hovers the product card.</div>
+                    <div style={{fontSize:11,color:'#3b82f6',wordBreak:'break-all',fontFamily:'ui-monospace,monospace'}}>{product.hover_image_url}</div>
+                  </>
+                ) : (
+                  <div style={{fontSize:13,color:'#3b82f6'}}>None selected. Storefront will fall back to the second image. Click <strong>Set hover</strong> on any photo below to pick one.</div>
+                )}
+              </div>
+              {product?.hover_image_url && (
+                <button
+                  type="button"
+                  onClick={() => handleSetAsHover(product.hover_image_url)}
+                  disabled={saving}
+                  title="Clear hover photo"
+                  style={{flexShrink:0,background:'#fff',border:'1px solid #bfdbfe',color:'#1d4ed8',borderRadius:8,padding:'6px 10px',fontSize:12,cursor:'pointer',opacity:saving?0.6:1}}>
+                  Clear
+                </button>
+              )}
+            </div>
+
             <div style={{border:'1px dashed #cfcfc8',borderRadius:10,padding:12,background:'#fafaf8'}}>
               <p style={{fontSize:13,color:'#444',margin:'0 0 8px'}}>Gallery upload (drag & drop or pick files)</p>
               <label
@@ -581,9 +622,10 @@ export default function ProductEditorClient({ id }) {
                             </button>
                           )}
                           <button type="button" onClick={() => handleSetAsHover(url)}
+                            disabled={saving}
                             title={isHover ? 'Click to clear hover photo' : 'Show this photo when hovering the product card'}
-                            style={{background: isHover ? '#2563eb' : 'rgba(255,255,255,0.88)', color: isHover ? '#fff' : '#111', border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer',whiteSpace:'nowrap'}}>
-                            {isHover ? '✓ Hover' : '◐ Hover'}
+                            style={{background: isHover ? '#2563eb' : 'rgba(255,255,255,0.88)', color: isHover ? '#fff' : '#1d4ed8', border:'none',borderRadius:5,padding:'2px 7px',fontSize:10,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',opacity:saving?0.6:1}}>
+                            {isHover ? '✓ Hover' : 'Set hover'}
                           </button>
                           <button type="button" onClick={() => handleDeleteImage(url)}
                             style={{background:'rgba(17,17,17,0.8)',color:'#fff',border:'none',borderRadius:5,padding:'2px 5px',fontSize:10,cursor:'pointer'}}>
