@@ -1609,7 +1609,37 @@ def get_product_row(product_id: int) -> dict:
         return None
 
 
+UNLISTED_TAG = "access:unlisted"
+
+
+def _product_tags(product: dict) -> list:
+    tags = product.get("tags") or []
+    if isinstance(tags, str):
+        try:
+            import json as _json
+            tags = _json.loads(tags)
+        except Exception:
+            tags = []
+    return tags if isinstance(tags, list) else []
+
+
+def _is_unlisted(product: dict) -> bool:
+    """True for products that must NOT appear in any public listing.
+
+    Products tagged access:unlisted or exclusive:* are reachable by a direct
+    /products/<slug> link, but never via the catalog, categories, sitemap,
+    recommendations, or other discovery surfaces.
+    """
+    for tag in _product_tags(product):
+        t = str(tag)
+        if t == UNLISTED_TAG or t.startswith("exclusive:"):
+            return True
+    return False
+
+
 def get_visible_product_row(product_id: int) -> dict:
+    # By design this allows fetching unlisted products by their numeric id —
+    # the discovery filter lives in /products and related listings, not here.
     data = supabase.table("products").select("*").eq("id", product_id).eq("is_hidden", False).execute()
     if not data.data:
         raise HTTPException(status_code=404, detail="Товар не найден")
@@ -1981,7 +2011,9 @@ def root():
 @app.get("/products")
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    products = data.data or []
+    # Strip products tagged access:unlisted — they remain in the DB but must not
+    # appear in any public listing or be returned through this endpoint.
+    products = [p for p in (data.data or []) if not _is_unlisted(p)]
     try:
         size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
     except Exception:
@@ -2018,13 +2050,13 @@ def get_products():
 
 
 @app.get("/categories")
-def get_categories():
+def get_categories_endpoint():
     """Return distinct non-empty categories from visible products, sorted alphabetically."""
-    data = supabase.table("products").select("category").eq("is_hidden", False).execute()
+    data = supabase.table("products").select("category,tags").eq("is_hidden", False).execute()
     cats = sorted({
         p["category"].strip()
         for p in (data.data or [])
-        if p.get("category") and p["category"].strip()
+        if p.get("category") and p["category"].strip() and not _is_unlisted(p)
     })
     return cats
 
@@ -2042,11 +2074,16 @@ def _get_color_variants(product: dict) -> list:
     if not group_id:
         return []
     rows = supabase.table("products").select(
-        "id, name, slug, color_name, color_hex, image_url, image_urls, available_stock, stock, is_hidden"
+        "id, name, slug, color_name, color_hex, image_url, image_urls, available_stock, stock, is_hidden, tags"
     ).eq("color_group_id", group_id).eq("is_hidden", False).execute()
     variants = []
     for row in (rows.data or []):
         if row["id"] == product["id"]:
+            continue
+        # Sibling unlisted color variants stay private — discovering them
+        # from a sibling's color swatch would defeat the access:unlisted /
+        # exclusive:* tagging.
+        if _is_unlisted(row):
             continue
         cover = row.get("image_url")
         db_urls = row.get("image_urls") or []
@@ -2066,6 +2103,8 @@ def _get_color_variants(product: dict) -> list:
 
 @app.get("/products/{product_id}")
 def get_product(product_id: str):
+    # Direct links work for unlisted products on purpose — that's how the
+    # store team shares samples and exclusive drops with selected customers.
     if product_id.lstrip('-').isdigit():
         product = _decorate_product_with_images(get_visible_product_row(int(product_id)))
     else:
@@ -6047,7 +6086,7 @@ def notify_wishlist_low_stock(bg: BackgroundTasks):
     try:
         low = (
             supabase.table("products")
-            .select("id,name,slug,price,price_uah,compare_price,compare_price_uah,image_url,image_urls,available_stock")
+            .select("id,name,slug,price,price_uah,compare_price,compare_price_uah,image_url,image_urls,available_stock,tags")
             .gt("available_stock", 0)
             .lte("available_stock", 3)
             .eq("is_hidden", False)
@@ -6057,6 +6096,8 @@ def notify_wishlist_low_stock(bg: BackgroundTasks):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    # Never broadcast unlisted/exclusive products to the public mailing list.
+    low = [p for p in low if not _is_unlisted(p)]
     if not low:
         return {"notified": 0}
 
@@ -6120,7 +6161,7 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
     try:
         on_sale = (
             supabase.table("products")
-            .select("id,name,slug,price,price_uah,compare_price,compare_price_uah,image_url,image_urls,available_stock")
+            .select("id,name,slug,price,price_uah,compare_price,compare_price_uah,image_url,image_urls,available_stock,tags")
             .not_.is_("compare_price", "null")
             .gt("available_stock", 0)
             .eq("is_hidden", False)
@@ -6131,6 +6172,7 @@ def notify_wishlist_on_sale(bg: BackgroundTasks):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+    on_sale = [p for p in on_sale if not _is_unlisted(p)]
     if not on_sale:
         return {"notified": 0}
 
