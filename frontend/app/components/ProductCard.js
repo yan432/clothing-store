@@ -32,7 +32,12 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
     ? activeProduct.image_urls
     : (activeProduct.image_url ? [activeProduct.image_url] : [])
   const primaryImage = images[0]
-  const secondaryImage = images[1]
+  // Admin-picked hover photo takes precedence; fall back to the second image.
+  // Guard against the admin accidentally picking the cover as the hover.
+  const adminHover = activeProduct.hover_image_url && activeProduct.hover_image_url !== primaryImage
+    ? activeProduct.hover_image_url
+    : null
+  const secondaryImage = adminHover || images[1]
   const secondaryReady = secondaryReadyFor === secondaryImage
 
   const priceLabel = formatPrice(price, currency)
