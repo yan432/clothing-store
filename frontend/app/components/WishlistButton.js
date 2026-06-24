@@ -45,10 +45,10 @@ export default function WishlistButton({ productId, product = null, style = {} }
         title={active ? d.wishlistPrompt.remove : d.wishlistPrompt.save}
         style={{
           background: 'rgba(255,255,255,0.9)',
-          border: 'none',
-          borderRadius: '50%',
-          width: 36,
-          height: 36,
+          border: '1px solid #0a0a0a',
+          borderRadius: 0,
+          width: 34,
+          height: 34,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -84,8 +84,9 @@ export default function WishlistButton({ productId, product = null, style = {} }
             zIndex: 999,
             width: 'min(340px, calc(100vw - 32px))',
             background: '#fff',
-            borderRadius: 16,
+            borderRadius: 0,
             padding: 28,
+            border: '1px solid #0a0a0a',
             boxShadow: '0 24px 60px rgba(0,0,0,0.18)',
             textAlign: 'center',
           }}>
@@ -110,7 +111,7 @@ export default function WishlistButton({ productId, product = null, style = {} }
                 href={pathForLocale('/auth', locale)}
                 style={{
                   background: '#111', color: '#fff',
-                  padding: '13px 24px', borderRadius: 999,
+                  padding: '13px 24px', borderRadius: 0,
                   fontSize: 14, fontWeight: 600,
                   textDecoration: 'none', display: 'block',
                 }}
@@ -121,8 +122,8 @@ export default function WishlistButton({ productId, product = null, style = {} }
                 href={pathForLocale('/auth?tab=register', locale)}
                 style={{
                   background: '#fff', color: '#111',
-                  border: '1.5px solid #e5e5e3',
-                  padding: '13px 24px', borderRadius: 999,
+                  border: '1px solid #111',
+                  padding: '13px 24px', borderRadius: 0,
                   fontSize: 14, fontWeight: 500,
                   textDecoration: 'none', display: 'block',
                 }}

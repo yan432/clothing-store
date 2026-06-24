@@ -254,7 +254,7 @@ export default function AccountOrderDetailsClient({ orderId, locale = 'en' }) {
           <h1 style={{fontSize:32,lineHeight:1.1,fontWeight:500,margin:0}}>
             {t.order} #{10000 + (order.id || 0)}
           </h1>
-          <span style={{fontSize:13,fontWeight:600,color:badge.color,background:badge.bg,padding:'6px 12px',borderRadius:999}}>
+          <span style={{fontSize:13,fontWeight:700,color:badge.color,background:badge.bg,padding:'6px 12px',borderRadius:0,border:'1px solid currentColor'}}>
             {badge.raw || t.statuses[badge.key] || t.statuses.unknown}
           </span>
         </div>
@@ -262,7 +262,7 @@ export default function AccountOrderDetailsClient({ orderId, locale = 'en' }) {
 
         {/* Tracking info */}
         {(order.tracking_number || order.tracking_url) && (
-          <div style={{marginTop:16,background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'14px 18px'}}>
+          <div style={{marginTop:16,background:'#f0fdf4',border:'1px solid #16a34a',borderRadius:0,padding:'14px 18px'}}>
             <p style={{margin:'0 0 6px',fontWeight:700,fontSize:14,color:'#166534',display:'flex',alignItems:'center',gap:6}}><Package size={14} strokeWidth={1.8} /> {t.trackingInfo}</p>
             {order.tracking_number && (
               <p style={{margin:'0 0 4px',fontSize:14,color:'#1a1a18'}}>
@@ -281,7 +281,7 @@ export default function AccountOrderDetailsClient({ orderId, locale = 'en' }) {
           </div>
         )}
 
-        <section style={{marginTop:18,border:'1px solid #ecece8',borderRadius:12,padding:16}}>
+        <section style={{marginTop:18,border:'1px solid #0a0a0a',borderRadius:0,padding:16}}>
           <h2 style={{fontSize:16,fontWeight:600,margin:'0 0 10px'}}>{t.items}</h2>
           {items.length === 0 ? (
             <p style={{fontSize:14,color:'#666',margin:0}}>{t.noItems}</p>
@@ -297,10 +297,10 @@ export default function AccountOrderDetailsClient({ orderId, locale = 'en' }) {
                           <img
                             src={item.image_url}
                             alt={item.name || t.item}
-                            style={{width:52,height:52,objectFit:'cover',borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}}
+                            style={{width:52,height:52,objectFit:'cover',borderRadius:0,background:'#fff',border:'1px solid #0a0a0a',flexShrink:0}}
                           />
                         ) : (
-                          <div style={{width:52,height:52,borderRadius:8,background:'#f4f4f4',border:'1px solid #efefef',flexShrink:0}} />
+                          <div style={{width:52,height:52,borderRadius:0,background:'#fff',border:'1px solid #0a0a0a',flexShrink:0}} />
                         )}
                         <div>
                           <p style={{margin:0,fontSize:14,fontWeight:500}}>{item.name || t.item}</p>
@@ -328,7 +328,7 @@ export default function AccountOrderDetailsClient({ orderId, locale = 'en' }) {
               })}
             </div>
           )}
-          <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid #ecece8',display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{marginTop:12,paddingTop:10,borderTop:'1px solid #0a0a0a',display:'flex',flexDirection:'column',gap:8}}>
             <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#444'}}>
               <span>{t.subtotal}</span>
               <span>{formatMoney(subtotalAmount, order.currency || 'EUR', preferredLocale)}</span>

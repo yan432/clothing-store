@@ -74,9 +74,11 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
 
   return (
     <section style={{
-      background: '#111', color: '#fff',
+      background: '#0a0a0a', color: '#fff',
       padding: '32px 24px 40px',
       textAlign: 'center',
+      borderTop: '1px solid #0a0a0a',
+      borderBottom: '1px solid #0a0a0a',
     }}>
       <p style={{
         fontSize: 10, letterSpacing: '0.28em', textTransform: 'uppercase',
@@ -130,8 +132,8 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
               style={{
                 flex: '1 1 200px', minWidth: 0,
                 background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.18)',
-                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,0.55)',
+                borderRadius: 0,
                 padding: '10px 16px',
                 fontSize: 13,
                 color: '#fff',
@@ -143,9 +145,11 @@ export default function DropCountdown({ targetDate, label = 'New Drop' }) {
               disabled={subState === 'loading'}
               style={{
                 background: '#fff', color: '#111',
-                border: 'none', borderRadius: 999,
+                border: '1px solid #fff', borderRadius: 0,
                 padding: '10px 20px',
-                fontSize: 13, fontWeight: 600,
+                fontSize: 12, fontWeight: 900,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
                 cursor: subState === 'loading' ? 'default' : 'pointer',
                 opacity: subState === 'loading' ? 0.7 : 1,
                 whiteSpace: 'nowrap',

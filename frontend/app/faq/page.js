@@ -59,15 +59,16 @@ export default async function FaqPage({ locale = 'en' }) {
       <FaqAccordion html={html} />
 
       {/* Contact CTA */}
-      <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '28px 24px', marginTop: 48 }}>
+      <div style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '28px 24px', marginTop: 48 }}>
         <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>{copy.ctaTitle}</p>
         <p style={{ fontSize: 14, color: '#666', margin: '0 0 16px', lineHeight: 1.6 }}>
           {copy.ctaText}
         </p>
         <a href={pathForLocale('/contact', locale)} style={{
           display: 'inline-block', background: '#0a0a0a', color: '#fff',
-          textDecoration: 'none', padding: '11px 28px', borderRadius: 999,
-          fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
+          textDecoration: 'none', padding: '11px 28px', borderRadius: 0,
+          fontSize: 13, fontWeight: 800, letterSpacing: '0.06em',
+          border: '1px solid #0a0a0a', textTransform: 'uppercase',
         }}>{copy.contact}</a>
       </div>
     </main>

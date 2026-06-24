@@ -58,10 +58,10 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   if (isLowStock) badgeTags.add('low_stock')
 
   const BADGE = {
-    new:       { label: d.products.badges.new, bg: '#000',    color: '#fff' },
-    sale:      { label: `-${discount}%`, bg: '#ef4444', color: '#fff' },
-    low_stock: { label: d.products.badges.lowStock, bg: '#f59e0b', color: '#fff' },
-    sold_out:  { label: d.products.badges.soldOut, bg: '#6b6b6b', color: '#fff' },
+    new:       { label: d.products.badges.new, bg: '#0a0a0a', color: '#fff' },
+    sale:      { label: `-${discount}%`, bg: '#f02a2a', color: '#fff' },
+    low_stock: { label: d.products.badges.lowStock, bg: '#d7ff2f', color: '#0a0a0a' },
+    sold_out:  { label: d.products.badges.soldOut, bg: '#4b4b4b', color: '#fff' },
   }
 
   const visibleTags = ['sold_out', 'sale', 'low_stock', 'new']
@@ -101,8 +101,8 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   }
 
   return (
-    <div
-      style={{display:'flex',flexDirection:'column',gap:12}}
+    <article
+      style={{display:'flex',flexDirection:'column',gap:10}}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
@@ -113,7 +113,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
         className="product-card"
         style={{textDecoration:'none',color:'inherit',display:'block'}}>
 
-        <div className="product-card-img-wrap" style={{position:'relative',aspectRatio:'4/5',background:'#f5f5f3',borderRadius:16,overflow:'hidden',marginBottom:14}}>
+        <div className="product-card-img-wrap" style={{position:'relative',aspectRatio:'4/5',background:'#fff',border:'none',borderRadius:0,overflow:'hidden',marginBottom:12}}>
 
           {/* Wishlist heart button */}
           <div style={{position:'absolute',top:10,right:10,zIndex:4}}>
@@ -121,14 +121,14 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
           </div>
 
           {/* Все бейджи вместе */}
-<div style={{position:'absolute',top:10,left:10,zIndex:3,display:'flex',flexDirection:'column',gap:4}}>
+<div style={{position:'absolute',top:8,left:8,zIndex:3,display:'flex',flexDirection:'column',gap:4}}>
   {visibleTags.map(tag => (
     <span key={tag} style={{
       background: BADGE[tag].bg,
       color: BADGE[tag].color,
-      fontSize:10,fontWeight:700,
-      padding:'4px 9px',borderRadius:999,
-      letterSpacing:'0.06em',textTransform:'uppercase',
+      fontSize:10,fontWeight:800,
+      padding:'5px 8px',borderRadius:0,
+      letterSpacing:'0.08em',textTransform:'uppercase',
       display:'inline-block',width:'fit-content',
     }}>
       {BADGE[tag].label}
@@ -174,32 +174,32 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
               )}
             </div>
           ) : (
-            <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#ccc'}}>{d.products.noImage}</div>
+            <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,color:'#888',letterSpacing:'0.08em',textTransform:'uppercase'}}>{d.products.noImage}</div>
           )}
         </div>
 
         <div className="product-card-info">
-          <p style={{fontSize:11,color:'#5f5f58',letterSpacing:'0.1em',textTransform:'uppercase',margin:'0 0 8px'}}>
+          <p style={{fontSize:10,color:'#666',letterSpacing:'0.12em',textTransform:'uppercase',margin:'0 0 7px',fontWeight:700}}>
             {displayProduct.category ? translateCategory(displayProduct.category, activeLocale) : d.products.essentials}
           </p>
-          <p style={{fontSize:16,fontWeight:600,margin:'0 0 6px',lineHeight:1.35}}>
+          <p style={{fontSize:15,fontWeight:800,margin:'0 0 6px',lineHeight:1.25,letterSpacing:'0.02em',textTransform:'uppercase'}}>
             {displayProduct.name}
           </p>
 
           {/* Цена с зачёркнутой если есть скидка */}
-          <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 8px'}}>
-            <p style={{fontSize:16,fontWeight:600,margin:0,color: discount ? '#ef4444' : 'inherit'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8,margin:'0 0 6px'}}>
+            <p style={{fontSize:14,fontWeight:800,margin:0,color: discount ? '#f02a2a' : 'inherit'}}>
               {priceLabel}
             </p>
             {comparePriceLabel && (
-              <p style={{fontSize:14,fontWeight:400,margin:0,color:'#aaa',textDecoration:'line-through'}}>
+              <p style={{fontSize:13,fontWeight:500,margin:0,color:'#888',textDecoration:'line-through'}}>
                 {comparePriceLabel}
               </p>
             )}
           </div>
 
           <p className="product-card-desc" style={{
-            fontSize:13,color:'#6d6d66',lineHeight:1.5,margin:0,
+            fontSize:12,color:'#777',lineHeight:1.45,margin:0,
             display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden',
           }}>
             {description || d.products.fallbackDescription}
@@ -214,7 +214,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
           <div
             title={displayProduct.color_name}
             style={{
-              width:20,height:20,borderRadius:'50%',
+              width:20,height:20,borderRadius:0,
               background: displayProduct.color_hex || '#ccc',
               border:'2px solid #111',
               boxShadow:'0 0 0 2px #fff inset',
@@ -229,7 +229,7 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
               onMouseEnter={() => setSwatchVariant(v)}
               onMouseLeave={() => setSwatchVariant(null)}
               style={{
-                width:20,height:20,borderRadius:'50%',
+                width:20,height:20,borderRadius:0,
                 background: v.color_hex || '#ccc',
                 border:'2px solid transparent',
                 boxShadow:'0 0 0 1.5px #ccc',
@@ -240,6 +240,6 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
           ))}
         </div>
       )}
-    </div>
+    </article>
   )
 }

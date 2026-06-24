@@ -58,10 +58,10 @@ function LookItem({ product, locale }) {
       gridTemplateColumns: '120px 1fr',
       gap: 16,
       padding: '20px 0',
-      borderBottom: '1px solid #eee',
+      borderBottom: '1px solid #0a0a0a',
     }}>
       <a href={pathForLocale(`/products/${displayProduct.slug || displayProduct.id}`, locale)}
-        style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', borderRadius: 4, overflow: 'hidden' }}>
+        style={{ display: 'block', aspectRatio: '4/5', background: '#fff', border: 'none', borderRadius: 0, overflow: 'hidden' }}>
         {displayProduct.image_url && (
           <img src={displayProduct.image_url} alt={displayProduct.name}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -70,7 +70,7 @@ function LookItem({ product, locale }) {
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
         <div>
           <a href={pathForLocale(`/products/${displayProduct.slug || displayProduct.id}`, locale)}
-            style={{ fontSize: 15, fontWeight: 600, color: '#111', textDecoration: 'none', display: 'block', marginBottom: 4 }}>
+            style={{ fontSize: 14, fontWeight: 900, color: '#111', textDecoration: 'none', display: 'block', marginBottom: 4, letterSpacing:'0.04em', textTransform:'uppercase' }}>
             {displayProduct.name}
           </a>
           <p style={{ fontSize: 14, color: '#444', margin: 0 }}>
@@ -177,19 +177,20 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
           position: 'absolute', top: 0, right: 0, bottom: 0,
           width: '100%', maxWidth: 460,
           background: '#fff',
+          borderLeft: '1px solid #0a0a0a',
           display: 'flex', flexDirection: 'column',
           animation: 'slideInRight 280ms cubic-bezier(0.22, 1, 0.36, 1)',
         }}>
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '20px 24px', borderBottom: '1px solid #eee',
+          padding: '20px 24px', borderBottom: '1px solid #0a0a0a',
         }}>
-          <h2 style={{ fontSize: 22, fontWeight: 400, margin: 0 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, margin: 0, letterSpacing:'0.08em', textTransform:'uppercase' }}>
             {d.cart.shopLook}
           </h2>
           <button onClick={onClose} aria-label={d.cart.close}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6 }}>
+            style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius:0, cursor: 'pointer', padding: 6 }}>
             <X size={22} />
           </button>
         </div>
@@ -206,11 +207,11 @@ export default function ShopTheLookDrawer({ open, productIds = [], shopHref, onC
         </div>
 
         {/* Footer */}
-        <div style={{ padding: 24, borderTop: '1px solid #eee' }}>
+        <div style={{ padding: 24, borderTop: '1px solid #0a0a0a' }}>
           <a href={pathForLocale(shopHref || '/products', locale)}
             style={{
               display: 'block', textAlign: 'center',
-              border: '1.5px solid #111', color: '#111',
+              border: '1px solid #111', color: '#111',
               padding: '14px 16px', fontSize: 13, fontWeight: 700,
               letterSpacing: '0.08em', textTransform: 'uppercase',
               textDecoration: 'none',

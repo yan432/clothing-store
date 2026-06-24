@@ -192,20 +192,20 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(jsonLd) }}/>
       <ProductSearchTracker search={q} resultCount={sorted.length} />
-      <main className="products-main" style={{ maxWidth: 1280, margin: '0 auto', padding: '48px 28px' }}>
+      <main className="products-main" style={{ maxWidth: 1440, margin: '0 auto', padding: '38px 24px 64px' }}>
 
         {fetchError && (
-          <div style={{ marginBottom: 16, border: '1px solid #fecaca', background: '#fef2f2', color: '#b91c1c', borderRadius: 10, padding: '10px 14px', fontSize: 14 }}>
+          <div style={{ marginBottom: 16, border: '1px solid #f02a2a', background: '#fff', color: '#b91c1c', borderRadius: 0, padding: '10px 14px', fontSize: 14 }}>
             {fetchError ? d.products.catalogUnavailable : ''}
           </div>
         )}
 
         {/* Title row */}
-        <div className="products-header-row" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
+        <div className="products-header-row" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, letterSpacing: 0, textTransform: 'uppercase' }}>
             {selectedCategory ? translateCategory(selectedCategory, locale) : d.products.allProducts}
           </h1>
-          <span style={{ fontSize: 13, color: '#aaa' }}>{sorted.length} {d.products.items}</span>
+          <span style={{ fontSize: 11, color: '#555', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{sorted.length} {d.products.items}</span>
         </div>
 
         {/* Filter bar: desktop = single row, mobile = search + scrollable pills */}
@@ -217,11 +217,11 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
             {selectedSpecials.map(s => <input key={s} type="hidden" name="special" value={s} />)}
             {activeSort !== 'default' && <input type="hidden" name="sort" value={activeSort} />}
             <div style={{ position: 'relative' }}>
-              <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#bbb', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#555', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
               <input name="q" defaultValue={q} placeholder={d.products.search}
-                style={{ padding: '7px 14px 7px 34px', borderRadius: 999, border: '1.5px solid #e0e0de', fontSize: 13, outline: 'none', background: '#fff', width: '100%', boxSizing: 'border-box' }}
+                style={{ padding: '9px 14px 9px 34px', borderRadius: 0, border: '1px solid #0a0a0a', fontSize: 12, outline: 'none', background: '#fff', width: '100%', boxSizing: 'border-box', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}
               />
             </div>
           </form>
@@ -229,38 +229,38 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
           {/* Pills — scrollable on mobile */}
           <div className="products-pills">
             <a href={buildHref(q, '', selectedSpecials)} style={{
-              padding: '7px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500,
-              textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+              padding: '9px 14px', borderRadius: 0, fontSize: 11, fontWeight: 800,
+              textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: '0.08em', textTransform: 'uppercase',
               background: !selectedCategory ? '#111' : 'transparent',
-              color: !selectedCategory ? '#fff' : '#555',
-              border: '1.5px solid', borderColor: !selectedCategory ? '#111' : '#e0e0de',
+              color: !selectedCategory ? '#fff' : '#111',
+              border: '1px solid', borderColor: !selectedCategory ? '#111' : '#bdbdb8',
             }}>{translateCategory('All', locale)}</a>
 
             {categories.map(cat => {
               const isActive = selectedCategory === cat
               return (
                 <a key={cat} href={buildHref(q, isActive ? '' : cat, selectedSpecials)} style={{
-                  padding: '7px 16px', borderRadius: 999, fontSize: 13, fontWeight: 500,
-                  textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
+                  padding: '9px 14px', borderRadius: 0, fontSize: 11, fontWeight: 800,
+                  textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: '0.08em', textTransform: 'uppercase',
                   background: isActive ? '#111' : 'transparent',
-                  color: isActive ? '#fff' : '#555',
-                  border: '1.5px solid', borderColor: isActive ? '#111' : '#e0e0de',
+                  color: isActive ? '#fff' : '#111',
+                  border: '1px solid', borderColor: isActive ? '#111' : '#bdbdb8',
                 }}>{translateCategory(cat, locale)}</a>
               )
             })}
 
-            <div style={{ width: 1, height: 22, background: '#e0e0de', margin: '0 2px', flexShrink: 0 }} />
+            <div style={{ width: 1, height: 30, background: '#111', margin: '0 2px', flexShrink: 0 }} />
 
             {['new', 'sale'].map(special => {
               const isActive = selectedSpecials.includes(special)
               const nextSpecials = isActive ? selectedSpecials.filter(s => s !== special) : [...selectedSpecials, special]
               return (
                 <a key={special} href={buildHref(q, selectedCategory, nextSpecials)} style={{
-                  padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 600,
+                  padding: '9px 13px', borderRadius: 0, fontSize: 11, fontWeight: 900,
                   textDecoration: 'none', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0,
-                  background: isActive ? (special === 'sale' ? '#ef4444' : '#111') : 'transparent',
-                  color: isActive ? '#fff' : '#888',
-                  border: '1.5px solid', borderColor: isActive ? (special === 'sale' ? '#ef4444' : '#111') : '#e0e0de',
+                  background: isActive ? (special === 'sale' ? '#f02a2a' : '#111') : 'transparent',
+                  color: isActive ? '#fff' : '#111',
+                  border: '1px solid', borderColor: isActive ? (special === 'sale' ? '#f02a2a' : '#111') : '#bdbdb8',
                 }}>{special === 'new' ? d.nav.newArrivals : d.nav.sale}</a>
               )
             })}
@@ -269,7 +269,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
           {/* Sort + Clear */}
           <div className="products-sort-group">
             {hasActiveFilters && (
-              <Link href={pathForLocale('/products', locale)} style={{ fontSize: 13, color: '#aaa', textDecoration: 'none', whiteSpace: 'nowrap' }}>{d.products.clear}</Link>
+              <Link href={pathForLocale('/products', locale)} style={{ fontSize: 11, color: '#555', textDecoration: 'underline', whiteSpace: 'nowrap', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{d.products.clear}</Link>
             )}
             <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }} locale={locale} />
           </div>

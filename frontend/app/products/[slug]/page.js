@@ -4,6 +4,7 @@ import ProductGallery from '../../components/ProductGallery'
 import ProductCard from '../../components/ProductCard'
 import RecommendationsCarousel from '../../components/RecommendationsCarousel'
 import ProductDetailsEventTracker from '../../components/ProductDetailsEventTracker'
+import PageViewTracker from '../../components/PageViewTracker'
 import Link from 'next/link'
 import { getApiUrl } from '../../lib/api'
 import { parseSizeOptionsFromTags } from '../../lib/sizeOptions'
@@ -258,8 +259,9 @@ export default async function ProductPage({ params, locale = 'en' }) {
           category: product.category,
         }}
       />
-      <main className="product-detail-page" style={{maxWidth:1220,margin:'0 auto',padding:'40px 24px 64px'}}>
-        <Link href={pathForLocale('/products', locale)} style={{fontSize:14,color:'#aaa',textDecoration:'none',display:'inline-block',marginBottom:22}}>{d.product.back}</Link>
+      <PageViewTracker pageType="product" entityId={product.id} />
+      <main className="product-detail-page" style={{maxWidth:1280,margin:'0 auto',padding:'38px 24px 64px'}}>
+        <Link href={pathForLocale('/products', locale)} style={{fontSize:11,color:'#555',textDecoration:'none',display:'inline-block',marginBottom:22,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase'}}>{d.product.back}</Link>
 
         <div
           className="product-detail-grid"
@@ -274,27 +276,27 @@ export default async function ProductPage({ params, locale = 'en' }) {
           </div>
 
           <div className="product-detail-info" style={{display:'flex',flexDirection:'column',gap:14}}>
-            <h1 className="product-detail-title" style={{fontWeight:600,margin:0}}>{displayProduct.name}</h1>
+            <h1 className="product-detail-title" style={{fontWeight:800,margin:0,letterSpacing:0,textTransform:'uppercase'}}>{displayProduct.name}</h1>
             <div style={{display:'flex',alignItems:'baseline',gap:10}}>
-              <p className="product-detail-price" style={{fontWeight:600,margin:0}}>{priceLabel}</p>
+              <p className="product-detail-price" style={{fontWeight:700,margin:0}}>{priceLabel}</p>
               {d.product.inclTax && (
-                <p style={{fontSize:14,color:'#8a8a84',margin:0}}>{d.product.inclTax}</p>
+                <p style={{fontSize:12,color:'#666',margin:0,fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase'}}>{d.product.inclTax}</p>
               )}
             </div>
-            <p style={{fontSize:12,color: !isInStock ? '#ef4444' : isLowStock ? '#f59e0b' : '#16a34a',margin:0}}>
+            <p style={{fontSize:11,color: !isInStock ? '#f02a2a' : isLowStock ? '#7a6500' : '#0a0a0a',margin:0,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase'}}>
               {!isInStock ? d.product.outOfStock : isLowStock ? d.product.lowStock : d.product.inStock}
             </p>
 
             {/* Color swatches — shown only when color_name is set */}
             {product.color_name && (
               <div>
-                <p style={{fontSize:13,color:'#666660',margin:'0 0 8px'}}>
-                  {d.product.color}: <span style={{fontWeight:600,color:'#1a1a18'}}>{product.color_name}</span>
+                <p style={{fontSize:12,color:'#666',margin:'0 0 8px',fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase'}}>
+                  {d.product.color}: <span style={{fontWeight:700,color:'#0a0a0a'}}>{product.color_name}</span>
                 </p>
                 <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
                   {/* Current product swatch */}
                   <div title={product.color_name} style={{
-                    width:28,height:28,borderRadius:'50%',
+                    width:28,height:28,borderRadius:0,
                     background: product.color_hex || '#ccc',
                     border:'2.5px solid #111',
                     boxShadow:'0 0 0 2px #fff inset',
@@ -304,7 +306,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
                   {Array.isArray(product.color_variants) && product.color_variants.map(v => (
                     <a key={v.id} href={pathForLocale('/products/' + v.slug, locale)} title={v.color_name}
                       style={{
-                        width:28,height:28,borderRadius:'50%',
+                        width:28,height:28,borderRadius:0,
                         background: v.color_hex || '#ccc',
                         border:'2px solid transparent',
                         boxShadow:'0 0 0 1.5px #ccc',
@@ -319,7 +321,7 @@ export default async function ProductPage({ params, locale = 'en' }) {
             )}
 
             {sizeOptions.length > 0 && (
-              <div style={{padding:'14px 16px',background:'#efefed',color:'#4a4a45',fontSize:14,borderRadius:8}}>
+              <div style={{padding:'13px 14px',background:'#fff',color:'#0a0a0a',fontSize:12,borderRadius:0,border:'1px solid #0a0a0a',fontWeight:700,letterSpacing:'0.06em',textTransform:'uppercase'}}>
                 {d.product.regularSize}
               </div>
             )}
@@ -327,17 +329,17 @@ export default async function ProductPage({ params, locale = 'en' }) {
             <AddToCartButton product={displayProduct} showSizeSelector sizeStock={sizeStock} locale={locale} />
             <div style={{display:'flex',alignItems:'center',gap:10,marginTop:4}}>
               <WishlistButton productId={product.id} product={displayProduct} style={{
-                width:44,height:44,borderRadius:12,
-                background:'#f5f5f3',border:'1px solid #e5e5e3',
+                width:44,height:44,borderRadius:0,
+                background:'#fff',border:'1px solid #0a0a0a',
               }}/>
-              <span style={{fontSize:13,color:'#888'}}>{d.product.saveWishlist}</span>
+              <span style={{fontSize:12,color:'#555',fontWeight:600,letterSpacing:'0.06em',textTransform:'uppercase'}}>{d.product.saveWishlist}</span>
             </div>
 
-            <p style={{color:'#888',fontSize:14,lineHeight:1.7,margin:0}}>{displayProduct.description}</p>
+            <p style={{color:'#555',fontSize:14,lineHeight:1.65,margin:0}}>{displayProduct.description}</p>
 
-            <div style={{borderTop:'1px solid #e5e5e0',marginTop:8}}>
-              <details style={{borderBottom:'1px solid #e5e5e0'}}>
-                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
+            <div style={{borderTop:'1px solid #0a0a0a',marginTop:8}}>
+              <details style={{borderBottom:'1px solid #0a0a0a'}}>
+                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13,fontWeight:700,color:'#111',letterSpacing:'0.08em',textTransform:'uppercase'}}>
                   {d.product.materialCare}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
@@ -345,8 +347,8 @@ export default async function ProductPage({ params, locale = 'en' }) {
                   {materialCare}
                 </div>
               </details>
-              <details style={{borderBottom:'1px solid #e5e5e0'}}>
-                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
+              <details style={{borderBottom:'1px solid #0a0a0a'}}>
+                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13,fontWeight:700,color:'#111',letterSpacing:'0.08em',textTransform:'uppercase'}}>
                   {d.product.details}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
@@ -354,8 +356,8 @@ export default async function ProductPage({ params, locale = 'en' }) {
                   {moreAboutProduct}
                 </div>
               </details>
-              <details style={{borderBottom:'1px solid #e5e5e0'}}>
-                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
+              <details style={{borderBottom:'1px solid #0a0a0a'}}>
+                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13,fontWeight:700,color:'#111',letterSpacing:'0.08em',textTransform:'uppercase'}}>
                   {d.product.fit}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
@@ -365,8 +367,8 @@ export default async function ProductPage({ params, locale = 'en' }) {
               </details>
             </div>
 
-              <details data-product-track-section="shipping_returns" style={{borderBottom:'1px solid #e5e5e0'}}>
-                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:16,fontWeight:600,color:'#111'}}>
+              <details data-product-track-section="shipping_returns" style={{borderBottom:'1px solid #0a0a0a'}}>
+                <summary style={{listStyle:'none',cursor:'pointer',padding:'18px 0',display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13,fontWeight:700,color:'#111',letterSpacing:'0.08em',textTransform:'uppercase'}}>
                   {d.product.shippingReturns}
                   <span style={{fontSize:22,lineHeight:1,color:'#111'}}>⌄</span>
                 </summary>
@@ -382,10 +384,10 @@ export default async function ProductPage({ params, locale = 'en' }) {
 
       {/* ── RECOMMENDATIONS ─────────────────────────────── */}
       {recommendations.length > 0 && (
-        <section style={{maxWidth:1220,margin:'0 auto',padding:'48px 24px 72px'}}>
-          <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:28}}>
-            <h2 style={{fontSize:18,fontWeight:700,margin:0,letterSpacing:'-0.01em'}}>{d.product.mayLike}</h2>
-            <Link href={pathForLocale('/products', locale)} style={{fontSize:12,color:'#888',textDecoration:'none',letterSpacing:'0.06em',textTransform:'uppercase',fontWeight:600}}>{d.product.viewAll} →</Link>
+        <section className="product-recommendations" style={{maxWidth:1220,margin:'0 auto',padding:'48px 24px 72px'}}>
+          <div style={{display:'flex',alignItems:'baseline',justifyContent:'space-between',marginBottom:24,paddingTop:18,borderTop:'1px solid #0a0a0a'}}>
+            <h2 style={{fontSize:18,fontWeight:800,margin:0,letterSpacing:'0.08em',textTransform:'uppercase'}}>{d.product.mayLike}</h2>
+            <Link href={pathForLocale('/products', locale)} style={{fontSize:11,color:'#111',textDecoration:'none',letterSpacing:'0.08em',textTransform:'uppercase',fontWeight:700}}>{d.product.viewAll} →</Link>
           </div>
           {/* Mobile + desktop: grid */}
           <div className="recommendations-grid">

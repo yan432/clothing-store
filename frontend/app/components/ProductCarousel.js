@@ -29,9 +29,9 @@ export default function ProductCarousel({ products }) {
         aria-label="Scroll left"
         style={{
           position: 'absolute', left: -18, top: '40%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 38, height: 38, borderRadius: '50%',
-          border: '1px solid #e0e0da', background: '#fff',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          zIndex: 2, width: 38, height: 38, borderRadius: 0,
+          border: '1px solid #0a0a0a', background: '#fff',
+          boxShadow: 'none',
           cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>‹</button>
       <button
@@ -39,9 +39,9 @@ export default function ProductCarousel({ products }) {
         aria-label="Scroll right"
         style={{
           position: 'absolute', right: -18, top: '40%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 38, height: 38, borderRadius: '50%',
-          border: '1px solid #e0e0da', background: '#fff',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+          zIndex: 2, width: 38, height: 38, borderRadius: 0,
+          border: '1px solid #0a0a0a', background: '#fff',
+          boxShadow: 'none',
           cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>›</button>
 
@@ -67,11 +67,11 @@ export default function ProductCarousel({ products }) {
               style={{
                 flex: '0 0 200px', scrollSnapAlign: 'start',
                 textDecoration: 'none', color: 'inherit',
-                borderRadius: 14, overflow: 'hidden',
-                border: '1px solid #ececea', background: '#fff',
+                borderRadius: 0, overflow: 'hidden',
+                border: 'none', background: '#fff',
               }}
             >
-              <div style={{ position:'relative', aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden' }}>
+              <div style={{ position:'relative', aspectRatio: '4/5', background: '#fff', overflow: 'hidden' }}>
                 {img && (
                   <Image
                     src={img}
@@ -84,8 +84,8 @@ export default function ProductCarousel({ products }) {
                 )}
               </div>
               <div style={{ padding: '10px 12px 12px' }}>
-                <p style={{ fontSize: 12, fontWeight: 600, margin: '0 0 3px', lineHeight: 1.3, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</p>
-                <p style={{ fontSize: 12, color: '#777', margin: 0 }}>{price}</p>
+                <p style={{ fontSize: 12, fontWeight: 900, margin: '0 0 3px', lineHeight: 1.3, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing:'0.04em', textTransform:'uppercase' }}>{p.name}</p>
+                <p style={{ fontSize: 12, color: '#555', margin: 0, fontWeight:800 }}>{price}</p>
               </div>
             </a>
           )

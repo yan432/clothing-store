@@ -135,17 +135,17 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           {/* Styled select wrapper */}
           <div style={{
             position: 'relative',
-            border: `1.5px solid ${sizePromptPulse ? '#111' : '#deded8'}`,
-            borderRadius: 10,
+            border: `1px solid ${sizePromptPulse ? '#111' : '#0a0a0a'}`,
+            borderRadius: 0,
             background: '#fff',
-            boxShadow: sizePromptPulse ? '0 0 0 4px rgba(17,17,17,0.12)' : 'none',
+            boxShadow: sizePromptPulse ? '0 0 0 3px rgba(215,255,47,0.9)' : 'none',
             transition: 'border-color 0.2s, box-shadow 0.2s',
           }}>
             <p style={{
               fontSize: 11, color: sizePromptPulse ? '#111' : '#888', margin: 0,
               padding: '9px 14px 0',
               textTransform: 'uppercase', letterSpacing: '0.08em',
-              fontWeight: sizePromptPulse ? 600 : 400,
+              fontWeight: sizePromptPulse ? 800 : 600,
               transition: 'color 0.2s',
             }}>
               {d.cart.size}
@@ -160,12 +160,12 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
                 outline: 'none',
                 padding: '4px 36px 10px 14px',
                 fontSize: 15,
-                fontWeight: 500,
+                fontWeight: 600,
                 background: 'transparent',
                 cursor: 'pointer',
                 appearance: 'none',
                 WebkitAppearance: 'none',
-                color: '#1a1a18',
+                color: '#0a0a0a',
               }}
             >
               {mustSelectSize && (
@@ -217,11 +217,13 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           style={{
             background: 'transparent',
             color: '#111',
-            border: '1.5px solid #111',
+            border: '1px solid #111',
             padding: '16px 24px',
-            borderRadius: 999,
-            fontSize: 14,
-            fontWeight: 500,
+            borderRadius: 0,
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
             cursor: 'pointer',
             width: '100%',
             display: 'flex',
@@ -237,13 +239,15 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
           onClick={handleAdd}
           disabled={!canAdd && !(mustSelectSize && !selectedSize)}
           style={{
-            background: added ? '#16a34a' : '#000',
-            color: '#fff',
-            border: 'none',
+            background: added ? '#d7ff2f' : '#000',
+            color: added ? '#0a0a0a' : '#fff',
+            border: '1px solid #000',
             padding: '16px 24px',
-            borderRadius: 999,
-            fontSize: 14,
-            fontWeight: 500,
+            borderRadius: 0,
+            fontSize: 12,
+            fontWeight: 800,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
             cursor: canAdd || (mustSelectSize && !selectedSize) ? 'pointer' : 'not-allowed',
             transition: 'background 0.2s, opacity 0.2s',
             width: '100%',
@@ -260,10 +264,13 @@ export default function AddToCartButton({ product, showSizeSelector = false, siz
       )}
 
       <a href={pathForLocale('/cart', locale)} style={{
-        border: '1px solid #e5e5e3',
+        border: '1px solid #0a0a0a',
         padding: '14px 24px',
-        borderRadius: 999,
-        fontSize: 14,
+        borderRadius: 0,
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
         textAlign: 'center',
         textDecoration: 'none',
         color: 'inherit',

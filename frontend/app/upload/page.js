@@ -72,23 +72,23 @@ export default function UploadPage() {
         <p style={{color:'#888',fontSize:14,marginBottom:32}}>Add photos to your products</p>
 
         {message && (
-          <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8,padding:'10px 16px',marginBottom:24,fontSize:14,color:'#166534'}}>
+          <div style={{background:'#f0fdf4',border:'1px solid #16a34a',borderRadius:0,padding:'10px 16px',marginBottom:24,fontSize:14,color:'#166534'}}>
             {message}
           </div>
         )}
 
         {products.length === 0 ? (
           <button onClick={loadProducts}
-            style={{background:'#000',color:'#fff',padding:'12px 24px',borderRadius:999,fontSize:14,border:'none',cursor:'pointer'}}>
+            style={{background:'#000',color:'#fff',padding:'12px 24px',borderRadius:0,fontSize:14,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',border:'1px solid #000',cursor:'pointer'}}>
             Load Products
           </button>
         ) : (
           <div style={{display:'flex',flexDirection:'column',gap:16}}>
             {products.map(product => (
               <div key={product.id}
-                style={{display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid #eee',borderRadius:16,padding:16}}>
+                style={{display:'flex',alignItems:'center',gap:16,background:'#fff',border:'1px solid #0a0a0a',borderRadius:0,padding:16}}>
 
-                <div style={{width:72,height:72,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <div style={{width:72,height:72,borderRadius:0,overflow:'hidden',background:'#fff',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',border:'1px solid #0a0a0a'}}>
                   {product.image_url
                     ? <img src={product.image_url} alt={product.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                     : <span style={{fontSize:11,color:'#ccc'}}>No photo</span>
@@ -110,7 +110,7 @@ export default function UploadPage() {
                     onChange={(e) => e.target.files?.length && handleUpload(product.id, Array.from(e.target.files))}
                     disabled={loading}
                   />
-                  <span style={{background: product.image_url ? '#f5f5f3' : '#000',color: product.image_url ? '#333' : '#fff',padding:'8px 18px',borderRadius:999,fontSize:13,fontWeight:500}}>
+                  <span style={{background: product.image_url ? '#fff' : '#000',color: product.image_url ? '#111' : '#fff',padding:'8px 18px',borderRadius:0,fontSize:13,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',border:'1px solid #0a0a0a'}}>
                     {product.image_url ? 'Add photos' : 'Upload photos'}
                   </span>
                 </label>

@@ -2,12 +2,48 @@
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { getApiUrl } from '../lib/api'
-import { trackCheckoutStarted, trackCompleteRegistration, trackNewsletterSignup, trackShippingInfo } from '../lib/track'
+import { trackCheckoutStarted, trackCompleteRegistration, trackNewsletterSignup, trackPaymentInfo, trackShippingInfo } from '../lib/track'
+import { getStoredMetaAttribution, getStoredUtm } from '../components/UtmCapture'
 import { getMessages, pathForLocale, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, eurToUah, formatPrice } from '../lib/money'
 import { useUahRate } from '../lib/useUahRate'
+import { buildItemImageAlt } from '../lib/seoText'
+
+const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
+let stripeJsPromise
+
+function loadStripeJs() {
+  if (typeof window === 'undefined') return Promise.reject(new Error('Stripe.js is only available in the browser'))
+  if (window.Stripe) return Promise.resolve(window.Stripe)
+  if (!stripeJsPromise) {
+    stripeJsPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[src^="https://js.stripe.com"]')
+      if (existing) {
+        existing.addEventListener('load', () => resolve(window.Stripe), { once: true })
+        existing.addEventListener('error', () => reject(new Error('Stripe.js failed to load')), { once: true })
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://js.stripe.com/v3/'
+      script.async = true
+      script.onload = () => resolve(window.Stripe)
+      script.onerror = () => reject(new Error('Stripe.js failed to load'))
+      document.head.appendChild(script)
+    })
+  }
+  return stripeJsPromise
+}
+
+function hasExpressPaymentMethods(paymentMethods) {
+  if (!paymentMethods || typeof paymentMethods !== 'object') return false
+  return Object.values(paymentMethods).some(Boolean)
+}
+
+function trimmedString(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
 
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
@@ -60,6 +96,8 @@ const AUTOCOMPLETE_MAP = {
   address:   'street-address',
   city:      'address-level2',
   zip:       'postal-code',
+  novaPoshtaCity: 'address-level2',
+  novaPoshtaBranch: 'off',
 }
 
 const NAME_MAP = {
@@ -70,9 +108,43 @@ const NAME_MAP = {
   address:   'street-address',
   city:      'city',
   zip:       'postal-code',
+  novaPoshtaCity: 'city',
+  novaPoshtaBranch: 'nova-poshta-branch',
 }
 
-function FormField({ placeholder, fieldKey, type = 'text', value, onChange, error, style }) {
+const DEFAULT_SHIPPING = 30
+const DELIVERY_METHOD_ADDRESS = 'address'
+const DELIVERY_METHOD_NOVA_POSHTA_BRANCH = 'nova_poshta_branch'
+const UK_COUNTRY_FALLBACKS = {
+  AT: 'Австрія',
+  BE: 'Бельгія',
+  CA: 'Канада',
+  CH: 'Швейцарія',
+  CZ: 'Чехія',
+  DE: 'Німеччина',
+  DK: 'Данія',
+  EE: 'Естонія',
+  ES: 'Іспанія',
+  FI: 'Фінляндія',
+  FR: 'Франція',
+  GB: 'Велика Британія',
+  IE: 'Ірландія',
+  IT: 'Італія',
+  LT: 'Литва',
+  LV: 'Латвія',
+  MD: 'Молдова',
+  NL: 'Нідерланди',
+  NO: 'Норвегія',
+  PL: 'Польща',
+  PT: 'Португалія',
+  RO: 'Румунія',
+  SE: 'Швеція',
+  SK: 'Словаччина',
+  UA: 'Україна',
+  US: 'США',
+}
+
+function FormField({ placeholder, fieldKey, type = 'text', value, onChange, error, style, disabled = false }) {
   return (
     <div>
       <input
@@ -83,68 +155,9 @@ function FormField({ placeholder, fieldKey, type = 'text', value, onChange, erro
         value={value}
         onChange={onChange}
         style={style}
+        disabled={disabled}
       />
       {error && <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0 4px'}}>{error}</p>}
-    </div>
-  )
-}
-
-function StepBar({ locale = 'en' }) {
-  const d = getMessages(locale)
-  const steps = [
-    { n: 1, label: d.checkout.steps[0], done: true, href: pathForLocale('/cart', locale) },
-    { n: 2, label: d.checkout.steps[1], active: true },
-    { n: 3, label: d.checkout.steps[2], disabled: true },
-    { n: 4, label: d.checkout.steps[3], disabled: true },
-  ]
-  return (
-    <div style={{display:'flex',alignItems:'center',marginBottom:40}}>
-      {steps.map((s, i) => (
-        <div key={s.n} style={{display:'flex',alignItems:'center',flex: i < steps.length - 1 ? 1 : 'none'}}>
-          <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-            {s.href ? (
-              <a href={s.href} style={{textDecoration:'none'}}>
-                <div style={{
-                  width:32,height:32,borderRadius:'50%',
-                  background: s.active || s.done ? '#000' : 'transparent',
-                  border: s.active || s.done ? 'none' : '1.5px solid #ccc',
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:13,fontWeight:500,
-                  color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
-                  cursor:'pointer',
-                }}>
-                  {s.done && !s.active ? '✓' : s.n}
-                </div>
-              </a>
-            ) : (
-              <div style={{
-                width:32,height:32,borderRadius:'50%',
-                background: s.active || s.done ? '#000' : 'transparent',
-                border: s.active || s.done ? 'none' : '1.5px solid #ccc',
-                display:'flex',alignItems:'center',justifyContent:'center',
-                fontSize:13,fontWeight:500,
-                color: s.active || s.done ? '#fff' : s.disabled ? '#ccc' : '#888',
-              }}>
-                {s.done && !s.active ? '✓' : s.n}
-              </div>
-            )}
-            {s.href ? (
-              <a href={s.href} style={{textDecoration:'none'}}>
-                <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555',cursor:'pointer'}}>
-                  {s.label}
-                </p>
-              </a>
-            ) : (
-              <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555'}}>
-                {s.label}
-              </p>
-            )}
-          </div>
-          {i < steps.length - 1 && (
-            <div style={{flex:1,height:1,background:'#e5e5e3',margin:'0 8px',marginBottom:20}}/>
-          )}
-        </div>
-      ))}
     </div>
   )
 }
@@ -228,11 +241,16 @@ function CheckoutPage({ locale = 'en' }) {
   const addManyToCartRef = useRef(addManyToCart)
   useEffect(() => { addManyToCartRef.current = addManyToCart }, [addManyToCart])
   const { user, signIn, signUp, resendSignUpVerification, requestPasswordReset } = useAuth()
-  const router = useRouter()
   const [mode, setMode] = useState('guest')
   const [loading, setLoading] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState(false)
   const [shippingResult, setShippingResult] = useState(null)
   const [shippingLoading, setShippingLoading] = useState(false)
+  const [shippingError, setShippingError] = useState('')
+  const [promo, setPromo] = useState('')
+  const [promoApplied, setPromoApplied] = useState(null)
+  const [promoError, setPromoError] = useState('')
+  const [promoLoading, setPromoLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [authMessage, setAuthMessage] = useState('')
   const [authEmail, setAuthEmail] = useState('')
@@ -243,19 +261,55 @@ function CheckoutPage({ locale = 'en' }) {
   const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [showAuthConfirmPassword, setShowAuthConfirmPassword] = useState(false)
   const [errors, setErrors] = useState({})
+  const [paymentIntentId, setPaymentIntentId] = useState('')
+  const [paymentElementLoading, setPaymentElementLoading] = useState(false)
+  const [paymentElementReady, setPaymentElementReady] = useState(false)
+  const [paymentElementError, setPaymentElementError] = useState('')
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+  const [expressReady, setExpressReady] = useState(false)
+  const [clientReady, setClientReady] = useState(false)
   const activeAuthInputRef = useRef(null)
   const authPasswordInputRef = useRef(null)
+  const stripeRef = useRef(null)
+  const stripeElementsRef = useRef(null)
+  const paymentElementRef = useRef(null)
+  const expressCheckoutRef = useRef(null)
+  const confirmElementsPaymentRef = useRef(null)
+  const paymentSectionRef = useRef(null)
+  const paymentTracked = useRef(false)
+  const pendingCouponApplied = useRef(false)
+
+  useEffect(() => { setClientReady(true) }, [])
 
   const [form, setForm] = useState({
     firstName: '', lastName: '',
     email: '',
     phone: '',
     address: '', city: '', zip: '',
-    country: 'DE',
+    country: locale === UK_LOCALE ? 'UA' : 'DE',
+    deliveryMethod: locale === UK_LOCALE ? DELIVERY_METHOD_NOVA_POSHTA_BRANCH : DELIVERY_METHOD_ADDRESS,
+    novaPoshtaCity: '',
+    novaPoshtaBranch: '',
     comment: '',
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
+  const checkoutLocked = paymentSubmitting || paymentLoading
+  const isUkraineDelivery = form.country === 'UA'
+  const isNovaPoshtaBranchDelivery = isUkraineDelivery && form.deliveryMethod === DELIVERY_METHOD_NOVA_POSHTA_BRANCH
+  const checkoutShippingCity = isNovaPoshtaBranchDelivery ? form.novaPoshtaCity : form.city
+  const checkoutShippingLine1 = isNovaPoshtaBranchDelivery ? `Nova Poshta branch: ${form.novaPoshtaBranch}` : form.address
+  const checkoutShippingZip = isNovaPoshtaBranchDelivery ? '' : form.zip
+  const checkoutShippingLabel = isUkraineDelivery
+    ? (isNovaPoshtaBranchDelivery ? d.checkout.novaPoshtaBranchDelivery : d.checkout.novaPoshtaAddressDelivery)
+    : (shippingResult?.label || d.checkout.shippingStandard)
+  const shippingReadyForCheckout = Boolean(
+    cart.length &&
+    !shippingLoading &&
+    !shippingError &&
+    shippingResult?.zone !== 'unavailable' &&
+    shippingResult?.price_eur != null
+  )
 
   function rememberAuthInput(e) {
     activeAuthInputRef.current = e.currentTarget
@@ -347,26 +401,106 @@ function CheckoutPage({ locale = 'en' }) {
 
   // Recalculate shipping whenever country or cart changes
   useEffect(() => {
-    if (!cart.length) return
+    if (!cart.length) {
+      setShippingResult(null)
+      setShippingError('')
+      setShippingLoading(false)
+      return
+    }
     let cancelled = false
     Promise.resolve().then(() => {
       if (cancelled) return null
       setShippingLoading(true)
+      setShippingError('')
       return fetch(getApiUrl('/shipping/calculate'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           country: form.country,
+          shipping_method: isUkraineDelivery ? form.deliveryMethod : undefined,
           items: cart.map(item => ({ id: item.id, quantity: item.qty, volumetric_weight: item.volumetric_weight })),
         }),
       })
         .then(r => r.ok ? r.json() : Promise.reject())
-        .then(d => { if (!cancelled) setShippingResult(d) })
-        .catch(() => { if (!cancelled) setShippingResult(null) })
+        .then(result => {
+          if (!cancelled) {
+            setShippingResult(result)
+            setShippingError(result?.zone === 'unavailable' ? d.checkout.deliveryUnavailable : '')
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setShippingResult(null)
+            setShippingError(d.checkout.shippingFailed)
+          }
+        })
         .finally(() => { if (!cancelled) setShippingLoading(false) })
     })
     return () => { cancelled = true }
-  }, [form.country, cart])
+  }, [form.country, form.deliveryMethod, isUkraineDelivery, cart, d.checkout.deliveryUnavailable, d.checkout.shippingFailed])
+
+  async function confirmElementsPayment() {
+    const stripe = stripeRef.current
+    const elements = stripeElementsRef.current
+    if (!stripe || !elements || paymentSubmitting) return
+
+    setPaymentSubmitting(true)
+    setPaymentElementError('')
+    try {
+      if (!validate()) {
+        setPaymentSubmitting(false)
+        return
+      }
+      if (shippingResult?.zone === 'unavailable') {
+        setErrors(e => ({...e, country: d.checkout.deliveryUnavailable}))
+        setPaymentSubmitting(false)
+        return
+      }
+      if (!shippingReadyForCheckout) {
+        setShippingError(cart.length ? d.checkout.shippingFailed : d.checkout.shippingNoCart)
+        setPaymentSubmitting(false)
+        return
+      }
+      if (typeof elements.submit === 'function') {
+        const { error: submitError } = await elements.submit()
+        if (submitError) {
+          setPaymentElementError(submitError.message || d.checkout.paymentLoadError)
+          setPaymentSubmitting(false)
+          return
+        }
+      }
+      const checkoutData = await createCheckoutPaymentIntent({ skipValidation: true })
+      if (!checkoutData?.client_secret) {
+        setPaymentSubmitting(false)
+        return
+      }
+      const returnUrl = `${window.location.origin}${pathForLocale('/success', locale)}`
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        clientSecret: checkoutData.client_secret,
+        confirmParams: { return_url: returnUrl },
+        redirect: 'if_required',
+      })
+      if (error) {
+        setPaymentElementError(error.message || d.checkout.paymentLoadError)
+        setPaymentSubmitting(false)
+        return
+      }
+      const completedIntentId = paymentIntent?.id || checkoutData.payment_intent_id || paymentIntentId
+      if (completedIntentId) {
+        window.location.href = `${pathForLocale('/success', locale)}?payment_intent=${encodeURIComponent(completedIntentId)}`
+        return
+      }
+      setPaymentSubmitting(false)
+    } catch (error) {
+      setPaymentElementError(error?.message || d.checkout.paymentLoadError)
+      setPaymentSubmitting(false)
+    }
+  }
+
+  useEffect(() => {
+    confirmElementsPaymentRef.current = confirmElementsPayment
+  })
 
   const registerPasswordChecks = [
     { id: 'length', label: d.checkout.auth.checks[0], valid: authPassword.length >= 8 },
@@ -382,7 +516,219 @@ function CheckoutPage({ locale = 'en' }) {
     try { return new Intl.DisplayNames([locale === 'uk' ? 'uk' : 'en'], { type: 'region' }) }
     catch { return null }
   }, [locale])
-  const countryName = (code, fallback) => regionNames?.of(code) || fallback
+  const countryName = (code, fallback) => {
+    if (locale === UK_LOCALE && UK_COUNTRY_FALLBACKS[code]) return UK_COUNTRY_FALLBACKS[code]
+    return clientReady ? (regionNames?.of(code) || fallback) : fallback
+  }
+  const shippingCostEur = Number(shippingResult?.price_eur ?? DEFAULT_SHIPPING)
+  const shippingDisplayBase = shippingResult?.price_eur != null
+    ? (currency === 'UAH'
+        ? (shippingResult.price_uah != null ? Number(shippingResult.price_uah) : eurToUah(shippingResult.price_eur, uahRate))
+        : Number(shippingResult.price_eur))
+    : 0
+  let discountDisplay = 0
+  if (promoApplied) {
+    if (promoApplied.discount_type === 'percent') {
+      discountDisplay = displayTotal * Number(promoApplied.discount_value || 0) / 100
+    } else if (promoApplied.discount_type === 'fixed') {
+      const eurDiscount = Number(promoApplied.discount_amount || 0)
+      discountDisplay = total > 0 ? displayTotal * (eurDiscount / total) : 0
+    }
+  }
+  const safeDiscount = Math.min(displayTotal, Math.max(0, discountDisplay))
+  const promoFreeShipping = promoApplied?.discount_type === 'free_shipping'
+  const shippingTotalDisplay = promoFreeShipping ? 0 : shippingDisplayBase
+  const finalTotal = Math.max(0, displayTotal - safeDiscount + shippingTotalDisplay)
+  const discountEur = promoApplied ? Math.min(total, Math.max(0, Number(promoApplied.discount_amount || 0))) : 0
+  const shippingEur = promoFreeShipping ? 0 : (shippingResult?.price_eur != null ? Number(shippingResult.price_eur) : 0)
+  const finalTotalEur = Math.max(0, total - discountEur + shippingEur)
+  const paymentCurrency = locale === UK_LOCALE ? 'uah' : 'eur'
+  const paymentAmountMinor = Math.max(0, Math.round(finalTotal * 100))
+  const canMountPaymentElements = Boolean(
+    clientReady &&
+    cart.length &&
+    shippingReadyForCheckout &&
+    paymentAmountMinor > 0
+  )
+
+  useEffect(() => {
+    if (!canMountPaymentElements) {
+      setPaymentElementLoading(false)
+      setPaymentElementReady(false)
+      setExpressReady(false)
+      return undefined
+    }
+
+    let cancelled = false
+    let mountedPaymentElement = null
+    let mountedExpressElement = null
+    let mountedElements = null
+
+    async function mountPaymentElements() {
+      setPaymentElementError('')
+      setPaymentIntentId('')
+      if (!STRIPE_PUBLISHABLE_KEY) {
+        setPaymentElementError(d.checkout.stripeMissingKey)
+        return
+      }
+      setPaymentElementLoading(true)
+      setPaymentElementReady(false)
+      setExpressReady(false)
+      try {
+        const Stripe = await loadStripeJs()
+        if (!Stripe) throw new Error('Stripe.js failed to initialize')
+        const stripe = Stripe(STRIPE_PUBLISHABLE_KEY)
+        const appearance = {
+          variables: {
+            colorPrimary: '#111111',
+            colorText: '#111111',
+            colorTextSecondary: '#777777',
+            colorDanger: '#ef4444',
+            colorBackground: '#ffffff',
+            borderRadius: '0px',
+            fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
+          },
+          rules: {
+            '.Input': { borderColor: '#deded9' },
+            '.Tab': { borderColor: '#deded9' },
+          },
+        }
+        const elements = stripe.elements({
+          mode: 'payment',
+          amount: paymentAmountMinor,
+          currency: paymentCurrency,
+          appearance,
+          loader: 'auto',
+        })
+        if (cancelled) return
+        stripeRef.current = stripe
+        stripeElementsRef.current = elements
+        mountedElements = elements
+
+        try {
+          const expressElement = elements.create('expressCheckout', {
+            buttonHeight: 48,
+            buttonTheme: {
+              applePay: 'black',
+              googlePay: 'black',
+              paypal: 'gold',
+            },
+            buttonType: {
+              applePay: 'check-out',
+              googlePay: 'checkout',
+              paypal: 'buynow',
+            },
+          })
+          expressElement.on('availablepaymentmethodschange', ({ paymentMethods }) => {
+            if (!cancelled) setExpressReady(hasExpressPaymentMethods(paymentMethods))
+          })
+          expressElement.on('ready', ({ availablePaymentMethods }) => {
+            if (!cancelled) setExpressReady(hasExpressPaymentMethods(availablePaymentMethods))
+          })
+          expressElement.on('loaderror', () => {
+            if (!cancelled) setExpressReady(false)
+          })
+          expressElement.on('confirm', async () => {
+            await confirmElementsPaymentRef.current?.()
+          })
+          expressElement.mount('#express-checkout-element')
+          mountedExpressElement = expressElement
+          expressCheckoutRef.current = expressElement
+        } catch (_) {
+          if (!cancelled) setExpressReady(false)
+        }
+
+        const billingName = `${trimmedString(form.firstName)} ${trimmedString(form.lastName)}`.trim()
+        const billingDetails = {}
+        const billingEmail = trimmedString(form.email).toLowerCase()
+        const billingPhone = trimmedString(form.phone)
+        const billingAddress = {}
+        const billingLine1 = trimmedString(checkoutShippingLine1)
+        const billingCity = trimmedString(checkoutShippingCity)
+        const billingPostalCode = trimmedString(checkoutShippingZip)
+        const billingCountry = trimmedString(form.country)
+        if (billingName) billingDetails.name = billingName
+        if (billingEmail) billingDetails.email = billingEmail
+        if (billingPhone) billingDetails.phone = billingPhone
+        if (billingLine1) billingAddress.line1 = billingLine1
+        if (billingCity) billingAddress.city = billingCity
+        if (billingPostalCode) billingAddress.postal_code = billingPostalCode
+        if (billingCountry) billingAddress.country = billingCountry
+        if (Object.keys(billingAddress).length) billingDetails.address = billingAddress
+
+        const paymentElementOptions = {
+          layout: 'accordion',
+        }
+        if (Object.keys(billingDetails).length) {
+          paymentElementOptions.defaultValues = { billingDetails }
+        }
+
+        const paymentElement = elements.create('payment', paymentElementOptions)
+        paymentElement.on('ready', () => {
+          if (!cancelled) setPaymentElementReady(true)
+        })
+        paymentElement.on('loaderror', ({ error }) => {
+          if (!cancelled) setPaymentElementError(error?.message || d.checkout.paymentLoadError)
+        })
+        paymentElement.on('change', (event) => {
+          if (!cancelled && event.error) setPaymentElementError(event.error.message || d.checkout.paymentLoadError)
+        })
+        paymentElement.mount('#payment-element')
+        mountedPaymentElement = paymentElement
+        paymentElementRef.current = paymentElement
+      } catch (error) {
+        if (!cancelled) setPaymentElementError(error?.message || d.checkout.paymentLoadError)
+      } finally {
+        if (!cancelled) setPaymentElementLoading(false)
+      }
+    }
+
+    mountPaymentElements()
+
+    return () => {
+      cancelled = true
+      if (mountedPaymentElement) {
+        try { mountedPaymentElement.destroy() } catch (_) {}
+      }
+      if (mountedExpressElement) {
+        try { mountedExpressElement.destroy() } catch (_) {}
+      }
+      if (paymentElementRef.current === mountedPaymentElement) paymentElementRef.current = null
+      if (expressCheckoutRef.current === mountedExpressElement) expressCheckoutRef.current = null
+      if (stripeElementsRef.current === mountedElements) stripeElementsRef.current = null
+    }
+  }, [
+    canMountPaymentElements,
+    paymentAmountMinor,
+    paymentCurrency,
+    form.address,
+    form.city,
+    form.country,
+    form.email,
+    form.firstName,
+    form.lastName,
+    form.phone,
+    form.zip,
+    checkoutShippingCity,
+    checkoutShippingLine1,
+    checkoutShippingZip,
+    d.checkout.paymentLoadError,
+    d.checkout.stripeMissingKey,
+  ])
+
+  useEffect(() => {
+    if (!cart.length || shippingLoading || pendingCouponApplied.current) return
+    let pending = ''
+    try { pending = sessionStorage.getItem('pending_coupon') || '' } catch {}
+    if (!pending) return
+    pendingCouponApplied.current = true
+    setPromo(pending)
+    applyPromo(pending).finally(() => {
+      try { sessionStorage.removeItem('pending_coupon') } catch {}
+    })
+    // applyPromo is intentionally excluded so a stored coupon is applied once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart.length, shippingLoading, shippingCostEur])
 
   function validate() {
     const e = {}
@@ -392,10 +738,15 @@ function CheckoutPage({ locale = 'en' }) {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email.trim())) e.email = d.checkout.errors.email
     if (!form.phone.trim()) e.phone = d.checkout.errors.required
     else if (!/^[+]?[\d][\d\s\-(). ]{5,}$/.test(form.phone.trim())) e.phone = d.checkout.errors.phone
-    if (!form.address.trim()) e.address = d.checkout.errors.required
-    if (!form.city.trim()) e.city = d.checkout.errors.required
-    if (!form.zip.trim()) e.zip = d.checkout.errors.required
-    else if (!/^[A-Z0-9][A-Z0-9\s\-]{2,9}$/i.test(form.zip.trim())) e.zip = d.checkout.errors.zip
+    if (isNovaPoshtaBranchDelivery) {
+      if (!form.novaPoshtaCity.trim()) e.novaPoshtaCity = d.checkout.errors.required
+      if (!form.novaPoshtaBranch.trim()) e.novaPoshtaBranch = d.checkout.errors.required
+    } else {
+      if (!form.address.trim()) e.address = d.checkout.errors.required
+      if (!form.city.trim()) e.city = d.checkout.errors.required
+      if (!form.zip.trim()) e.zip = d.checkout.errors.required
+      else if (!/^[A-Z0-9][A-Z0-9\s\-]{2,9}$/i.test(form.zip.trim())) e.zip = d.checkout.errors.zip
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -479,11 +830,46 @@ function CheckoutPage({ locale = 'en' }) {
     setLoading(false)
   }
 
-  function handleContinue() {
-    if (!validate()) return
+  async function applyPromo(rawCode = promo) {
+    const code = String(rawCode || '').trim().toUpperCase()
+    if (!code) {
+      setPromoError(d.confirm.enterPromoError)
+      return
+    }
+    setPromoLoading(true)
+    try {
+      const res = await fetch(`${getApiUrl('/promo-codes/validate')}?code=${encodeURIComponent(code)}&subtotal=${encodeURIComponent(String(total))}&shipping=${encodeURIComponent(String(shippingCostEur))}`)
+      const data = await res.json()
+      if (!res.ok || !data.valid) {
+        setPromoError(data?.message || d.confirm.invalidPromo)
+        setPromoApplied(null)
+        return
+      }
+      setPromoApplied({
+        code: data.code,
+        discount_type: data.discount_type,
+        discount_value: data.discount_value,
+        discount_amount: data.discount_amount,
+      })
+      setPromo(code)
+      setPromoError('')
+    } catch {
+      setPromoError(d.confirm.failedPromo)
+      setPromoApplied(null)
+    } finally {
+      setPromoLoading(false)
+    }
+  }
+
+  async function createCheckoutPaymentIntent({ skipValidation = false } = {}) {
+    if (!skipValidation && !validate()) return null
     if (shippingResult?.zone === 'unavailable') {
       setErrors(e => ({...e, country: d.checkout.deliveryUnavailable}))
-      return
+      return null
+    }
+    if (!shippingReadyForCheckout) {
+      setShippingError(cart.length ? d.checkout.shippingFailed : d.checkout.shippingNoCart)
+      return null
     }
     sessionStorage.setItem('checkout_details', JSON.stringify(form))
     if (shippingResult) sessionStorage.setItem('checkout_shipping', JSON.stringify(shippingResult))
@@ -491,8 +877,17 @@ function CheckoutPage({ locale = 'en' }) {
       email:        form.email.trim().toLowerCase(),
       cart,
       value:        total + Number(shippingResult?.price_eur || 0),
-      shippingTier: form.country,
+      shippingTier: isUkraineDelivery ? `${form.country}:${form.deliveryMethod}` : form.country,
     })
+    if (!paymentTracked.current) {
+      paymentTracked.current = true
+      trackPaymentInfo({
+        email: form.email.trim().toLowerCase(),
+        cart,
+        value: finalTotalEur,
+        paymentType: 'Stripe',
+      })
+    }
 
     // Fire-and-forget: save abandoned cart so we can follow up if they don't complete
     const cartTotal = cart.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0)
@@ -516,17 +911,99 @@ function CheckoutPage({ locale = 'en' }) {
       }),
     }).catch(() => {})
 
-    router.push(pathForLocale('/confirm', locale))
+    setPaymentLoading(true)
+    try {
+      const origin = window.location.origin
+      const res = await fetch(getApiUrl('/checkout'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: parseFloat(item.price),
+            quantity: item.qty,
+            image_url: item.image_url || null,
+            size: item.size || null,
+          })),
+          customer_email: form.email.trim().toLowerCase(),
+          first_name: form.firstName,
+          last_name: form.lastName,
+          phone: form.phone,
+          address: isNovaPoshtaBranchDelivery ? '' : form.address,
+          city: isNovaPoshtaBranchDelivery ? '' : form.city,
+          zip: isNovaPoshtaBranchDelivery ? '' : form.zip,
+          country: form.country,
+          shipping_method: isUkraineDelivery ? form.deliveryMethod : DELIVERY_METHOD_ADDRESS,
+          nova_poshta_city: isNovaPoshtaBranchDelivery ? form.novaPoshtaCity : undefined,
+          nova_poshta_branch: isNovaPoshtaBranchDelivery ? form.novaPoshtaBranch : undefined,
+          promo_code: promoApplied?.code || null,
+          comment: form.comment || null,
+          preferred_locale: locale,
+          ui_mode: 'elements',
+          return_url: `${origin}${pathForLocale('/success', locale)}`,
+          cancel_url: `${origin}${pathForLocale('/checkout', locale)}`,
+          utm: getStoredUtm() || undefined,
+          meta: getStoredMetaAttribution() || undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const detail = data?.detail
+        const message = typeof detail === 'string' ? detail : detail?.message || d.confirm.checkoutFailed
+        alert(message)
+        setPaymentLoading(false)
+        return null
+      }
+      const pendingOrder = {
+        order_id: data.order_id || data.id,
+        total: finalTotal,
+        total_eur: finalTotalEur,
+        currency,
+        items: cart.map(item => ({
+          product_id: item.id,
+          slug: item.slug || null,
+          name: item.name,
+          price: parseFloat(item.price),
+          quantity: item.qty,
+          size: item.size || null,
+          category: item.category || null,
+        })),
+      }
+      const rememberPendingOrder = () => {
+        try { localStorage.setItem('pending_order', JSON.stringify(pendingOrder)) }
+        catch (_) {}
+      }
+      if (data.client_secret && data.payment_intent_id) {
+        rememberPendingOrder()
+        setPaymentIntentId(data.payment_intent_id)
+        setPaymentLoading(false)
+        return data
+      }
+      if (data.url) {
+        alert(d.checkout.embeddedRequired)
+        setPaymentLoading(false)
+        return null
+      }
+      const requestId = data.request_id || data.detail?.request_id || null
+      alert(`${d.confirm.checkoutFailed}${requestId ? ` ${d.confirm.reference}: ${requestId}` : ''}`)
+      setPaymentLoading(false)
+      return null
+    } catch {
+      alert(d.confirm.checkoutFailed)
+      setPaymentLoading(false)
+      return null
+    }
   }
 
   const inputStyle = (key) => ({
-    padding:'13px 16px',borderRadius:12,fontSize:16,outline:'none',width:'100%',
-    border: errors[key] ? '1.5px solid #ef4444' : '1px solid #e5e5e3',
+    padding:'13px 16px',borderRadius:0,fontSize:16,outline:'none',width:'100%',
+    border: errors[key] ? '1.5px solid #ef4444' : '1px solid var(--edm-line)',
     background:'#fff', boxSizing:'border-box',
   })
 
   return (
-    <main style={{maxWidth:1100,margin:'0 auto',padding:'32px 24px'}}>
+    <main className="checkout-page">
       <Suspense fallback={null}>
         <BuyParamEffect
           addToCartRef={addToCartRef}
@@ -534,298 +1011,444 @@ function CheckoutPage({ locale = 'en' }) {
           setDrawerOpen={setDrawerOpen}
         />
       </Suspense>
-      <StepBar locale={locale} />
-      <div className="checkout-layout">
-        <div>
-          <h1 style={{fontSize:24,fontWeight:600,margin:'0 0 24px'}}>{d.checkout.details}</h1>
+
+      <section className="checkout-express-top checkout-section">
+        <div className="checkout-section-heading">
+          <h1>{d.checkout.expressCheckout}</h1>
+          <p>{d.checkout.paymentSecure}</p>
+        </div>
+        {(!canMountPaymentElements || !expressReady) && (
+          <p className="checkout-payment-inline-note">
+            {canMountPaymentElements ? d.checkout.paymentEmbeddedLoading : d.checkout.paymentRedirect}
+          </p>
+        )}
+        {canMountPaymentElements && (
+          <>
+            <div className={expressReady ? 'checkout-express-real is-ready' : 'checkout-express-real'}>
+              <div id="express-checkout-element" />
+            </div>
+            {expressReady && <div className="checkout-or-divider checkout-or-divider-top"><span>{d.checkout.or}</span></div>}
+          </>
+        )}
+      </section>
+
+      <div className="checkout-onepage-layout">
+        <div className="checkout-main-column">
+          <a href={pathForLocale('/', locale)} className="checkout-page-logo checkout-inline-logo">edm.clothes</a>
 
           {!user && (
-            <div style={{marginBottom:28}}>
-              <div style={{display:'flex',gap:8,marginBottom:20}}>
-                {[
-                  ['guest', d.checkout.auth.guest],
-                  ['login', d.checkout.auth.login],
-                  ['register', d.checkout.auth.register],
-                ].map(([m,label]) => (
-                  <button key={m} onClick={() => {
-                    setMode(m)
-                    setAuthError('')
-                    setAuthMessage('')
-                    setAuthPassword('')
-                    setAuthConfirmPassword('')
-                    setPendingVerifyEmail('')
-                    setShowAuthPassword(false)
-                    setShowAuthConfirmPassword(false)
-                  }}
-                    style={{padding:'8px 18px',borderRadius:999,fontSize:13,fontWeight:500,border:'1.5px solid',cursor:'pointer',
-                      borderColor: mode === m ? '#000' : '#e5e5e3',
-                      background: mode === m ? '#000' : '#fff',
-                      color: mode === m ? '#fff' : '#555',
-                    }}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-              {(mode === 'login' || mode === 'register') && (
-                <>
-                <form id={`checkout-auth-${mode}-form`} name={`checkout_auth_${mode}`} onSubmit={handleAuth} style={{display:'flex',flexDirection:'column',gap:12,maxWidth:420,marginBottom:24}}>
-                  {authError && (
-                    <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,padding:'10px 16px',fontSize:13,color:'#dc2626'}}>
-                      {authError}
-                    </div>
-                  )}
-                  {authMessage && (
-                    <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'10px 16px',fontSize:13,color:'#166534'}}>
-                      {authMessage}
-                    </div>
-                  )}
-                  <input type="email" placeholder="Email" value={authEmail} onFocus={rememberAuthInput} onChange={e => setAuthEmail(e.target.value)} required
-                    style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none'}}/>
-                  <div style={{position:'relative'}}>
-                    <input type={showAuthPassword ? 'text' : 'password'} placeholder={d.checkout.auth.password} value={authPassword} ref={authPasswordInputRef} onFocus={rememberAuthInput} onChange={e => setAuthPassword(e.target.value)} required
-                      style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
-                    <button
-                      type="button"
-                      onClick={() => setShowAuthPassword((v) => !v)}
-                      style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
-                    >
-                      {showAuthPassword ? d.checkout.auth.hide : d.checkout.auth.show}
-                    </button>
-                  </div>
-                  {mode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={handleForgotPassword}
-                      disabled={loading}
-                      style={{background:'none',border:'none',padding:0,textAlign:'left',fontSize:13,color:'#555',textDecoration:'underline',cursor:'pointer',width:'fit-content'}}
-                    >
-                      {d.checkout.auth.forgotPassword}
-                    </button>
-                  )}
-                  {mode === 'register' && (
-                    <>
-                      <div style={{position:'relative'}}>
-                        <input type={showAuthConfirmPassword ? 'text' : 'password'} placeholder={d.checkout.auth.confirmPassword} value={authConfirmPassword} onFocus={rememberAuthInput} onChange={e => setAuthConfirmPassword(e.target.value)} required
-                          style={{padding:'13px 72px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%'}}/>
-                        <button
-                          type="button"
-                          onClick={() => setShowAuthConfirmPassword((v) => !v)}
-                          style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#666'}}
-                        >
-                          {showAuthConfirmPassword ? d.checkout.auth.hide : d.checkout.auth.show}
-                        </button>
-                      </div>
-                      <div style={{border:'1px solid #ecece8',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#666'}}>
-                        <p style={{margin:'0 0 6px',fontWeight:600,color:registerStrengthColor}}>{d.checkout.auth.passwordStrength}: {registerPasswordStrength}</p>
-                        {registerPasswordChecks.map((rule) => (
-                          <p key={rule.id} style={{margin:'2px 0',color:rule.valid ? '#15803d' : '#666'}}>
-                            {rule.valid ? '✓' : '•'} {rule.label}
-                          </p>
-                        ))}
-                      </div>
-                      <label style={{display:'flex',alignItems:'center',gap:8,fontSize:13,color:'#555',cursor:'pointer'}}>
-                        <input
-                          type="checkbox"
-                          checked={authNewsletterOptIn}
-                          onChange={(e) => setAuthNewsletterOptIn(e.target.checked)}
-                        />
-                        {d.checkout.auth.newsletter}
-                      </label>
-                    </>
-                  )}
-                  <button type="submit" disabled={loading}
-                    style={{background:'#000',color:'#fff',border:'none',padding:'13px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',opacity:loading?0.6:1}}>
-                    {loading ? d.checkout.auth.loading : mode === 'login' ? d.checkout.auth.login : d.checkout.auth.createAccount}
-                  </button>
-                </form>
-              {mode === 'register' && pendingVerifyEmail && (
-                <div style={{display:'flex',flexDirection:'column',gap:10,maxWidth:420,marginBottom:24,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
-                  <p style={{margin:0,fontSize:13,color:'#555'}}>{d.checkout.auth.verificationLinkSentTo} <strong>{pendingVerifyEmail}</strong></p>
-                  <p style={{margin:0,fontSize:13,color:'#777',lineHeight:1.5}}>
-                    {d.checkout.auth.verificationHelp}
-                  </p>
-                  <div style={{display:'flex',gap:8}}>
-                    <button
-                      type="button"
-                      onClick={handleResendVerification}
-                      disabled={loading}
-                      style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
-                    >
-                      {d.checkout.auth.resendLink}
-                    </button>
-                  </div>
-                </div>
-              )}
-                </>
-              )}
+            <div className="checkout-auth-switch" aria-label="Checkout mode">
+              {[
+                ['guest', d.checkout.auth.guest],
+                ['login', d.checkout.auth.login],
+                ['register', d.checkout.auth.register],
+              ].map(([m,label]) => (
+                <button key={m} type="button" onClick={() => {
+                  setMode(m)
+                  setAuthError('')
+                  setAuthMessage('')
+                  setAuthPassword('')
+                  setAuthConfirmPassword('')
+                  setPendingVerifyEmail('')
+                  setShowAuthPassword(false)
+                  setShowAuthConfirmPassword(false)
+                }} className={mode === m ? 'is-active' : ''}>
+                  {label}
+                </button>
+              ))}
             </div>
           )}
 
+          {!user && (mode === 'login' || mode === 'register') && (
+            <>
+              <form id={`checkout-auth-${mode}-form`} name={`checkout_auth_${mode}`} onSubmit={handleAuth} className="checkout-auth-form">
+                {authError && <div className="checkout-alert error">{authError}</div>}
+                {authMessage && <div className="checkout-alert success">{authMessage}</div>}
+                <input type="email" name="email" autoComplete="email" placeholder="Email" value={authEmail} onFocus={rememberAuthInput} onChange={e => setAuthEmail(e.target.value)} required />
+                <div className="checkout-password-field">
+                  <input
+                    type={showAuthPassword ? 'text' : 'password'}
+                    name={mode === 'login' ? 'current-password' : 'new-password'}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    placeholder={d.checkout.auth.password}
+                    value={authPassword}
+                    ref={authPasswordInputRef}
+                    onFocus={rememberAuthInput}
+                    onChange={e => setAuthPassword(e.target.value)}
+                    required
+                  />
+                  <button type="button" onClick={() => setShowAuthPassword((v) => !v)}>
+                    {showAuthPassword ? d.checkout.auth.hide : d.checkout.auth.show}
+                  </button>
+                </div>
+                {mode === 'login' && (
+                  <button type="button" onClick={handleForgotPassword} disabled={loading} className="checkout-link-button">
+                    {d.checkout.auth.forgotPassword}
+                  </button>
+                )}
+                {mode === 'register' && (
+                  <>
+                    <div className="checkout-password-field">
+                    <input
+                      type={showAuthConfirmPassword ? 'text' : 'password'}
+                      name="new-password-confirm"
+                      autoComplete="new-password"
+                      placeholder={d.checkout.auth.confirmPassword}
+                      value={authConfirmPassword}
+                      onFocus={rememberAuthInput}
+                      onChange={e => setAuthConfirmPassword(e.target.value)}
+                      required
+                    />
+                      <button type="button" onClick={() => setShowAuthConfirmPassword((v) => !v)}>
+                        {showAuthConfirmPassword ? d.checkout.auth.hide : d.checkout.auth.show}
+                      </button>
+                    </div>
+                    <div className="checkout-password-checks">
+                      <p style={{color:registerStrengthColor}}>{d.checkout.auth.passwordStrength}: {registerPasswordStrength}</p>
+                      {registerPasswordChecks.map((rule) => (
+                        <span key={rule.id} className={rule.valid ? 'is-valid' : ''}>
+                          {rule.valid ? '✓' : '•'} {rule.label}
+                        </span>
+                      ))}
+                    </div>
+                    <label className="checkout-checkbox">
+                      <input type="checkbox" checked={authNewsletterOptIn} onChange={(e) => setAuthNewsletterOptIn(e.target.checked)} />
+                      {d.checkout.auth.newsletter}
+                    </label>
+                  </>
+                )}
+                <button type="submit" disabled={loading} className="checkout-secondary-submit">
+                  {loading ? d.checkout.auth.loading : mode === 'login' ? d.checkout.auth.login : d.checkout.auth.createAccount}
+                </button>
+              </form>
+              {mode === 'register' && pendingVerifyEmail && (
+                <div className="checkout-verify-box">
+                  <p>{d.checkout.auth.verificationLinkSentTo} <strong>{pendingVerifyEmail}</strong></p>
+                  <p>{d.checkout.auth.verificationHelp}</p>
+                  <button type="button" onClick={handleResendVerification} disabled={loading}>
+                    {d.checkout.auth.resendLink}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
           {user && (
-            <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:12,padding:'10px 16px',fontSize:14,color:'#166534',marginBottom:24}}>
+            <div className="checkout-alert success">
               {d.checkout.auth.signedInAs} {user.email}
             </div>
           )}
 
-          <form id="checkout-details-form" name="checkout_details" autoComplete="on" onSubmit={e => { e.preventDefault(); handleContinue() }}>
-          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:28}}>
-            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>{d.checkout.contact}</p>
-            <div className="checkout-2col">
+          <form id="checkout-details-form" name="checkout_details" autoComplete="on" className="checkout-onepage-form" onSubmit={e => e.preventDefault()}>
+            <section className="checkout-section">
+              <div className="checkout-section-heading">
+                <h1>{d.checkout.contact}</h1>
+              </div>
               <FormField
-                placeholder={d.checkout.firstName}
-                fieldKey="firstName"
-                value={form.firstName}
-                error={errors.firstName}
-                style={inputStyle('firstName')}
-                onChange={e => { set('firstName', e.target.value); setErrors(err => ({...err, firstName: null})) }}
+                placeholder={d.checkout.email}
+                fieldKey="email"
+                type="email"
+                value={form.email}
+                error={errors.email}
+                style={inputStyle('email')}
+                disabled={checkoutLocked}
+                onChange={e => { set('email', e.target.value); setErrors(err => ({...err, email: null})) }}
               />
               <FormField
-                placeholder={d.checkout.lastName}
-                fieldKey="lastName"
-                value={form.lastName}
-                error={errors.lastName}
-                style={inputStyle('lastName')}
-                onChange={e => { set('lastName', e.target.value); setErrors(err => ({...err, lastName: null})) }}
+                placeholder={d.checkout.phone}
+                fieldKey="phone"
+                type="tel"
+                value={form.phone}
+                error={errors.phone}
+                style={inputStyle('phone')}
+                disabled={checkoutLocked}
+                onChange={e => { set('phone', e.target.value); setErrors(err => ({...err, phone: null})) }}
               />
-            </div>
-            <FormField
-              placeholder={d.checkout.email}
-              fieldKey="email"
-              type="email"
-              value={form.email}
-              error={errors.email}
-              style={inputStyle('email')}
-              onChange={e => { set('email', e.target.value); setErrors(err => ({...err, email: null})) }}
-            />
-            <FormField
-              placeholder={d.checkout.phone}
-              fieldKey="phone"
-              type="tel"
-              value={form.phone}
-              error={errors.phone}
-              style={inputStyle('phone')}
-              onChange={e => { set('phone', e.target.value); setErrors(err => ({...err, phone: null})) }}
-            />
-          </div>
+            </section>
 
-          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:32}}>
-            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>{d.checkout.shippingAddress}</p>
-            <FormField
-              placeholder={d.checkout.streetAddress}
-              fieldKey="address"
-              value={form.address}
-              error={errors.address}
-              style={inputStyle('address')}
-              onChange={e => { set('address', e.target.value); setErrors(err => ({...err, address: null})) }}
-            />
-            <div className="checkout-2col">
-              <FormField
-                placeholder={d.checkout.city}
-                fieldKey="city"
-                value={form.city}
-                error={errors.city}
-                style={inputStyle('city')}
-                onChange={e => { set('city', e.target.value); setErrors(err => ({...err, city: null})) }}
-              />
-              <FormField
-                placeholder={d.checkout.zip}
-                fieldKey="zip"
-                value={form.zip}
-                error={errors.zip}
-                style={inputStyle('zip')}
-                onChange={e => { set('zip', e.target.value); setErrors(err => ({...err, zip: null})) }}
-              />
-            </div>
-            <div style={{position:'relative'}}>
-              <select value={form.country} onChange={e => set('country', e.target.value)}
-                name="country" autoComplete="country"
-                style={{display:'block',padding:'13px 40px 13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',background:'#fff',color:'#1a1a18',width:'100%',boxSizing:'border-box',height:50,appearance:'none',WebkitAppearance:'none',cursor:'pointer'}}>
-                {COUNTRIES.map(([code, name]) => (
-                  <option key={code} value={code}>{countryName(code, name)}</option>
-                ))}
-              </select>
-              <svg style={{position:'absolute',right:14,top:'50%',transform:'translateY(-50%)',pointerEvents:'none',color:'#888'}} width="12" height="8" viewBox="0 0 12 8" fill="none">
-                <path d="M1 1L6 7L11 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
+            <section className="checkout-section">
+              <div className="checkout-section-heading">
+                <h2>{d.checkout.delivery}</h2>
+              </div>
+              <div className="checkout-select-wrap">
+                <select
+                  value={form.country}
+                  onChange={e => {
+                    const nextCountry = e.target.value
+                    setForm(f => ({
+                      ...f,
+                      country: nextCountry,
+                      deliveryMethod: nextCountry === 'UA'
+                        ? (f.country === 'UA' ? f.deliveryMethod : DELIVERY_METHOD_NOVA_POSHTA_BRANCH)
+                        : DELIVERY_METHOD_ADDRESS,
+                    }))
+                    setErrors(err => ({...err, country: null}))
+                  }}
+                  name="country"
+                  autoComplete="country"
+                  disabled={checkoutLocked}
+                >
+                  {COUNTRIES.map(([code, name]) => (
+                    <option key={code} value={code}>{countryName(code, name)}</option>
+                  ))}
+                </select>
+              </div>
+              {isUkraineDelivery && (
+                <div className="checkout-delivery-methods" role="radiogroup" aria-label={d.checkout.deliveryMethod}>
+                  {[
+                    [DELIVERY_METHOD_NOVA_POSHTA_BRANCH, d.checkout.deliveryNovaPoshtaBranch, d.checkout.deliveryNovaPoshtaBranchHint],
+                    [DELIVERY_METHOD_ADDRESS, d.checkout.deliveryAddress, d.checkout.deliveryAddressHint],
+                  ].map(([method, label, hint]) => (
+                    <button
+                      key={method}
+                      type="button"
+                      disabled={checkoutLocked}
+                      className={form.deliveryMethod === method ? 'is-active' : ''}
+                      onClick={() => {
+                        set('deliveryMethod', method)
+                        setErrors(err => ({
+                          ...err,
+                          address: null,
+                          city: null,
+                          zip: null,
+                          novaPoshtaCity: null,
+                          novaPoshtaBranch: null,
+                        }))
+                      }}
+                    >
+                      <strong>{label}</strong>
+                      <span>{hint}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="checkout-2col">
+                <FormField
+                  placeholder={d.checkout.firstName}
+                  fieldKey="firstName"
+                  value={form.firstName}
+                  error={errors.firstName}
+                  style={inputStyle('firstName')}
+                  disabled={checkoutLocked}
+                  onChange={e => { set('firstName', e.target.value); setErrors(err => ({...err, firstName: null})) }}
+                />
+                <FormField
+                  placeholder={d.checkout.lastName}
+                  fieldKey="lastName"
+                  value={form.lastName}
+                  error={errors.lastName}
+                  style={inputStyle('lastName')}
+                  disabled={checkoutLocked}
+                  onChange={e => { set('lastName', e.target.value); setErrors(err => ({...err, lastName: null})) }}
+                />
+              </div>
+              {isNovaPoshtaBranchDelivery ? (
+                <>
+                  <div className="checkout-2col">
+                    <FormField
+                      placeholder={d.checkout.novaPoshtaCity}
+                      fieldKey="novaPoshtaCity"
+                      value={form.novaPoshtaCity}
+                      error={errors.novaPoshtaCity}
+                      style={inputStyle('novaPoshtaCity')}
+                      disabled={checkoutLocked}
+                      onChange={e => { set('novaPoshtaCity', e.target.value); setErrors(err => ({...err, novaPoshtaCity: null})) }}
+                    />
+                    <FormField
+                      placeholder={d.checkout.novaPoshtaBranch}
+                      fieldKey="novaPoshtaBranch"
+                      value={form.novaPoshtaBranch}
+                      error={errors.novaPoshtaBranch}
+                      style={inputStyle('novaPoshtaBranch')}
+                      disabled={checkoutLocked}
+                      onChange={e => { set('novaPoshtaBranch', e.target.value); setErrors(err => ({...err, novaPoshtaBranch: null})) }}
+                    />
+                  </div>
+                  <p className="checkout-delivery-help">{d.checkout.novaPoshtaBranchHelp}</p>
+                </>
+              ) : (
+                <>
+                  <FormField
+                    placeholder={d.checkout.streetAddress}
+                    fieldKey="address"
+                    value={form.address}
+                    error={errors.address}
+                    style={inputStyle('address')}
+                    disabled={checkoutLocked}
+                    onChange={e => { set('address', e.target.value); setErrors(err => ({...err, address: null})) }}
+                  />
+                  <div className="checkout-2col">
+                    <FormField
+                      placeholder={d.checkout.zip}
+                      fieldKey="zip"
+                      value={form.zip}
+                      error={errors.zip}
+                      style={inputStyle('zip')}
+                      disabled={checkoutLocked}
+                      onChange={e => { set('zip', e.target.value); setErrors(err => ({...err, zip: null})) }}
+                    />
+                    <FormField
+                      placeholder={d.checkout.city}
+                      fieldKey="city"
+                      value={form.city}
+                      error={errors.city}
+                      style={inputStyle('city')}
+                      disabled={checkoutLocked}
+                      onChange={e => { set('city', e.target.value); setErrors(err => ({...err, city: null})) }}
+                    />
+                  </div>
+                </>
+              )}
+            </section>
 
-          {/* Order note */}
-          <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-            <p style={{fontSize:12,fontWeight:600,color:'#aaa',textTransform:'uppercase',letterSpacing:'0.08em',margin:0}}>{d.checkout.orderNote} <span style={{fontWeight:400,textTransform:'none',letterSpacing:0}}>{d.checkout.optional}</span></p>
-            <textarea
-              placeholder={d.checkout.orderNotePlaceholder}
-              value={form.comment}
-              onChange={e => set('comment', e.target.value)}
-              rows={3}
-              style={{padding:'13px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:16,outline:'none',width:'100%',boxSizing:'border-box',resize:'vertical',fontFamily:'inherit',color:'#1a1a18',lineHeight:1.5}}
-            />
-          </div>
+            <section className="checkout-section">
+              <div className="checkout-section-heading">
+                <h2>{d.checkout.shipping}</h2>
+              </div>
+              <div className={shippingResult?.zone === 'unavailable' || shippingError ? 'checkout-shipping-method is-error' : 'checkout-shipping-method'}>
+                <div>
+                  <strong>{shippingLoading ? d.checkout.shippingCalculating : checkoutShippingLabel}</strong>
+                  <span>
+                    {!cart.length ? d.checkout.shippingNoCart :
+                      shippingLoading ? d.checkout.shippingAddressPending :
+                      shippingError ? shippingError :
+                      shippingResult?.zone === 'unavailable' ? d.checkout.deliveryUnavailable :
+                      shippingResult?.weight_kg ? `${shippingResult.weight_kg} kg` : d.checkout.shippingReady}
+                  </span>
+                </div>
+                <strong>
+                  {!cart.length ? '-' :
+                    shippingLoading ? '...' :
+                    shippingError ? '-' :
+                    shippingResult?.zone === 'unavailable' ? d.checkout.notAvailable :
+                    shippingResult?.price_eur != null
+                      ? (shippingTotalDisplay === 0 ? d.confirm.free : formatPrice(shippingTotalDisplay, currency))
+                      : '-'}
+                </strong>
+              </div>
+            </section>
 
-          <div style={{display:'flex',gap:12,alignItems:'center'}}>
-            <button type="button" onClick={() => router.push(pathForLocale('/cart', locale))}
-              style={{background:'none',border:'1.5px solid #e5e5e3',padding:'15px 24px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',color:'#555'}}>
-              {d.checkout.back}
-            </button>
-            <button
-              type="submit"
-              disabled={cart.length === 0 || shippingResult?.zone === 'unavailable' || shippingLoading}
-              title={shippingResult?.zone === 'unavailable' ? d.checkout.deliveryUnavailableTitle : undefined}
-              style={{background:'#000',color:'#fff',border:'none',padding:'16px 40px',borderRadius:999,fontSize:14,fontWeight:600,cursor: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 'not-allowed' : 'pointer',opacity: (cart.length === 0 || shippingResult?.zone === 'unavailable') ? 0.4 : 1}}>
-              {d.checkout.continueToConfirm}
-            </button>
-          </div>
+            <section className="checkout-section" ref={paymentSectionRef}>
+              <div className="checkout-section-heading">
+                <h2>{d.checkout.payment}</h2>
+                <p>{d.checkout.paymentSecure}</p>
+              </div>
+              {!canMountPaymentElements && (
+                <p className="checkout-payment-inline-note">{d.checkout.paymentRedirect}</p>
+              )}
+              {canMountPaymentElements && (
+                <div className="checkout-elements-surface">
+                  {paymentElementLoading && <div className="checkout-embedded-loading">{d.checkout.paymentEmbeddedLoading}</div>}
+                  <div id="payment-element" className="checkout-payment-element" />
+                  {paymentElementError && <div className="checkout-alert error">{paymentElementError}</div>}
+                  <button
+                    type="button"
+                    onClick={confirmElementsPayment}
+                    disabled={!paymentElementReady || paymentSubmitting}
+                    className="checkout-pay-button checkout-elements-pay-button"
+                  >
+                    {paymentSubmitting ? d.confirm.loading : d.checkout.payNow}
+                  </button>
+                </div>
+              )}
+            </section>
+
+            {!checkoutLocked && (
+              <>
+                <section className="checkout-section">
+                  <div className="checkout-section-heading">
+                    <h2>{d.checkout.orderNote} <span>{d.checkout.optional}</span></h2>
+                  </div>
+                  <textarea
+                    placeholder={d.checkout.orderNotePlaceholder}
+                    value={form.comment}
+                    onChange={e => set('comment', e.target.value)}
+                    rows={3}
+                  />
+                </section>
+
+                <div className="checkout-actions checkout-actions-single">
+                  <button type="button" onClick={() => setDrawerOpen(true)} className="checkout-back-button">
+                    {d.checkout.back}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         </div>
 
-        <div className="checkout-sidebar" style={{background:'#fafaf8',border:'1px solid #f0f0ee',borderRadius:20,padding:24,position:'sticky',top:100}}>
-          <h2 style={{fontSize:20,fontWeight:700,margin:'0 0 20px'}}>{d.checkout.orderSummary}</h2>
-          <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
+        <aside className="checkout-onepage-summary">
+          <h2>{d.checkout.orderSummary}</h2>
+          <div className="checkout-summary-items">
             {cart.map(item => (
-              <div key={item.id+(item.size||'')} style={{display:'flex',gap:12,alignItems:'center'}}>
-                <div style={{width:52,height:52,borderRadius:8,overflow:'hidden',background:'#eee',flexShrink:0}}>
-                  {item.image_url && <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+              <div key={item.id+(item.size||'')} className="checkout-summary-item">
+                <div className="checkout-summary-image">
+                  {item.image_url && <img src={item.image_url} alt={buildItemImageAlt(item, locale)} />}
+                  <span>{item.qty}</span>
                 </div>
-                <div style={{flex:1}}>
-                  <p style={{fontSize:14,fontWeight:500,margin:'0 0 2px'}}>{item.name}</p>
-                  <p style={{fontSize:12,color:'#aaa',margin:0}}>x{item.qty}{item.size ? ` • ${item.size}` : ''}</p>
+                <div>
+                  <p>{item.name}</p>
+                  <span>{item.size || d.checkout.noSize}</span>
                 </div>
-                <p style={{fontSize:14,fontWeight:500,margin:0}}>{formatPrice(lineUnit(item) * item.qty, currency)}</p>
+                <strong>{formatPrice(lineUnit(item) * item.qty, currency)}</strong>
               </div>
             ))}
           </div>
-          <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
-              <span>{d.checkout.subtotal}</span><span>{formatPrice(displayTotal, currency)}</span>
+
+          <div className="checkout-promo-row">
+            <input
+              type="text"
+              placeholder={d.confirm.enterPromo}
+              value={promo}
+              disabled={checkoutLocked}
+              onChange={e => { setPromo(e.target.value); setPromoError('') }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  applyPromo()
+                }
+              }}
+            />
+            <button type="button" onClick={() => applyPromo()} disabled={promoLoading || checkoutLocked}>
+              {promoLoading ? d.confirm.checking : d.confirm.apply}
+            </button>
+          </div>
+          {promoError && <p className="checkout-promo-error">{promoError}</p>}
+          {promoApplied && (
+            <div className="checkout-promo-applied">
+              <span>
+                {promoApplied.code} - {promoApplied.discount_type === 'percent'
+                  ? `${promoApplied.discount_value}% ${d.confirm.percentOff}`
+                  : promoApplied.discount_type === 'free_shipping'
+                    ? d.confirm.freeShipping
+                    : `${formatPrice(safeDiscount, currency)} ${d.confirm.euroOff}`}
+              </span>
+              <button type="button" onClick={() => { setPromoApplied(null); setPromo('') }} disabled={checkoutLocked}>x</button>
             </div>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
+          )}
+
+          <div className="checkout-summary-totals">
+            <div><span>{d.checkout.subtotal}</span><span>{formatPrice(displayTotal, currency)}</span></div>
+            {promoApplied && safeDiscount > 0 && (
+              <div className="is-discount"><span>{d.confirm.discount}</span><span>-{formatPrice(safeDiscount, currency)}</span></div>
+            )}
+            <div>
               <span>{d.checkout.shipping}</span>
-              <span style={{color: shippingResult?.zone === 'unavailable' ? '#ef4444' : '#555'}}>
-                {shippingLoading ? '…' :
+              <span>
+                {!cart.length ? '-' :
+                  shippingLoading ? '...' :
+                  shippingError ? '-' :
                   shippingResult?.zone === 'unavailable' ? d.checkout.notAvailable :
-                  shippingResult?.free_shipping_applied ? formatPrice(0, currency) :
                   shippingResult?.price_eur != null
-                    ? (currency === 'UAH'
-                        ? formatPrice(shippingResult.price_uah != null ? Number(shippingResult.price_uah) : eurToUah(shippingResult.price_eur, uahRate), currency)
-                        : `€${shippingResult.price_eur.toFixed(2)}`)
-                    : '—'}
+                    ? (shippingTotalDisplay === 0 ? d.confirm.free : formatPrice(shippingTotalDisplay, currency))
+                    : '-'}
               </span>
             </div>
-            {shippingResult?.zone === 'unavailable' && (
-              <p style={{fontSize:11,color:'#ef4444',margin:'4px 0 0',textAlign:'right'}}>
-                {d.checkout.deliveryUnavailable}
-              </p>
-            )}
-            {shippingResult?.label && shippingResult?.zone !== 'unavailable' && (
-              <p style={{fontSize:11,color:'#aaa',margin:'4px 0 0',textAlign:'right'}}>
-                {shippingResult.label} · {shippingResult.weight_kg} kg
-              </p>
-            )}
+            <div className="is-total"><span>{d.confirm.total}</span><span>{formatPrice(finalTotal, currency)}</span></div>
           </div>
-          <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:16,lineHeight:1.5}}>
-            {d.checkout.externalPayment}
-          </p>
-        </div>
+
+          <p className="checkout-summary-note">{d.checkout.summaryNote}</p>
+        </aside>
       </div>
     </main>
   )

@@ -46,12 +46,12 @@ export default function SuccessPage() {
 
   return (
     <main style={{minHeight:'80vh',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:24}}>
-      <div style={{width:64,height:64,borderRadius:'50%',background:'#f0fdf4',border:'2px solid #bbf7d0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,marginBottom:24,color:'#16a34a'}}>
+      <div style={{width:64,height:64,borderRadius:0,background:'#f0fdf4',border:'1px solid #16a34a',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,marginBottom:24,color:'#16a34a'}}>
         ✓
       </div>
       <h1 style={{fontSize:32,fontWeight:600,marginBottom:8}}>{d.success.title}</h1>
       <p style={{color:'#aaa',marginBottom:32,maxWidth:400}}>{d.success.text}</p>
-      <Link href={pathForLocale('/products', locale)} style={{background:'#000',color:'#fff',padding:'14px 32px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
+      <Link href={pathForLocale('/products', locale)} style={{background:'#000',color:'#fff',padding:'14px 32px',borderRadius:0,fontSize:14,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',textDecoration:'none',border:'1px solid #000'}}>
         {d.success.continueShopping}
       </Link>
     </main>

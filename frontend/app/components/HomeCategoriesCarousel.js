@@ -35,9 +35,9 @@ export default function HomeCategoriesCarousel({ tiles }) {
         aria-label="Previous"
         style={{
           position: 'absolute', left: -20, top: '40%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 40, height: 40, borderRadius: '50%',
-          background: '#fff', border: '1px solid #e5e5e0',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+          zIndex: 2, width: 40, height: 40, borderRadius: 0,
+          background: '#fff', border: '1px solid #0a0a0a',
+          boxShadow: 'none',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 18, opacity: canPrev ? 1 : 0, pointerEvents: canPrev ? 'auto' : 'none',
           transition: 'opacity 200ms',
@@ -66,10 +66,10 @@ export default function HomeCategoriesCarousel({ tiles }) {
               textDecoration: 'none',
               color: 'inherit',
               display: 'block',
-              borderRadius: 18,
+              borderRadius: 0,
               overflow: 'hidden',
-              border: '1px solid #ececea',
-              background: '#f5f5f3',
+              border: '1px solid #0a0a0a',
+              background: '#fff',
             }}
           >
             <div
@@ -81,8 +81,8 @@ export default function HomeCategoriesCarousel({ tiles }) {
               }}
               aria-label={tile.title}
             />
-            <div style={{ background: '#fff', padding: '14px 16px', textAlign: 'center' }}>
-              <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{tile.title}</p>
+            <div style={{ background: '#fff', padding: '13px 14px', textAlign: 'left', borderTop: '1px solid #0a0a0a' }}>
+              <p style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{tile.title}</p>
             </div>
           </a>
         ))}
@@ -93,9 +93,9 @@ export default function HomeCategoriesCarousel({ tiles }) {
         aria-label="Next"
         style={{
           position: 'absolute', right: -20, top: '40%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 40, height: 40, borderRadius: '50%',
-          background: '#fff', border: '1px solid #e5e5e0',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+          zIndex: 2, width: 40, height: 40, borderRadius: 0,
+          background: '#fff', border: '1px solid #0a0a0a',
+          boxShadow: 'none',
           cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 18, opacity: canNext ? 1 : 0, pointerEvents: canNext ? 'auto' : 'none',
           transition: 'opacity 200ms',

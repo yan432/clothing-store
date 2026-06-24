@@ -232,13 +232,13 @@ export default function AuthPage({ locale = 'en' }) {
         </p>
 
         {error && (
-          <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,padding:'10px 16px',marginBottom:16,fontSize:14,color:'#dc2626'}}>
+          <div style={{background:'#fef2f2',border:'1px solid #dc2626',borderRadius:0,padding:'10px 16px',marginBottom:16,fontSize:14,color:'#dc2626'}}>
             {error}
           </div>
         )}
 
         {message && (
-          <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'10px 16px',marginBottom:16,fontSize:14,color:'#16a34a'}}>
+          <div style={{background:'#f0fdf4',border:'1px solid #16a34a',borderRadius:0,padding:'10px 16px',marginBottom:16,fontSize:14,color:'#16a34a'}}>
             {message}
           </div>
         )}
@@ -253,7 +253,7 @@ export default function AuthPage({ locale = 'en' }) {
             onFocus={rememberAuthInput}
             onChange={e => setEmail(e.target.value)}
             required
-            style={{padding:'14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
+            style={{padding:'14px 16px',borderRadius:0,border:'1px solid #0a0a0a',fontSize:14,outline:'none',width:'100%'}}
           />
           <div style={{position:'relative'}}>
             <input
@@ -266,7 +266,7 @@ export default function AuthPage({ locale = 'en' }) {
               onFocus={rememberAuthInput}
               onChange={e => setPassword(e.target.value)}
               required
-              style={{padding:'14px 72px 14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
+              style={{padding:'14px 72px 14px 16px',borderRadius:0,border:'1px solid #0a0a0a',fontSize:14,outline:'none',width:'100%'}}
             />
             <button
               type="button"
@@ -298,7 +298,7 @@ export default function AuthPage({ locale = 'en' }) {
                   onFocus={rememberAuthInput}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  style={{padding:'14px 72px 14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
+                  style={{padding:'14px 72px 14px 16px',borderRadius:0,border:'1px solid #0a0a0a',fontSize:14,outline:'none',width:'100%'}}
                 />
                 <button
                   type="button"
@@ -308,7 +308,7 @@ export default function AuthPage({ locale = 'en' }) {
                   {showConfirmPassword ? t.hide : t.show}
                 </button>
               </div>
-              <div style={{border:'1px solid #ecece8',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#666'}}>
+              <div style={{border:'1px solid #0a0a0a',borderRadius:0,padding:'10px 12px',fontSize:12,color:'#666'}}>
                 <p style={{margin:'0 0 6px',fontWeight:600,color:passwordStrengthColor}}>{t.passwordStrength}: {passwordStrength}</p>
                 {passwordChecks.map((rule) => (
                   <p key={rule.id} style={{margin:'2px 0',color:rule.valid ? '#15803d' : '#666'}}>
@@ -329,13 +329,13 @@ export default function AuthPage({ locale = 'en' }) {
           <button
             type="submit"
             disabled={loading}
-            style={{background:'#000',color:'#fff',padding:'14px',borderRadius:999,fontSize:14,fontWeight:500,border:'none',cursor:'pointer',marginTop:4,opacity: loading ? 0.6 : 1}}>
+            style={{background:'#000',color:'#fff',padding:'14px',borderRadius:0,fontSize:14,fontWeight:800,border:'1px solid #000',letterSpacing:'0.06em',textTransform:'uppercase',cursor:'pointer',marginTop:4,opacity: loading ? 0.6 : 1}}>
             {loading ? t.loading : mode === 'signin' ? t.signIn : t.create}
           </button>
         </form>
 
         {mode === 'signup' && pendingVerificationEmail && (
-          <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:10,border:'1px solid #ecece8',borderRadius:12,padding:'12px 14px'}}>
+          <div style={{marginTop:16,display:'flex',flexDirection:'column',gap:10,border:'1px solid #0a0a0a',borderRadius:0,padding:'12px 14px'}}>
             <p style={{margin:0,fontSize:13,color:'#555'}}>{t.sentTo} <strong>{pendingVerificationEmail}</strong></p>
             <p style={{margin:0,fontSize:13,color:'#777',lineHeight:1.5}}>
               {t.openInbox}
@@ -345,7 +345,7 @@ export default function AuthPage({ locale = 'en' }) {
                 type="button"
                 onClick={handleResendVerification}
                 disabled={loading}
-                style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:999,fontSize:13,fontWeight:500,border:'1px solid #ddd',cursor:'pointer',opacity: loading ? 0.6 : 1}}
+                style={{background:'#fff',color:'#222',padding:'10px 14px',borderRadius:0,fontSize:13,fontWeight:800,border:'1px solid #0a0a0a',letterSpacing:'0.06em',textTransform:'uppercase',cursor:'pointer',opacity: loading ? 0.6 : 1}}
               >
                 {t.resend}
               </button>

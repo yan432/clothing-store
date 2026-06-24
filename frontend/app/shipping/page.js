@@ -87,7 +87,7 @@ export default async function ShippingPage({ locale = 'en' }) {
       {/* Quick summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 48 }}>
         {copy.summary.map(({ Icon, label, sub }) => (
-          <div key={label} style={{ background: '#f5f5f3', borderRadius: 14, padding: '18px 16px', textAlign: 'center' }}>
+          <div key={label} style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '18px 16px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><Icon size={24} strokeWidth={1.5} /></div>
             <p style={{ fontSize: 13, fontWeight: 700, margin: '0 0 3px' }}>{label}</p>
             <p style={{ fontSize: 12, color: '#888', margin: 0 }}>{sub}</p>
@@ -95,7 +95,7 @@ export default async function ShippingPage({ locale = 'en' }) {
         ))}
       </div>
 
-      <div style={{ borderTop: '1px solid #ecece8', marginBottom: 40 }} />
+      <div style={{ borderTop: '1px solid #0a0a0a', marginBottom: 40 }} />
 
       {sections.map((s, i) => (
         <div key={i} style={{ marginBottom: 36 }}>
@@ -104,14 +104,14 @@ export default async function ShippingPage({ locale = 'en' }) {
         </div>
       ))}
 
-      <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '28px 24px', marginTop: 8 }}>
+      <div style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '28px 24px', marginTop: 8 }}>
         <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 6px' }}>{copy.ctaTitle}</p>
         <p style={{ fontSize: 14, color: '#666', margin: '0 0 16px', lineHeight: 1.6 }}>
           {copy.ctaText}
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <a href={pathForLocale('/contact', locale)} style={{ background: '#0a0a0a', color: '#fff', textDecoration: 'none', padding: '11px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>{copy.contact}</a>
-          <a href={pathForLocale('/faq', locale)} style={{ background: '#fff', color: '#111', textDecoration: 'none', padding: '11px 24px', borderRadius: 999, fontSize: 13, fontWeight: 600, border: '1.5px solid #e5e5e0' }}>{copy.faq}</a>
+          <a href={pathForLocale('/contact', locale)} style={{ background: '#0a0a0a', color: '#fff', textDecoration: 'none', padding: '11px 24px', borderRadius: 0, fontSize: 13, fontWeight: 800, border: '1px solid #0a0a0a', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{copy.contact}</a>
+          <a href={pathForLocale('/faq', locale)} style={{ background: '#fff', color: '#111', textDecoration: 'none', padding: '11px 24px', borderRadius: 0, fontSize: 13, fontWeight: 800, border: '1px solid #0a0a0a', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{copy.faq}</a>
         </div>
       </div>
     </main>

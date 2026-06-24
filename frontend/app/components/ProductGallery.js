@@ -105,9 +105,9 @@ export default function ProductGallery({ product, locale = 'en' }) {
               onFocus={() => setActiveIndex(index)}
               aria-label={`${d.products.showImage || 'Show image'} ${index + 1}`}
               style={{
-                border:'2px solid ' + (activeIndex === index ? '#111' : 'transparent'),
-                background:'#f5f5f3',
-                borderRadius:8,
+                border:'none',
+                background:'#fff',
+                borderRadius:0,
                 position:'relative',
                 width:'100%',
                 aspectRatio:'4/5',
@@ -115,6 +115,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
                 cursor:'pointer',
                 padding:0,
                 flexShrink:0,
+                opacity: activeIndex === index ? 1 : 0.5,
               }}>
               <Image
                 src={src}
@@ -135,7 +136,7 @@ export default function ProductGallery({ product, locale = 'en' }) {
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
         onClick={onGalleryClick}
-        style={{background:'#f5f5f3',borderRadius:20,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',color:'#ccc',touchAction:'pan-y'}}>
+        style={{background:'#fff',border:'none',borderRadius:0,overflow:'hidden',display:'flex',alignItems:'center',justifyContent:'center',color:'#888',touchAction:'pan-y'}}>
         {hasImages ? (
           <div
             className="product-gallery-track"

@@ -154,8 +154,8 @@ export default function ResetPasswordPage({ locale = 'en' }) {
         <p style={{textAlign:'center',color:'#888',fontSize:14,marginBottom:24}}>
           {ready ? t.readySubtitle : t.validating}
         </p>
-        {error ? <div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:10,padding:'10px 16px',marginBottom:12,fontSize:14,color:'#dc2626'}}>{error}</div> : null}
-        {message ? <div style={{background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:10,padding:'10px 16px',marginBottom:12,fontSize:14,color:'#16a34a'}}>{message}</div> : null}
+        {error ? <div style={{background:'#fef2f2',border:'1px solid #dc2626',borderRadius:0,padding:'10px 16px',marginBottom:12,fontSize:14,color:'#dc2626'}}>{error}</div> : null}
+        {message ? <div style={{background:'#f0fdf4',border:'1px solid #16a34a',borderRadius:0,padding:'10px 16px',marginBottom:12,fontSize:14,color:'#16a34a'}}>{message}</div> : null}
         <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:12,opacity:ready ? 1 : 0.6,pointerEvents:ready ? 'auto' : 'none'}}>
           <div style={{position:'relative'}}>
             <input
@@ -165,7 +165,7 @@ export default function ResetPasswordPage({ locale = 'en' }) {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={!ready}
-              style={{padding:'14px 72px 14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
+              style={{padding:'14px 72px 14px 16px',borderRadius:0,border:'1px solid #0a0a0a',fontSize:14,outline:'none',width:'100%'}}
             />
             <button type="button" disabled={!ready} onClick={() => setShowPassword((v) => !v)} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:ready ? 'pointer' : 'default',fontSize:12,color:'#666'}}>
               {showPassword ? t.hide : t.show}
@@ -179,20 +179,20 @@ export default function ResetPasswordPage({ locale = 'en' }) {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={!ready}
-              style={{padding:'14px 72px 14px 16px',borderRadius:12,border:'1px solid #e5e5e3',fontSize:14,outline:'none',width:'100%'}}
+              style={{padding:'14px 72px 14px 16px',borderRadius:0,border:'1px solid #0a0a0a',fontSize:14,outline:'none',width:'100%'}}
             />
             <button type="button" disabled={!ready} onClick={() => setShowConfirmPassword((v) => !v)} style={{position:'absolute',right:10,top:'50%',transform:'translateY(-50%)',border:'none',background:'none',cursor:ready ? 'pointer' : 'default',fontSize:12,color:'#666'}}>
               {showConfirmPassword ? t.hide : t.show}
             </button>
           </div>
-          <div style={{border:'1px solid #ecece8',borderRadius:10,padding:'10px 12px',fontSize:12,color:'#666'}}>
+          <div style={{border:'1px solid #0a0a0a',borderRadius:0,padding:'10px 12px',fontSize:12,color:'#666'}}>
             {checks.map((rule) => (
               <p key={rule.id} style={{margin:'2px 0',color:rule.valid ? '#15803d' : '#666'}}>
                 {rule.valid ? '✓' : '•'} {rule.label}
               </p>
             ))}
           </div>
-          <button type="submit" disabled={loading || !ready} style={{background:'#000',color:'#fff',padding:'14px',borderRadius:999,fontSize:14,fontWeight:500,border:'none',cursor:ready ? 'pointer' : 'default',opacity:loading || !ready ? 0.6 : 1}}>
+          <button type="submit" disabled={loading || !ready} style={{background:'#000',color:'#fff',padding:'14px',borderRadius:0,fontSize:14,fontWeight:800,border:'1px solid #000',letterSpacing:'0.06em',textTransform:'uppercase',cursor:ready ? 'pointer' : 'default',opacity:loading || !ready ? 0.6 : 1}}>
             {loading ? t.saving : t.save}
           </button>
         </form>

@@ -140,14 +140,14 @@ export default function EmailCapturePopup() {
         transform: 'translate(-50%, -50%)',
         zIndex: 90,
         width: 'min(380px, calc(100vw - 32px))',
-        background: '#fff', border: '1px solid #ecece6',
-        borderRadius: 16, boxShadow: '0 24px 60px rgba(0,0,0,0.18)', padding: 28,
+        background: '#fff', border: '1px solid #0a0a0a',
+        borderRadius: 0, boxShadow: '0 24px 60px rgba(0,0,0,0.18)', padding: 28,
       }}>
       <button
         type="button"
         onClick={closePopup}
         aria-label={d.emailPopup.close}
-        style={{ position: 'absolute', right: 10, top: 8, border: 'none', background: 'none', fontSize: 18, cursor: 'pointer', color: '#666' }}
+        style={{ position: 'absolute', right: 10, top: 8, border: '1px solid #0a0a0a', borderRadius: 0, background: '#fff', fontSize: 18, cursor: 'pointer', color: '#0a0a0a', width: 30, height: 30, lineHeight: 1 }}
       >×</button>
 
       {done ? (
@@ -168,7 +168,7 @@ export default function EmailCapturePopup() {
         </div>
       ) : (
         <>
-          <p style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 700 }}>{d.emailPopup.title}</p>
+          <p style={{ margin: '0 0 4px', fontSize: 17, fontWeight: 900, letterSpacing:'0.06em', textTransform:'uppercase' }}>{d.emailPopup.title}</p>
           <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666660' }}>
             {d.emailPopup.text}
           </p>
@@ -179,12 +179,12 @@ export default function EmailCapturePopup() {
               placeholder={d.emailPopup.placeholder}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{ border: '1px solid #ddd', borderRadius: 10, padding: '10px 12px', fontSize: 14, minWidth: 0 }}
+              style={{ border: '1px solid #0a0a0a', borderRadius: 0, padding: '10px 12px', fontSize: 13, minWidth: 0 }}
             />
             <button
               type="submit"
               disabled={loading}
-              style={{ border: 'none', background: '#111', color: '#fff', borderRadius: 10, padding: '10px 14px', fontSize: 13, cursor: 'pointer', opacity: loading ? 0.7 : 1, whiteSpace: 'nowrap' }}
+              style={{ border: '1px solid #111', background: '#111', color: '#fff', borderRadius: 0, padding: '10px 14px', fontSize: 12, fontWeight:900, letterSpacing:'0.08em', textTransform:'uppercase', cursor: 'pointer', opacity: loading ? 0.7 : 1, whiteSpace: 'nowrap' }}
             >
               {loading ? '...' : d.emailPopup.button}
             </button>

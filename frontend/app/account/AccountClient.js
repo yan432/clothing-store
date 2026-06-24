@@ -26,10 +26,10 @@ const COUNTRIES = [
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 const inp = (err, readOnly = false) => ({
-  display: 'block', padding: '11px 14px', borderRadius: 10, fontSize: 14, outline: 'none',
+  display: 'block', padding: '11px 14px', borderRadius: 0, fontSize: 14, outline: 'none',
   width: '100%', height: 44, boxSizing: 'border-box',
-  border: err ? '1.5px solid #ef4444' : '1px solid #e5e5e3',
-  background: readOnly ? '#fafaf8' : '#fff',
+  border: err ? '1px solid #ef4444' : '1px solid #0a0a0a',
+  background: '#fff',
   color: '#111',
 })
 
@@ -37,9 +37,9 @@ function MsgBox({ ok, text }) {
   if (!text) return null
   return (
     <div style={{
-      borderRadius: 10, padding: '10px 14px', fontSize: 13, marginTop: 10,
+      borderRadius: 0, padding: '10px 14px', fontSize: 13, marginTop: 10,
       background: ok ? '#ecfdf3' : '#fef2f2',
-      border: `1px solid ${ok ? '#bbf7d0' : '#fecaca'}`,
+      border: `1px solid ${ok ? '#16a34a' : '#b91c1c'}`,
       color: ok ? '#166534' : '#b91c1c',
     }}>{text}</div>
   )
@@ -47,7 +47,7 @@ function MsgBox({ ok, text }) {
 
 function SectionCard({ title, children }) {
   return (
-    <div className="section-card" style={{ border: '1px solid #ecece8', borderRadius: 14, padding: '22px 24px', background: '#fff' }}>
+    <div className="section-card" style={{ border: '1px solid #0a0a0a', borderRadius: 0, padding: '22px 24px', background: '#fff' }}>
       <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#aaa', margin: '0 0 18px' }}>{title}</p>
       {children}
     </div>
@@ -57,7 +57,7 @@ function SectionCard({ title, children }) {
 function SaveBtn({ onClick, loading, label = 'Save' }) {
   return (
     <button onClick={onClick} disabled={loading}
-      style={{ marginTop: 16, padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1 }}>
+      style={{ marginTop: 16, padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #111', background: '#111', color: '#fff', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1 }}>
       {loading ? 'Saving...' : label}
     </button>
   )
@@ -376,17 +376,17 @@ function InfoSection({ user, locale = 'en', copy }) {
         {editing ? (
           <>
             <button onClick={save} disabled={saving}
-              style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.65 : 1 }}>
+              style={{ padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #111', background: '#111', color: '#fff', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: saving ? 'default' : 'pointer', opacity: saving ? 0.65 : 1 }}>
               {saving ? t.saving : t.save}
             </button>
             <button onClick={cancelEdit} disabled={saving}
-              style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 400, border: '1px solid #e5e5e3', background: '#fff', color: '#666', cursor: 'pointer' }}>
+              style={{ padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #0a0a0a', background: '#fff', color: '#111', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
               {t.cancel}
             </button>
           </>
         ) : (
           <button onClick={startEdit}
-            style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: '1px solid #e5e5e3', background: '#fff', color: '#111', cursor: 'pointer' }}>
+            style={{ padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #0a0a0a', background: '#fff', color: '#111', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
             {t.edit}
           </button>
         )}
@@ -474,7 +474,7 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
           <input type={showPw ? 'text' : 'password'} placeholder={t.newPassword}
             value={pw.next} onChange={e => setPw(p => ({ ...p, next: e.target.value }))} style={inp()} />
           {pw.next && (
-            <div style={{ border: '1px solid #ecece8', borderRadius: 8, padding: '8px 12px', fontSize: 12, background: '#fafaf8' }}>
+            <div style={{ border: '1px solid #0a0a0a', borderRadius: 0, padding: '8px 12px', fontSize: 12, background: '#fff' }}>
               {checks.map((c, i) => (
                 <p key={i} style={{ margin: '2px 0', color: c.ok ? '#15803d' : '#aaa' }}>{c.ok ? '✓' : '·'} {c.label}</p>
               ))}
@@ -486,7 +486,7 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
         {pwMsg && <MsgBox ok={pwMsg.ok} text={pwMsg.text} />}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 14 }}>
           <button onClick={changePassword} disabled={pwLoading}
-            style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: pwLoading ? 'default' : 'pointer', opacity: pwLoading ? 0.65 : 1 }}>
+            style={{ padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #111', background: '#111', color: '#fff', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: pwLoading ? 'default' : 'pointer', opacity: pwLoading ? 0.65 : 1 }}>
             {pwLoading ? t.saving : t.update}
           </button>
           <button onClick={sendReset} disabled={pwLoading}
@@ -496,7 +496,7 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
         </div>
       </div>
 
-      <div style={{ height: 1, background: '#ecece8', margin: '24px 0' }} />
+      <div style={{ height: 1, background: '#0a0a0a', margin: '24px 0' }} />
 
       {/* Email */}
       <div style={{ maxWidth: 420 }}>
@@ -515,7 +515,7 @@ function SecuritySection({ user, updatePassword, updateEmail, reauthenticate, re
         </div>
         {emailMsg && <MsgBox ok={emailMsg.ok} text={emailMsg.text} />}
         <button onClick={changeEmail} disabled={emailLoading}
-          style={{ marginTop: 14, padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: emailLoading ? 'default' : 'pointer', opacity: emailLoading ? 0.65 : 1 }}>
+          style={{ marginTop: 14, padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #111', background: '#111', color: '#fff', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: emailLoading ? 'default' : 'pointer', opacity: emailLoading ? 0.65 : 1 }}>
           {emailLoading ? t.sending : t.verify}
         </button>
       </div>
@@ -592,7 +592,7 @@ function NewsletterSection({ user, locale = 'en' }) {
         <div>
           <p style={{ margin: '0 0 12px', fontSize: 14, color: '#555' }}>{t.subscribeCopy}</p>
           <button onClick={subscribe} disabled={loading}
-            style={{ padding: '10px 22px', borderRadius: 999, fontSize: 14, fontWeight: 600, border: 'none', background: '#111', color: '#fff', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1 }}>
+            style={{ padding: '10px 22px', borderRadius: 0, fontSize: 14, fontWeight: 800, border: '1px solid #111', background: '#111', color: '#fff', letterSpacing: '0.06em', textTransform: 'uppercase', cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.65 : 1 }}>
             {loading ? t.subscribing : t.subscribe}
           </button>
         </div>
@@ -655,14 +655,14 @@ function OrdersSection({ user, locale = 'en' }) {
         const badge = orderStatusBadge(o.status)
         const thumbs = items.filter(it => it.image_url).slice(0, 6)
         return (
-          <div key={o.id} style={{ border: '1px solid #ecece8', borderRadius: 12, padding: '16px 18px', background: '#fff' }}>
+          <div key={o.id} style={{ border: '1px solid #0a0a0a', borderRadius: 0, padding: '16px 18px', background: '#fff' }}>
             {/* Header row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <div>
                 <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{t.order} #{10000 + (o.id || 0)}</p>
                 <p style={{ margin: '3px 0 0', fontSize: 12, color: '#888' }}>{formatDate(o.created_at, preferredLocale)}</p>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: badge.color, background: badge.bg, padding: '5px 10px', borderRadius: 999 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: badge.color, background: badge.bg, padding: '5px 10px', borderRadius: 0, border: '1px solid currentColor' }}>
                 {badge.raw || t.statuses[badge.key] || t.statuses.unknown}
               </span>
             </div>
@@ -674,10 +674,10 @@ function OrdersSection({ user, locale = 'en' }) {
                   <div key={i} style={{ position: 'relative' }}>
                     <img
                       src={item.image_url} alt={item.name || ''}
-                      style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, border: '1px solid #ecece8', display: 'block' }}
+                      style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 0, border: '1px solid #0a0a0a', display: 'block' }}
                     />
                     {item.quantity > 1 && (
-                      <span style={{ position: 'absolute', bottom: 3, right: 3, background: '#111', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 4, padding: '1px 4px', lineHeight: 1.4 }}>
+                      <span style={{ position: 'absolute', bottom: 3, right: 3, background: '#111', color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 0, padding: '1px 4px', lineHeight: 1.4 }}>
                         ×{item.quantity}
                       </span>
                     )}
@@ -694,7 +694,7 @@ function OrdersSection({ user, locale = 'en' }) {
 
             {/* Tracking info if available */}
             {(o.tracking_number || o.tracking_url) && (
-              <div style={{ marginTop: 10, padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 12 }}>
+              <div style={{ marginTop: 10, padding: '8px 10px', background: '#f0fdf4', border: '1px solid #16a34a', borderRadius: 0, fontSize: 12 }}>
                 {o.tracking_number && <p style={{ margin: '0 0 2px', color: '#166534' }}>{t.tracking}: <strong>{o.tracking_number}</strong></p>}
                 {o.tracking_url && (
                   <a href={o.tracking_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 600 }}>
@@ -742,7 +742,7 @@ export default function AccountClient({ activeTab, locale = 'en' }) {
         <h1 style={{ fontSize: 26, fontWeight: 600, margin: 0 }}>{copy.main.title}</h1>
         {user && (
           <button onClick={signOut}
-            style={{ background: 'none', border: '1px solid #e5e5e3', padding: '7px 16px', borderRadius: 999, fontSize: 13, color: '#888', cursor: 'pointer' }}>
+            style={{ background: 'none', border: '1px solid #0a0a0a', padding: '7px 16px', borderRadius: 0, fontSize: 13, color: '#111', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer' }}>
             {copy.main.signOut}
           </button>
         )}
@@ -750,9 +750,9 @@ export default function AccountClient({ activeTab, locale = 'en' }) {
 
       <div className="account-layout">
         {/* Sidebar */}
-        <nav className="account-sidebar" style={{ border: '1px solid #ecece8', borderRadius: 12, overflow: 'hidden', position: 'sticky', top: 100 }}>
+        <nav className="account-sidebar" style={{ border: '1px solid #0a0a0a', borderRadius: 0, overflow: 'hidden', position: 'sticky', top: 100 }}>
           {user && (
-            <div className="account-sidebar-email" style={{ padding: '14px 16px', borderBottom: '1px solid #ecece8', background: '#fafaf8' }}>
+            <div className="account-sidebar-email" style={{ padding: '14px 16px', borderBottom: '1px solid #0a0a0a', background: '#fff' }}>
               <p style={{ margin: 0, fontSize: 12, color: '#aaa', wordBreak: 'break-all' }}>{user.email}</p>
             </div>
           )}
@@ -764,10 +764,10 @@ export default function AccountClient({ activeTab, locale = 'en' }) {
                   style={{
                     display: 'block', padding: '13px 16px', fontSize: 14,
                     fontWeight: active ? 600 : 400,
-                    color: active ? '#111' : '#666',
                     textDecoration: 'none',
-                    background: active ? '#f5f5f3' : '#fff',
-                    borderBottom: i < navItems.length - 1 ? '1px solid #ecece8' : 'none',
+                    background: active ? '#0a0a0a' : '#fff',
+                    borderBottom: i < navItems.length - 1 ? '1px solid #0a0a0a' : 'none',
+                    color: active ? '#fff' : '#111',
                   }}>
                   {item.label}
                 </a>

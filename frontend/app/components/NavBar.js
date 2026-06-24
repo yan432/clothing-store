@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -131,10 +132,10 @@ export default function NavBar() {
       <button type="button" onMouseEnter={() => openMega(key)}
         style={{
           background: 'none', border: 'none', cursor: 'pointer',
-          fontSize: 13, fontWeight: 500, letterSpacing: '0.05em',
-          color: '#1a1a18', padding: '4px 0',
+          fontSize: 12, fontWeight: 900, letterSpacing: '0.08em',
+          color: '#0a0a0a', padding: '4px 0', textTransform: 'uppercase',
           display: 'flex', alignItems: 'center', gap: 4,
-          borderBottom: active ? '1.5px solid #1a1a18' : '1.5px solid transparent',
+          borderBottom: active ? '1px solid #0a0a0a' : '1px solid transparent',
         }}
       >
         {label}
@@ -147,15 +148,15 @@ export default function NavBar() {
   }
 
   const megaLink = {
-    fontSize: 15, fontWeight: 500, color: '#1a1a18',
-    textDecoration: 'none', display: 'block',
+    fontSize: 14, fontWeight: 800, color: '#0a0a0a',
+    textDecoration: 'none', display: 'block', letterSpacing: '0.02em',
   }
 
   const adminDrop = {
     position: 'absolute', top: 'calc(100% + 10px)', right: 0,
-    background: '#fff', border: '1px solid #e8e8e5',
-    borderRadius: 12, padding: '8px 0', minWidth: 200,
-    boxShadow: '0 14px 34px rgba(15,15,15,0.08)', zIndex: 70,
+    background: '#fff', border: '1px solid #0a0a0a',
+    borderRadius: 0, padding: '8px 0', minWidth: 200,
+    boxShadow: 'none', zIndex: 70,
     animation: 'megaSlideIn 0.15s ease',
   }
 
@@ -166,13 +167,13 @@ export default function NavBar() {
         onMouseLeave={onNavLeave}
         style={{
           position: 'sticky', top: 0, zIndex: 50,
-          background: 'rgba(255,255,255,0.97)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: isMegaOpen ? '1px solid transparent' : '1px solid #f0f0ee',
+          background: '#fff',
+          backdropFilter: 'blur(8px)',
+          borderBottom: isMegaOpen ? '1px solid transparent' : '1px solid #0a0a0a',
         }}
       >
         {/* Main bar */}
-        <div className="nav-main-bar" style={{ alignItems: 'center', height: 58, padding: '0 20px' }}>
+        <div className="nav-main-bar" style={{ alignItems: 'center', height: 56, padding: '0 20px' }}>
 
           {/* Hamburger — mobile left, hidden on desktop */}
           <button type="button" className="nav-hamburger" onClick={() => setMobileOpen(true)} aria-label={d.nav.openMenu}>
@@ -182,15 +183,23 @@ export default function NavBar() {
           </button>
 
           {/* Logo: desktop — left col; mobile — absolute center */}
-          <a href={pathForLocale('/', locale)} className="nav-logo" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: 'inherit' }}>
-            edm.clothes
+          <a href={pathForLocale('/', locale)} className="nav-logo" style={{ display: 'inline-flex', alignItems: 'center', gap: 11, fontSize: 16, fontWeight: 900, letterSpacing: '0.08em', textDecoration: 'none', color: 'inherit', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+            <Image
+              src="/brand/edm-logo-mark.png"
+              alt=""
+              width={42}
+              height={42}
+              priority
+              style={{ width: 42, height: 42, objectFit: 'contain', border: 'none', display: 'block' }}
+            />
+            <span className="nav-logo-text">edm.clothes</span>
           </a>
 
           {/* CENTER — desktop nav links only */}
           <div className="nav-center-links">
             <a href={pathForLocale('/collections/new', locale)}
               onMouseEnter={() => setOpenMenu(null)}
-              style={{ color: '#1a1a18', textDecoration: 'none', fontSize: 13, fontWeight: 500, letterSpacing: '0.05em' }}>
+              style={{ color: '#0a0a0a', textDecoration: 'none', fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {d.nav.newArrivals}
             </a>
             {navBtn('shop', d.nav.shop)}
@@ -200,19 +209,19 @@ export default function NavBar() {
                 onClick={() => rememberPreferredLocale('en')}
                 aria-current={locale === 'en' ? 'true' : undefined}
                 style={{
-                  fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
-                  color: locale === 'en' ? '#111' : '#aaa',
+                  fontSize: 11, fontWeight: 900, letterSpacing: '0.06em',
+                  color: locale === 'en' ? '#111' : '#777',
                   textDecoration: 'none', padding: '4px 0',
                 }}>
                 EN
               </a>
-              <span style={{ fontSize: 11, color: '#ddd' }}>/</span>
+              <span style={{ fontSize: 11, color: '#777' }}>/</span>
               <a href={switchLocalePath(pathname, 'uk')}
                 onClick={() => rememberPreferredLocale('uk')}
                 aria-current={locale === 'uk' ? 'true' : undefined}
                 style={{
-                  fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
-                  color: locale === 'uk' ? '#111' : '#aaa',
+                  fontSize: 11, fontWeight: 900, letterSpacing: '0.06em',
+                  color: locale === 'uk' ? '#111' : '#777',
                   textDecoration: 'none', padding: '4px 0',
                 }}>
                 UA
@@ -230,7 +239,7 @@ export default function NavBar() {
                 onMouseLeave={onNavLeave}
               >
                 <button type="button"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: '#999', padding: '8px 4px', letterSpacing: '0.04em' }}>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 900, color: '#555', padding: '8px 4px', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   Admin
                 </button>
                 {openMenu === 'admin' && (
@@ -239,7 +248,7 @@ export default function NavBar() {
                       {ADMIN_LINKS.map(item => (
                         <a key={item.label} href={item.href} role="menuitem"
                           onClick={() => setOpenMenu(null)}
-                          style={{ display: 'block', padding: '10px 12px', fontSize: 13, color: '#1a1a18', borderRadius: 8, textDecoration: 'none' }}>
+                          style={{ display: 'block', padding: '10px 12px', fontSize: 12, color: '#0a0a0a', borderRadius: 0, textDecoration: 'none', fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                           {item.label}
                         </a>
                       ))}
@@ -252,14 +261,14 @@ export default function NavBar() {
             {/* Cart */}
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label={d.nav.openCart}
               onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 9, color: '#1a1a18', display: 'flex', alignItems: 'center', position: 'relative' }}>
+              style={{ width: 36, height: 36, background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, cursor: 'pointer', padding: 0, color: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
                 <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" strokeWidth="1.5"/>
                 <path d="M16 10a4 4 0 01-8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               {count > 0 && (
-                <span style={{ position: 'absolute', top: 5, right: 5, width: 15, height: 15, borderRadius: '50%', background: '#111', color: '#fff', fontSize: 9, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ position: 'absolute', top: -6, right: -6, minWidth: 16, height: 16, padding: '0 3px', borderRadius: 0, background: '#d7ff2f', color: '#0a0a0a', border: '1px solid #0a0a0a', fontSize: 9, fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {count}
                 </span>
               )}
@@ -268,7 +277,7 @@ export default function NavBar() {
             {/* Wishlist icon — only for logged-in users */}
             {user && (
               <a href={pathForLocale('/wishlist', locale)} aria-label={d.nav.openWishlist}
-                style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
+                style={{ width: 36, height: 36, border: '1px solid #0a0a0a', borderRadius: 0, background: '#fff', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
                 <svg width="17" height="17" viewBox="0 0 24 24"
                   fill={wishlistIds.size > 0 ? '#111' : 'none'}
                   stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -280,7 +289,7 @@ export default function NavBar() {
             {/* User icon */}
             <a href={pathForLocale(user ? '/account' : '/auth', locale)} aria-label={user ? d.nav.account : d.nav.signIn}
               onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
-              style={{ width: 36, height: 36, border: '1px solid #d9d9d6', borderRadius: '50%', background: '#f4f4f1', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
+              style={{ width: 36, height: 36, border: '1px solid #0a0a0a', borderRadius: 0, background: '#fff', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="8" r="3.1" stroke="#1a1a18" strokeWidth="1.5"/>
                 <path d="M5.4 19.1c1.3-2.9 3.8-4.3 6.6-4.3 2.8 0 5.3 1.4 6.6 4.3" stroke="#1a1a18" strokeWidth="1.5" strokeLinecap="round"/>
@@ -295,8 +304,8 @@ export default function NavBar() {
           <div style={{
             position: 'absolute', left: 0, right: 0, top: '100%',
             background: '#fff',
-            borderTop: '1px solid #f0f0ee',
-            borderBottom: '1px solid #f0f0ee',
+            borderTop: '1px solid #0a0a0a',
+            borderBottom: '1px solid #0a0a0a',
             zIndex: 60,
             animation: 'megaSlideIn 0.18s ease',
           }}>
@@ -306,7 +315,7 @@ export default function NavBar() {
               {openMenu === 'shop' && (
                 <>
                   <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.browse}</p>
+                      <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.browse}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {shopStatic.map(item => (
                         <a key={item.href} href={item.href} onClick={() => setOpenMenu(null)} style={megaLink}>{item.label}</a>
@@ -315,7 +324,7 @@ export default function NavBar() {
                   </div>
                   {categories.length > 0 && (
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.categories}</p>
+                      <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.categories}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {categories.map(cat => (
                           <a key={cat} href={categoryHref(cat)}
@@ -331,7 +340,7 @@ export default function NavBar() {
               {openMenu === 'info' && (
                 <>
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.info}</p>
+                    <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.info}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {infoLinks.map(item => (
                         <a key={item.href} href={item.href} onClick={() => setOpenMenu(null)} style={megaLink}>{item.label}</a>
@@ -339,10 +348,10 @@ export default function NavBar() {
                     </div>
                   </div>
 
-                  <div style={{ width: 1, background: '#f0f0ee', flexShrink: 0 }} />
+                  <div style={{ width: 1, background: '#0a0a0a', flexShrink: 0 }} />
 
                   <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.account}</p>
+                    <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.account}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {user ? (
                         <>
@@ -378,26 +387,34 @@ export default function NavBar() {
             style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.45)', animation: 'fadeIn 0.2s ease' }} />
           <div style={{
             position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 201,
-            width: 'min(300px, 85vw)', background: '#fff', overflowY: 'auto',
+            width: 'min(320px, 86vw)', background: '#fff', overflowY: 'auto',
+            borderRight: '1px solid #0a0a0a',
             animation: 'slideInLeft 0.25s ease',
           }}>
             {/* Drawer header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f0f0ee' }}>
-              <a href={pathForLocale('/', locale)} onClick={() => setMobileOpen(false)} style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.06em', textDecoration: 'none', color: '#1a1a18' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #0a0a0a' }}>
+              <a href={pathForLocale('/', locale)} onClick={() => setMobileOpen(false)} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, fontSize: 15, fontWeight: 900, letterSpacing: '0.08em', textDecoration: 'none', color: '#0a0a0a', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                <Image
+                  src="/brand/edm-logo-mark.png"
+                  alt=""
+                  width={38}
+                  height={38}
+                  style={{ width: 38, height: 38, objectFit: 'contain', border: 'none', display: 'block' }}
+                />
                 edm.clothes
               </a>
-              <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 26, color: '#888', padding: '0 2px', lineHeight: 1 }}>×</button>
+              <button onClick={() => setMobileOpen(false)} style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, cursor: 'pointer', fontSize: 24, color: '#0a0a0a', width: 34, height: 34, padding: 0, lineHeight: 1 }}>×</button>
             </div>
             {/* Drawer body */}
             <div style={{ padding: '20px' }}>
               {/* Admin — mobile only */}
               {isAdmin && (
                 <>
-                  <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.admin}</p>
+                  <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.admin}</p>
                   <div style={{ marginBottom: 24 }}>
                     {ADMIN_LINKS.map(item => (
                       <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                        style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#888', textDecoration: 'none' }}>
+                        style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#555', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                         {item.label}
                       </a>
                     ))}
@@ -407,56 +424,56 @@ export default function NavBar() {
               {/* Shop */}
               <div style={{ display: 'flex', gap: 8, margin: '0 0 20px' }}>
                 <a href={switchLocalePath(pathname, 'en')} onClick={() => { rememberPreferredLocale('en'); setMobileOpen(false) }}
-                  style={{ fontSize: 12, fontWeight: 700, color: locale === 'en' ? '#111' : '#aaa', textDecoration: 'none' }}>EN</a>
-                <span style={{ fontSize: 12, color: '#ddd' }}>/</span>
+                  style={{ fontSize: 12, fontWeight: 900, color: locale === 'en' ? '#111' : '#777', textDecoration: 'none' }}>EN</a>
+                <span style={{ fontSize: 12, color: '#777' }}>/</span>
                 <a href={switchLocalePath(pathname, 'uk')} onClick={() => { rememberPreferredLocale('uk'); setMobileOpen(false) }}
-                  style={{ fontSize: 12, fontWeight: 700, color: locale === 'uk' ? '#111' : '#aaa', textDecoration: 'none' }}>UA</a>
+                  style={{ fontSize: 12, fontWeight: 900, color: locale === 'uk' ? '#111' : '#777', textDecoration: 'none' }}>UA</a>
               </div>
 
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.shop}</p>
+              <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.shop}</p>
               <div style={{ marginBottom: 24 }}>
                 {[...shopStatic, ...categories.map(cat => ({ label: translateCategory(cat, locale), href: categoryHref(cat) }))].map(item => (
                   <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                     {item.label}
                   </a>
                 ))}
               </div>
               {/* Account */}
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.account}</p>
+              <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.account}</p>
               <div style={{ marginBottom: 24 }}>
                 {user ? (
                   <>
                     {accountLinks.map(item => (
                       <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                        style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                        style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                         {item.label}
                       </a>
                     ))}
                     <button type="button" onClick={async () => { await signOut(); setMobileOpen(false) }}
-                      style={{ display: 'block', width: '100%', padding: '12px 0', fontSize: 15, fontWeight: 500, color: '#aaa', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #f5f5f3' }}>
+                      style={{ display: 'block', width: '100%', padding: '12px 0', fontSize: 14, fontWeight: 900, color: '#777', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid #0a0a0a', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                       {d.nav.logOut}
                     </button>
                   </>
                 ) : (
                   <>
                     <a href={pathForLocale('/auth', locale)} onClick={() => setMobileOpen(false)}
-                      style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                      style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                       {d.nav.signIn}
                     </a>
                     <a href={pathForLocale('/auth?tab=register', locale)} onClick={() => setMobileOpen(false)}
-                      style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                      style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                       {d.nav.createAccount}
                     </a>
                   </>
                 )}
               </div>
               {/* Info */}
-              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', color: '#bbb', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.info}</p>
+              <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.info}</p>
               <div style={{ paddingBottom: 48 }}>
                 {infoLinks.map(item => (
                   <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #f5f5f3', fontSize: 15, fontWeight: 500, color: '#1a1a18', textDecoration: 'none' }}>
+                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                     {item.label}
                   </a>
                 ))}

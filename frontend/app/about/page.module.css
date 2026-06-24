@@ -1,16 +1,16 @@
 :root {
-  --about-bg: #fafaf8;
+  --about-bg: #fff;
   --about-fg: #1a1a18;
   --about-fg2: #666;
   --about-fg3: #888;
   --about-fg4: #9a9a92;
-  --about-surface: #f5f5f3;
-  --about-border: #ececea;
+  --about-surface: #fff;
+  --about-border: #0a0a0a;
   --about-max: 1160px;
 }
 
 .root {
-  background: #fafaf8;
+  background: #fff;
   color: #1a1a18;
   font-size: 14px;
   line-height: 1.5;
@@ -208,7 +208,7 @@
   align-items: center;
   gap: 10px;
   padding: 14px 22px;
-  border-radius: 999px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -222,7 +222,7 @@
 .btn:hover { transform: translateY(-1px); }
 
 .btnPrimary { background: #fff; color: #000; }
-.btnPrimary:hover { background: #eee; }
+.btnPrimary:hover { background: #e9e9e9; }
 
 .btnGhost {
   border: 1px solid rgba(255,255,255,0.4) !important;
@@ -262,7 +262,7 @@
 /* ─── PREAMBLE ─── */
 .preamble {
   padding: 120px 0 100px;
-  border-bottom: 1px solid #ececea;
+  border-bottom: 1px solid #0a0a0a;
 }
 
 .preambleGrid {
@@ -321,14 +321,14 @@
 /* ─── CHRONOLOGY ─── */
 .chrono {
   padding: 0 0 100px;
-  border-bottom: 1px solid #ececea;
+  border-bottom: 1px solid #0a0a0a;
 }
 
 .chronoRowWrap {
-  border-top: 1px solid #ececea;
+  border-top: 1px solid #0a0a0a;
 }
 
-.chronoRowWrap:last-child { border-bottom: 1px solid #ececea; }
+.chronoRowWrap:last-child { border-bottom: 1px solid #0a0a0a; }
 
 .chronoRow {
   max-width: var(--about-max, 1160px);
@@ -427,7 +427,7 @@
   line-height: 1.6 !important;
   margin-bottom: 14px !important;
   padding: 10px 14px;
-  border-left: 2px solid #e5e5e3;
+  border-left: 2px solid #0a0a0a;
 }
 
 .chronoImgs {
@@ -445,7 +445,7 @@
 .chronoPh {
   width: 100%;
   aspect-ratio: 3/4;
-  background: #f5f5f3;
+  background: #fff;
   overflow: hidden;
   position: relative;
 }
@@ -530,7 +530,7 @@
 /* ─── MOSAIC ─── */
 .mosaicSection {
   padding: 120px 0 56px;
-  border-bottom: 1px solid #ececea;
+  border-bottom: 1px solid #0a0a0a;
 }
 
 .mosaicCta {
@@ -546,7 +546,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px 22px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid #1a1a18;
   font-size: 12px;
   font-weight: 500;
@@ -593,7 +593,7 @@
 .mosaic figure {
   margin: 0;
   overflow: hidden;
-  background: #f5f5f3;
+  background: #fff;
 }
 
 .mosaic figure img {
@@ -616,7 +616,7 @@
 
 /* ─── FACTS / CITIES ─── */
 .facts {
-  border-bottom: 1px solid #ececea;
+  border-bottom: 1px solid #0a0a0a;
 }
 
 .factsStatsBand,
@@ -647,7 +647,7 @@
 }
 
 .factsCitiesBand {
-  background: #f5f5f3;
+  background: #fff;
 }
 
 .factsInner {
@@ -752,7 +752,7 @@
   width: 4px;
   height: 4px;
   flex: 0 0 4px;
-  border-radius: 999px;
+  border-radius: 0;
   margin: 0 32px;
   background: #c0c0b8;
 }
@@ -812,7 +812,7 @@
   align-items: center;
   gap: 10px;
   padding: 16px 28px;
-  border-radius: 999px;
+  border-radius: 0;
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 export default function UnsubscribeClient({ email: initialEmail }) {
   const [email, setEmail]   = useState(initialEmail || '')
@@ -35,13 +36,13 @@ export default function UnsubscribeClient({ email: initialEmail }) {
       {status === 'done' ? (
         <>
           <p style={{ fontSize: 48, margin: '0 0 16px' }}>✓</p>
-          <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 8px' }}>You've been unsubscribed</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 8px' }}>You have been unsubscribed</h1>
           <p style={{ fontSize: 15, color: '#888', margin: '0 0 32px', maxWidth: 340, lineHeight: 1.6 }}>
-            <strong>{email}</strong> has been removed from our mailing list. You won't receive any more newsletters from us.
+            <strong>{email}</strong> has been removed from our mailing list. You will not receive any more newsletters from us.
           </p>
-          <a href="/products" style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 999, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+          <Link href="/products" style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 0, fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none', border: '1px solid #111' }}>
             Continue shopping
-          </a>
+          </Link>
         </>
       ) : (
         <>
@@ -57,7 +58,7 @@ export default function UnsubscribeClient({ email: initialEmail }) {
               value={email}
               onChange={e => setEmail(e.target.value)}
               style={{
-                border: '1px solid #ddd', borderRadius: 10,
+                border: '1px solid #0a0a0a', borderRadius: 0,
                 padding: '12px 16px', fontSize: 16,
                 outline: 'none', textAlign: 'center',
               }}
@@ -66,9 +67,9 @@ export default function UnsubscribeClient({ email: initialEmail }) {
               type="submit"
               disabled={status === 'loading'}
               style={{
-                background: '#111', color: '#fff', border: 'none',
-                borderRadius: 10, padding: '12px 24px',
-                fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                background: '#111', color: '#fff', border: '1px solid #111',
+                borderRadius: 0, padding: '12px 24px',
+                fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
                 opacity: status === 'loading' ? 0.7 : 1,
               }}
             >

@@ -73,20 +73,20 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
 
   return (
     <div style={{
-      border: '1px solid #ecece8', borderRadius: 16, overflow: 'hidden',
+      border: 'none', borderRadius: 0, overflow: 'hidden',
       background: '#fff', display: 'flex', flexDirection: 'column',
       opacity: removing ? 0.4 : 1, transition: 'opacity 0.2s',
     }}>
       {/* Image */}
       <div style={{ position: 'relative' }}>
-        <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)} className="wishlist-card-img" style={{ display: 'block', aspectRatio: '4/5', background: '#f5f5f3', overflow: 'hidden', borderRadius: 16 }}>
+        <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)} className="wishlist-card-img" style={{ display: 'block', aspectRatio: '4/5', background: '#fff', overflow: 'hidden', borderRadius: 0 }}>
           {img
             ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: 12 }}>{labels.noImage}</div>
           }
         </a>
         {disc && (
-          <span style={{ position: 'absolute', top: 10, left: 10, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 6 }}>
+          <span style={{ position: 'absolute', top: 10, left: 10, background: '#ef4444', color: '#fff', fontSize: 10, fontWeight: 700, padding: '3px 7px', borderRadius: 0 }}>
             −{disc}%
           </span>
         )}
@@ -94,8 +94,8 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
         <button onClick={handleRemove} title={labels.remove}
           style={{
             position: 'absolute', top: 10, right: 10,
-            width: 30, height: 30, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.92)', border: 'none',
+            width: 30, height: 30, borderRadius: 0,
+            background: 'rgba(255,255,255,0.92)', border: '1px solid #0a0a0a',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', backdropFilter: 'blur(4px)',
           }}>
@@ -140,9 +140,9 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
                 <button key={s} onClick={() => setSelectedSizeInput(s)}
                   title={outOfStock ? `${s} — ${labels.outOfStock}` : s}
                   style={{
-                    padding: '4px 10px', fontSize: 12, fontWeight: 600, borderRadius: 7,
-                    border: isSelected ? '1.5px solid #111' : '1px solid #ddd',
-                    background: isSelected ? (outOfStock ? '#f5f5f3' : '#111') : '#fff',
+                    padding: '4px 10px', fontSize: 12, fontWeight: 700, borderRadius: 0,
+                    border: '1px solid #0a0a0a',
+                    background: isSelected ? (outOfStock ? '#fff' : '#111') : '#fff',
                     color: isSelected ? (outOfStock ? '#888' : '#fff') : outOfStock ? '#ccc' : '#444',
                     cursor: 'pointer',
                     textDecoration: 'none',
@@ -158,8 +158,8 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
         {showNotify ? (
           <button onClick={() => setNotifyPopup(true)}
             style={{
-              marginTop: 'auto', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              border: '1.5px solid #111', cursor: 'pointer',
+              marginTop: 'auto', padding: '10px', borderRadius: 0, fontSize: 13, fontWeight: 800,
+              border: '1px solid #111', cursor: 'pointer', letterSpacing: '0.06em', textTransform: 'uppercase',
               background: '#fff', color: '#111',
             }}>
             {labels.notify}
@@ -167,10 +167,11 @@ function WishlistCard({ product, sizeStock, onRemove, locale = 'en', labels }) {
         ) : (
           <button onClick={handleAddToCart} disabled={!canAdd}
             style={{
-              marginTop: 'auto', padding: '10px', borderRadius: 10, fontSize: 13, fontWeight: 600,
-              border: 'none', cursor: canAdd ? 'pointer' : 'not-allowed',
-              background: added ? '#16a34a' : !canAdd ? '#e5e5e3' : '#111',
+              marginTop: 'auto', padding: '10px', borderRadius: 0, fontSize: 13, fontWeight: 800,
+              border: '1px solid #111', cursor: canAdd ? 'pointer' : 'not-allowed',
+              background: added ? '#16a34a' : !canAdd ? '#fff' : '#111',
               color: !canAdd ? '#999' : '#fff',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
               transition: 'background 0.2s',
             }}>
             {added ? labels.added : labels.addToCart}
@@ -256,7 +257,7 @@ export default function WishlistPage({ locale = 'en' }) {
       <p style={{ fontSize: 15, color: '#888', margin: '0 0 28px', lineHeight: 1.6 }}>
         {d.wishlistPage.saveBody}
       </p>
-      <a href={pathForLocale('/auth', locale)} style={{ background: '#111', color: '#fff', padding: '13px 32px', borderRadius: 999, fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
+      <a href={pathForLocale('/auth', locale)} style={{ background: '#111', color: '#fff', padding: '13px 32px', borderRadius: 0, fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block', border: '1px solid #111' }}>
         {d.wishlistPage.signIn}
       </a>
     </main>
@@ -288,7 +289,7 @@ export default function WishlistPage({ locale = 'en' }) {
             {d.wishlistPage.emptyBodyFirst}<br/>
             {d.wishlistPage.emptyBodySecond}
           </p>
-          <a href={pathForLocale('/products', locale)} style={{ background: '#111', color: '#fff', padding: '13px 32px', borderRadius: 999, fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
+          <a href={pathForLocale('/products', locale)} style={{ background: '#111', color: '#fff', padding: '13px 32px', borderRadius: 0, fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none', display: 'inline-block', border: '1px solid #111' }}>
             {d.wishlistPage.browseProducts}
           </a>
         </div>

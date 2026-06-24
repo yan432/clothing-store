@@ -56,7 +56,8 @@ export default function NotifyMePopup({ product, size, initialEmail = '', locale
         zIndex: 999,
         width: 'min(380px, calc(100vw - 32px))',
         background: '#fff',
-        borderRadius: 16,
+        borderRadius: 0,
+        border: '1px solid #0a0a0a',
         padding: 28,
         boxShadow: '0 24px 60px rgba(0,0,0,0.18)',
       }}>
@@ -65,8 +66,8 @@ export default function NotifyMePopup({ product, size, initialEmail = '', locale
           onClick={onClose}
           style={{
             position: 'absolute', top: 14, right: 16,
-            background: 'none', border: 'none',
-            fontSize: 20, color: '#999', cursor: 'pointer', lineHeight: 1,
+            background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0,
+            fontSize: 20, color: '#0a0a0a', cursor: 'pointer', lineHeight: 1, width: 30, height: 30, padding: 0,
           }}
         >×</button>
 
@@ -80,9 +81,9 @@ export default function NotifyMePopup({ product, size, initialEmail = '', locale
             <button
               onClick={onClose}
               style={{
-                background: '#111', color: '#fff', border: 'none',
-                borderRadius: 10, padding: '10px 24px',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                background: '#111', color: '#fff', border: '1px solid #111',
+                borderRadius: 0, padding: '10px 24px',
+                fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
               }}
             >
               {d.notify.close}
@@ -93,7 +94,7 @@ export default function NotifyMePopup({ product, size, initialEmail = '', locale
             <p style={{ fontSize: 11, fontWeight: 700, color: '#999', letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 8px' }}>
               {d.notify.kicker}
             </p>
-            <p style={{ fontSize: 16, fontWeight: 700, margin: '0 0 4px' }}>{product.name}</p>
+            <p style={{ fontSize: 16, fontWeight: 900, margin: '0 0 4px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>{product.name}</p>
             <p style={{ fontSize: 14, color: '#888', margin: '0 0 20px' }}>{d.notify.size}: <strong>{size}</strong></p>
 
             <p style={{ fontSize: 14, color: '#555', margin: '0 0 16px', lineHeight: 1.5 }}>
@@ -109,7 +110,7 @@ export default function NotifyMePopup({ product, size, initialEmail = '', locale
                 onChange={e => setEmail(e.target.value)}
                 autoFocus
                 style={{
-                  border: '1px solid #ddd', borderRadius: 10,
+                  border: '1px solid #0a0a0a', borderRadius: 0,
                   padding: '12px 14px', fontSize: 16,
                   outline: 'none',
                 }}
@@ -118,9 +119,9 @@ export default function NotifyMePopup({ product, size, initialEmail = '', locale
                 type="submit"
                 disabled={status === 'loading'}
                 style={{
-                  background: '#111', color: '#fff', border: 'none',
-                  borderRadius: 10, padding: '12px 24px',
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  background: '#111', color: '#fff', border: '1px solid #111',
+                  borderRadius: 0, padding: '12px 24px',
+                  fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
                   opacity: status === 'loading' ? 0.7 : 1,
                 }}
               >

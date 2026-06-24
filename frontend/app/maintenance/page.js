@@ -11,7 +11,7 @@ export default function MaintenancePage() {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      background: '#fafaf8',
+      background: '#fff',
       padding: '24px',
       textAlign: 'center',
     }}>
@@ -23,7 +23,7 @@ export default function MaintenancePage() {
           color: '#111',
           margin: '0 0 12px',
         }}>
-          We'll be back soon
+          We will be back soon
         </h1>
         <p style={{
           fontSize: 15,

@@ -113,9 +113,9 @@ function Toggle({ checked, onChange, disabled, label }) {
       style={{
         width:      42,
         height:     24,
-        background: checked ? '#1a1a18' : '#d4d4d2',
-        borderRadius: 999,
-        border:     'none',
+        background: checked ? '#0a0a0a' : '#d4d4d2',
+        borderRadius: 0,
+        border:     '1px solid #0a0a0a',
         position:   'relative',
         cursor:     disabled ? 'not-allowed' : 'pointer',
         transition: 'background 150ms',
@@ -131,7 +131,7 @@ function Toggle({ checked, onChange, disabled, label }) {
         width:      18,
         height:     18,
         background: '#fff',
-        borderRadius: '50%',
+        borderRadius: 0,
         transition: 'left 150ms',
         pointerEvents: 'none',
       }} />
@@ -145,11 +145,11 @@ function CategoryRow({ title, body, checked, onChange, disabled }) {
       display:      'flex',
       gap:          20,
       padding:      '16px 0',
-      borderBottom: '1px solid #ececea',
+      borderBottom: '1px solid #d7d7d2',
       alignItems:   'flex-start',
     }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#1a1a18' }}>
+        <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 4, color: '#0a0a0a', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
           {title}
         </div>
         <div style={{ fontSize: 13, lineHeight: 1.5, color: '#666' }}>
@@ -217,11 +217,11 @@ export default function CookieConsent() {
       left:         0,
       right:        0,
       background:   '#fff',
-      color:        '#1a1a18',
-      borderTop:    '1px solid #e5e5e3',
+      color:        '#0a0a0a',
+      borderTop:    '1px solid #0a0a0a',
       padding:      view === 'settings' ? '24px 32px' : '28px 32px',
       zIndex:       9999,
-      boxShadow:    '0 -8px 24px rgba(0,0,0,0.06)',
+      boxShadow:    'none',
       maxHeight:    '80vh',
       overflowY:    'auto',
     }}>
@@ -238,7 +238,7 @@ export default function CookieConsent() {
             <h2 style={{
               margin:        '0 0 8px',
               fontSize:      15,
-              fontWeight:    700,
+              fontWeight:    900,
               letterSpacing: '0.12em',
               textTransform: 'uppercase',
             }}>
@@ -252,7 +252,7 @@ export default function CookieConsent() {
               maxWidth:  720,
             }}>
               {c.body}{' '}
-              <a href="/privacy" style={{ color: '#1a1a18', textDecoration: 'underline' }}>
+              <a href="/privacy" style={{ color: '#0a0a0a', textDecoration: 'underline' }}>
                 {c.privacy}
               </a>.
             </p>
@@ -267,13 +267,14 @@ export default function CookieConsent() {
             <button
               onClick={handleAcceptAll}
               style={{
-                background:    '#1a1a18',
-                border:        'none',
+                background:    '#0a0a0a',
+                border:        '1px solid #0a0a0a',
                 color:         '#fff',
                 padding:       '14px 36px',
-                fontSize:      14,
-                fontWeight:    600,
-                letterSpacing: '0.04em',
+                fontSize:      12,
+                fontWeight:    900,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
                 cursor:        'pointer',
                 minWidth:      180,
               }}
@@ -287,7 +288,9 @@ export default function CookieConsent() {
                 border:         'none',
                 color:          '#555',
                 fontSize:       14,
-                fontWeight:     500,
+                fontWeight:     900,
+                letterSpacing:  '0.06em',
+                textTransform:  'uppercase',
                 cursor:         'pointer',
                 textDecoration: 'underline',
                 padding:        0,
@@ -304,14 +307,14 @@ export default function CookieConsent() {
           <h2 style={{
             margin:        '0 0 16px',
             fontSize:      15,
-            fontWeight:    700,
+            fontWeight:    900,
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
           }}>
             {c.settingsTitle}
           </h2>
 
-          <div style={{ borderTop: '1px solid #ececea' }}>
+          <div style={{ borderTop: '1px solid #0a0a0a' }}>
             <CategoryRow
               title={c.necessary.title}
               body={c.necessary.body}
@@ -349,13 +352,14 @@ export default function CookieConsent() {
             <button
               onClick={handleSavePreferences}
               style={{
-                background:    '#1a1a18',
-                border:        'none',
+                background:    '#0a0a0a',
+                border:        '1px solid #0a0a0a',
                 color:         '#fff',
                 padding:       '12px 28px',
-                fontSize:      14,
-                fontWeight:    600,
-                letterSpacing: '0.04em',
+                fontSize:      12,
+                fontWeight:    900,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
                 cursor:        'pointer',
                 minWidth:      180,
               }}
@@ -366,12 +370,13 @@ export default function CookieConsent() {
               onClick={handleAcceptAll}
               style={{
                 background:    'transparent',
-                border:        '1px solid #1a1a18',
-                color:         '#1a1a18',
+                border:        '1px solid #0a0a0a',
+                color:         '#0a0a0a',
                 padding:       '12px 28px',
-                fontSize:      14,
-                fontWeight:    600,
-                letterSpacing: '0.04em',
+                fontSize:      12,
+                fontWeight:    900,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
                 cursor:        'pointer',
               }}
             >

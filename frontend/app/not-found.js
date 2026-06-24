@@ -22,15 +22,16 @@ export default function NotFound() {
         Page not found
       </h1>
       <p style={{ fontSize: 15, color: '#888', margin: '0 0 32px', maxWidth: 340, lineHeight: 1.6 }}>
-        The page you're looking for doesn't exist or has been moved.
+        The page you are looking for does not exist or has been moved.
       </p>
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         <Link
           href="/products"
           style={{
             background: '#111', color: '#fff',
-            padding: '12px 28px', borderRadius: 999,
-            fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            padding: '12px 28px', borderRadius: 0,
+            fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none',
+            border: '1px solid #111',
           }}
         >
           Browse products
@@ -39,9 +40,9 @@ export default function NotFound() {
           href="/"
           style={{
             background: 'transparent', color: '#111',
-            padding: '12px 28px', borderRadius: 999,
-            fontSize: 14, fontWeight: 600, textDecoration: 'none',
-            border: '1px solid #e0e0e0',
+            padding: '12px 28px', borderRadius: 0,
+            fontSize: 14, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', textDecoration: 'none',
+            border: '1px solid #111',
           }}
         >
           Go home

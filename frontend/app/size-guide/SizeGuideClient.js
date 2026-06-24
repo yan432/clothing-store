@@ -52,14 +52,14 @@ const thStyle = {
   padding: '10px 14px', fontSize: 11, fontWeight: 700,
   letterSpacing: '0.08em', textTransform: 'uppercase',
   color: '#888', textAlign: 'left',
-  borderBottom: '2px solid #eee', whiteSpace: 'nowrap',
+  borderBottom: '2px solid #0a0a0a', whiteSpace: 'nowrap',
 }
 const tdStyle = {
   padding: '12px 14px', fontSize: 14,
-  color: '#333', borderBottom: '1px solid #f0f0ee',
+  color: '#333', borderBottom: '1px solid #0a0a0a',
 }
 const inputStyle = {
-  border: '1px solid #ddd', borderRadius: 10,
+  border: '1px solid #0a0a0a', borderRadius: 0,
   padding: '11px 14px', fontSize: 16, outline: 'none',
   height: 46, boxSizing: 'border-box',
 }
@@ -162,7 +162,7 @@ export default function SizeGuideClient({ locale = 'en' }) {
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 20px' }}>{t.measureTitle}</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
           {t.measures.map(({ Icon, label, desc }) => (
-            <div key={label} style={{ background: '#f7f7f5', borderRadius: 14, padding: '20px 18px' }}>
+            <div key={label} style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '20px 18px' }}>
               <div style={{ marginBottom: 10 }}><Icon size={28} strokeWidth={1.5} /></div>
               <p style={{ fontSize: 14, fontWeight: 700, margin: '0 0 6px' }}>{label}</p>
               <p style={{ fontSize: 13, color: '#666', margin: 0, lineHeight: 1.6 }}>{desc}</p>
@@ -175,16 +175,16 @@ export default function SizeGuideClient({ locale = 'en' }) {
       <section style={{ marginBottom: 56 }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 6px' }}>{t.chartTitle}</h2>
         <p style={{ fontSize: 13, color: '#999', margin: '0 0 16px' }}>{t.chartLead}</p>
-        <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid #eee' }}>
+        <div style={{ overflowX: 'auto', borderRadius: 0, border: '1px solid #0a0a0a' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
             <thead>
-              <tr style={{ background: '#fafaf8' }}>
+              <tr style={{ background: '#fff' }}>
                 {t.headers.map((header) => <th key={header} style={thStyle}>{header}</th>)}
               </tr>
             </thead>
             <tbody>
               {OUR_SIZES.map((row, i) => (
-                <tr key={row.size} style={{ background: i % 2 === 0 ? '#fff' : '#fafaf8' }}>
+                <tr key={row.size} style={{ background: '#fff' }}>
                   <td style={{ ...tdStyle, fontWeight: 700 }}>{row.size}</td>
                   <td style={tdStyle}>{row.eu_m}</td>
                   <td style={tdStyle}>{row.eu_w}</td>
@@ -196,7 +196,7 @@ export default function SizeGuideClient({ locale = 'en' }) {
             </tbody>
           </table>
         </div>
-        <div style={{ marginTop: 16, padding: '14px 18px', background: '#fffbeb', borderRadius: 10, border: '1px solid #fde68a' }}>
+        <div style={{ marginTop: 16, padding: '14px 18px', background: '#fffbeb', borderRadius: 0, border: '1px solid #92400e' }}>
           <p style={{ fontSize: 13, color: '#92400e', margin: 0, lineHeight: 1.6 }}>
             <strong>{t.tipTitle}</strong> {t.tipText}
           </p>
@@ -259,8 +259,9 @@ export default function SizeGuideClient({ locale = 'en' }) {
             type="submit"
             style={{
               background: '#111', color: '#fff', border: 'none',
-              borderRadius: 10, padding: '12px 28px',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              borderRadius: 0, padding: '12px 28px',
+              fontSize: 14, fontWeight: 800, cursor: 'pointer',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
             }}
           >
             {t.find}
@@ -270,8 +271,8 @@ export default function SizeGuideClient({ locale = 'en' }) {
         {result && (
           <div style={{
             marginTop: 24,
-            background: '#f0fdf4', border: '1px solid #bbf7d0',
-            borderRadius: 14, padding: '20px 24px',
+            background: '#f0fdf4', border: '1px solid #16a34a',
+            borderRadius: 0, padding: '20px 24px',
             display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
           }}>
             <div style={{ textAlign: 'center', minWidth: 60 }}>
@@ -280,7 +281,7 @@ export default function SizeGuideClient({ locale = 'en' }) {
               </p>
               <p style={{ fontSize: 44, fontWeight: 800, margin: 0, color: '#111', lineHeight: 1 }}>{result.size}</p>
             </div>
-            <div style={{ width: 1, height: 56, background: '#bbf7d0', flexShrink: 0 }} />
+            <div style={{ width: 1, height: 56, background: '#16a34a', flexShrink: 0 }} />
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               {[
                 { label: t.resultLabels[0], value: result.eu_m },

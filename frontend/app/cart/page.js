@@ -34,9 +34,9 @@ export default function CartPage({ locale = 'en' }) {
           <div key={s.n} style={{display:'flex',alignItems:'center',flex: i < steps.length - 1 ? 1 : 'none'}}>
             <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
               <div style={{
-                width:32,height:32,borderRadius:'50%',
+                width:32,height:32,borderRadius:0,
                 background: s.active ? '#000' : 'transparent',
-                border: s.active ? 'none' : '1.5px solid #ccc',
+                border: s.active ? '1px solid #000' : '1px solid #0a0a0a',
                 display:'flex',alignItems:'center',justifyContent:'center',
                 fontSize:13,fontWeight:500,
                 color: s.active ? '#fff' : s.disabled ? '#ccc' : '#888',
@@ -44,7 +44,7 @@ export default function CartPage({ locale = 'en' }) {
               <p className="step-label" style={{fontWeight:s.active?600:400,color:s.disabled?'#ccc':s.active?'#000':'#555'}}>{s.label}</p>
             </div>
             {i < steps.length - 1 && (
-              <div style={{flex:1,height:1,background:'#e5e5e3',margin:'0 8px',marginBottom:20}}/>
+              <div style={{flex:1,height:1,background:'#0a0a0a',margin:'0 8px',marginBottom:20}}/>
             )}
           </div>
         ))}
@@ -53,7 +53,7 @@ export default function CartPage({ locale = 'en' }) {
       {cart.length === 0 ? (
         <div style={{textAlign:'center',padding:'80px 0'}}>
           <p style={{fontSize:18,color:'#aaa',marginBottom:24}}>{d.cartPage.empty}</p>
-          <a href={pathForLocale('/products', locale)} style={{background:'#000',color:'#fff',padding:'12px 28px',borderRadius:999,fontSize:14,textDecoration:'none'}}>
+          <a href={pathForLocale('/products', locale)} style={{background:'#000',color:'#fff',padding:'12px 28px',borderRadius:0,fontSize:14,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',textDecoration:'none',border:'1px solid #000'}}>
             {d.cartPage.shopNow}
           </a>
         </div>
@@ -71,7 +71,7 @@ export default function CartPage({ locale = 'en' }) {
               {cart.map(item => (
                 <div key={item.id + (item.size || '')} className="cart-item">
                   <a href={pathForLocale(`/products/${item.slug || item.id}`, locale)}
-                    style={{width:90,height:90,borderRadius:10,overflow:'hidden',background:'#f5f5f3',flexShrink:0,display:'block'}}>
+                    style={{width:90,height:90,borderRadius:0,overflow:'hidden',background:'#fff',flexShrink:0,display:'block'}}>
                     {item.image_url
                       ? <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                       : <div style={{width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,color:'#ccc'}}>{d.cartPage.noImage}</div>
@@ -87,12 +87,12 @@ export default function CartPage({ locale = 'en' }) {
                   </div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
                     <button onClick={() => updateQty(item.id, item.qty - 1, item.size)}
-                      style={{width:32,height:32,borderRadius:'50%',border:'1.5px solid #e5e5e3',background:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+                      style={{width:32,height:32,borderRadius:0,border:'1px solid #0a0a0a',background:'none',cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
                     <span style={{fontSize:15,fontWeight:500,minWidth:20,textAlign:'center'}}>{item.qty}</span>
                     <button onClick={() => updateQty(item.id, item.qty + 1, item.size)}
                       disabled={item.available_stock > 0 && item.qty >= item.available_stock}
-                      style={{width:32,height:32,borderRadius:'50%',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',
-                        border: (item.available_stock > 0 && item.qty >= item.available_stock) ? '1.5px solid #eee' : '1.5px solid #e5e5e3',
+                      style={{width:32,height:32,borderRadius:0,fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',
+                        border: (item.available_stock > 0 && item.qty >= item.available_stock) ? '1px solid #c8c8c8' : '1px solid #0a0a0a',
                         background:'none',
                         cursor: (item.available_stock > 0 && item.qty >= item.available_stock) ? 'not-allowed' : 'pointer',
                         color:  (item.available_stock > 0 && item.qty >= item.available_stock) ? '#ccc' : 'inherit',
@@ -110,7 +110,7 @@ export default function CartPage({ locale = 'en' }) {
             </div>
 
             <a href={pathForLocale('/products', locale)}
-              style={{display:'inline-block',marginTop:24,background:'none',color:'#555',border:'1.5px solid #e5e5e3',padding:'15px 28px',borderRadius:999,fontSize:14,fontWeight:500,cursor:'pointer',textDecoration:'none'}}>
+              style={{display:'inline-block',marginTop:24,background:'none',color:'#111',border:'1px solid #0a0a0a',padding:'15px 28px',borderRadius:0,fontSize:14,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',cursor:'pointer',textDecoration:'none'}}>
               {d.cartPage.backToShop}
             </a>
           </div>
@@ -121,7 +121,7 @@ export default function CartPage({ locale = 'en' }) {
             <div style={{display:'flex',flexDirection:'column',gap:14,marginBottom:20}}>
               {cart.map(item => (
                 <div key={item.id+(item.size||'')} style={{display:'flex',gap:12,alignItems:'center'}}>
-                  <div style={{width:52,height:52,borderRadius:8,overflow:'hidden',background:'#eee',flexShrink:0}}>
+                  <div style={{width:52,height:52,borderRadius:0,overflow:'hidden',background:'#fff',flexShrink:0}}>
                     {item.image_url && <img src={item.image_url} alt={item.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
                   </div>
                   <div style={{flex:1}}>
@@ -133,7 +133,7 @@ export default function CartPage({ locale = 'en' }) {
               ))}
             </div>
 
-            <div style={{borderTop:'1px solid #e5e5e3',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{borderTop:'1px solid #0a0a0a',paddingTop:16,display:'flex',flexDirection:'column',gap:10}}>
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,color:'#888'}}>
                 <span>{d.cartPage.subtotal}</span><span>{formatPrice(total, currency)}</span>
               </div>
@@ -149,7 +149,7 @@ export default function CartPage({ locale = 'en' }) {
             </div>
 
             <button onClick={() => window.location.href = pathForLocale('/checkout', locale)}
-              style={{width:'100%',marginTop:20,background:'#000',color:'#fff',border:'none',padding:'16px',borderRadius:999,fontSize:14,fontWeight:600,cursor:'pointer'}}>
+              style={{width:'100%',marginTop:20,background:'#000',color:'#fff',border:'1px solid #000',padding:'16px',borderRadius:0,fontSize:14,fontWeight:800,letterSpacing:'0.06em',textTransform:'uppercase',cursor:'pointer'}}>
               {d.cartPage.continueToDetails}
             </button>
             <p style={{fontSize:11,color:'#bbb',textAlign:'center',marginTop:12,lineHeight:1.5}}>

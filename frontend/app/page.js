@@ -206,8 +206,8 @@ export default async function Home({ searchParams, locale = 'en' }) {
       {/* ── 1. HERO BANNER ─────────────────────────────── */}
       <section style={{
         position: 'relative', minHeight: '92vh', overflow: 'hidden',
-        background: '#1a1a18',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#0a0a0a',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-start',
       }}>
         {hero.image && (
           <Image
@@ -228,16 +228,16 @@ export default async function Home({ searchParams, locale = 'en' }) {
         )}
         <div style={{
           position: 'absolute', inset: 0,
-          background: `linear-gradient(to top, rgba(0,0,0,${ov.toFixed(2)}), rgba(0,0,0,${(ov*0.28).toFixed(2)}), rgba(0,0,0,${(ov*0.42).toFixed(2)}))`,
+          background: `linear-gradient(to top, rgba(0,0,0,${Math.min(0.88, ov + 0.16).toFixed(2)}), rgba(0,0,0,${(ov*0.34).toFixed(2)}), rgba(0,0,0,${(ov*0.48).toFixed(2)}))`,
         }} aria-hidden="true" />
-        <div style={{ position: 'relative', textAlign: 'center', color: '#fff', padding: '0 24px', maxWidth: 640, width: '100%' }}>
-          <p style={{ fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', margin: '0 0 20px' }}>
+        <div style={{ position: 'relative', textAlign: 'left', color: '#fff', padding: '0 24px 72px', maxWidth: 760, width: '100%', marginLeft: 'max(0px, calc((100vw - 1160px) / 2))' }}>
+          <p style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.72)', margin: '0 0 18px', fontWeight: 800 }}>
             {hero.season}
           </p>
-          <h1 style={{ fontSize: 'clamp(40px, 7vw, 80px)', fontWeight: 600, lineHeight: 0.95, letterSpacing: '-0.01em', margin: '0 0 20px' }}>
+          <h1 style={{ fontSize: 'clamp(44px, 8vw, 92px)', fontWeight: 900, lineHeight: 0.92, letterSpacing: 0, margin: '0 0 18px', textTransform: 'uppercase' }}>
             {hero.title}
           </h1>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.72)', margin: '0 0 36px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.78)', margin: '0 0 32px', lineHeight: 1.55, maxWidth: 520 }}>
             {hero.subtitle}
           </p>
           <a href={pathForLocale('/products', locale)} className="hero-cta">{hero.cta}</a>
@@ -259,10 +259,10 @@ export default async function Home({ searchParams, locale = 'en' }) {
 
       {/* ── 5. NEW ARRIVALS ────────────────────────────── */}
       {newArrivals.length > 0 && (
-        <section style={{ maxWidth: W, margin: '0 auto', padding: '18px 24px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 32 }}>
-            <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{d.home.newArrivals}</h2>
-            <a href={pathForLocale('/collections/new', locale)} style={{ fontSize: 12, color: '#5f5f58', textDecoration: 'none', letterSpacing: '0.06em', textTransform: 'uppercase', fontWeight: 600 }}>
+        <section style={{ maxWidth: W, margin: '0 auto', padding: '26px 24px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24, paddingTop: 18, borderTop: '1px solid #0a0a0a' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{d.home.newArrivals}</h2>
+            <a href={pathForLocale('/collections/new', locale)} style={{ fontSize: 11, color: '#111', textDecoration: 'none', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 }}>
               {d.home.viewAll} →
             </a>
           </div>
@@ -288,13 +288,13 @@ export default async function Home({ searchParams, locale = 'en' }) {
       <HomeAboutTeaser locale={locale} />
 
       {/* ── 8. CATEGORIES ─────────────────────────────── */}
-      <section style={{ maxWidth: W, margin: '0 auto', padding: '40px 24px 0' }}>
-        <h2 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 32px' }}>{d.home.shopByCategory}</h2>
+      <section style={{ maxWidth: W, margin: '0 auto', padding: '44px 24px 0' }}>
+        <h2 style={{ fontSize: 18, fontWeight: 900, margin: '0 0 24px', letterSpacing: '0.08em', textTransform: 'uppercase', paddingTop: 18, borderTop: '1px solid #0a0a0a' }}>{d.home.shopByCategory}</h2>
 
         {/* Mobile + desktop: grid */}
         <div className="home-categories-grid">
           {localizedPromoTiles.map(tile => (
-            <a key={`${tile.href}-${tile.title}`} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 18, overflow: 'hidden', border: '1px solid #ececea', background: '#f5f5f3' }}>
+            <a key={`${tile.href}-${tile.title}`} href={tile.href} style={{ textDecoration: 'none', color: 'inherit', display: 'block', borderRadius: 0, overflow: 'hidden', border: '1px solid #0a0a0a', background: '#fff' }}>
               <div className="category-tile-img" style={{ position: 'relative', aspectRatio: '4/5' }} aria-label={tile.title}>
                 <Image
                   src={tile.image}
@@ -304,8 +304,8 @@ export default async function Home({ searchParams, locale = 'en' }) {
                   style={{ objectFit: 'cover', objectPosition: 'center' }}
                 />
               </div>
-              <div style={{ background: '#fff', padding: '14px 16px', textAlign: 'center' }}>
-                <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{tile.title}</p>
+              <div style={{ background: '#fff', padding: '13px 14px', textAlign: 'left', borderTop: '1px solid #0a0a0a' }}>
+                <p style={{ fontSize: 11, fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', margin: 0 }}>{tile.title}</p>
               </div>
             </a>
           ))}

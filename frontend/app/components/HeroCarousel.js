@@ -183,18 +183,18 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
           <button onClick={() => go(-1)} aria-label="Previous"
             style={{
               position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
-              width: 40, height: 40, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.88)', border: 'none',
+              width: 40, height: 40, borderRadius: 0,
+              background: 'rgba(255,255,255,0.9)', border: '1px solid #0a0a0a',
               fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 2,
+              boxShadow: 'none', zIndex: 2,
             }}>‹</button>
           <button onClick={() => go(1)} aria-label="Next"
             style={{
               position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-              width: 40, height: 40, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.88)', border: 'none',
+              width: 40, height: 40, borderRadius: 0,
+              background: 'rgba(255,255,255,0.9)', border: '1px solid #0a0a0a',
               fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 2,
+              boxShadow: 'none', zIndex: 2,
             }}>›</button>
         </>
       )}
@@ -206,7 +206,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
               className="hero-carousel-dot-button"
               aria-label={`Slide ${i + 1}`}
               style={{
-                width: 44, height: 44, borderRadius: 22,
+                width: 44, height: 28, borderRadius: 0,
                 background: 'transparent',
                 border: 'none', cursor: 'pointer', padding: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -215,7 +215,7 @@ export default function HeroCarousel({ slides, fullWidth = false }) {
                 className="hero-carousel-dot"
                 aria-hidden="true"
                 style={{
-                  width: i === realIdx ? 20 : 6, height: 6, borderRadius: 3,
+                  width: i === realIdx ? 24 : 8, height: 3, borderRadius: 0,
                   background: i === realIdx ? '#fff' : 'rgba(255,255,255,0.6)',
                   transition: 'all 300ms ease',
                 }}

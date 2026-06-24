@@ -158,8 +158,8 @@ export default function ContactPage({ locale = 'en' }) {
 
   const input = {
     width: '100%', boxSizing: 'border-box',
-    padding: '13px 16px', borderRadius: 12,
-    border: '1.5px solid #e5e5e0', fontSize: 15,
+    padding: '13px 16px', borderRadius: 0,
+    border: '1px solid #0a0a0a', fontSize: 15,
     outline: 'none', background: '#fff',
     fontFamily: 'inherit',
   }
@@ -174,7 +174,7 @@ export default function ContactPage({ locale = 'en' }) {
 
       {/* Three options */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 56 }}>
-        <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
+        <div style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '24px 20px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Mail size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{t.emailUs}</p>
           <a
@@ -185,12 +185,12 @@ export default function ContactPage({ locale = 'en' }) {
             sales@edmclothes.net
           </a>
         </div>
-        <Link href={pathForLocale('/faq', locale)} style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center', textDecoration: 'none', color: 'inherit', display: 'block' }}>
+        <Link href={pathForLocale('/faq', locale)} style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '24px 20px', textAlign: 'center', textDecoration: 'none', color: 'inherit', display: 'block' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><HelpCircle size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{t.faq}</p>
           <p style={{ fontSize: 13, color: '#666', margin: 0 }}>{t.faqSub}</p>
         </Link>
-        <div style={{ background: '#f5f5f3', borderRadius: 16, padding: '24px 20px', textAlign: 'center' }}>
+        <div style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, padding: '24px 20px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}><Clock size={28} strokeWidth={1.5} /></div>
           <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{t.hours}</p>
           <p style={{ fontSize: 13, color: '#666', margin: '0 0 4px' }}>{t.hoursLine}</p>
@@ -199,12 +199,12 @@ export default function ContactPage({ locale = 'en' }) {
       </div>
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid #ecece8', marginBottom: 40 }} />
+      <div style={{ borderTop: '1px solid #0a0a0a', marginBottom: 40 }} />
 
       <h2 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 24px' }}>{t.sendMessage}</h2>
 
       {sent ? (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 14, padding: '28px 24px', textAlign: 'center' }}>
+        <div style={{ background: '#f0fdf4', border: '1px solid #16a34a', borderRadius: 0, padding: '28px 24px', textAlign: 'center' }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 8 }}><CheckCircle2 size={32} strokeWidth={1.5} color="#16a34a" /></div>
           <p style={{ fontSize: 16, fontWeight: 600, margin: '0 0 6px', color: '#15803d' }}>{t.sentTitle}</p>
           <p style={{ fontSize: 14, color: '#666', margin: 0 }}>{t.sentText}</p>
@@ -257,7 +257,7 @@ export default function ContactPage({ locale = 'en' }) {
           </div>
 
           {error && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 16px', fontSize: 14, color: '#dc2626' }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #dc2626', borderRadius: 0, padding: '10px 16px', fontSize: 14, color: '#dc2626' }}>
               {error}
             </div>
           )}
@@ -269,11 +269,11 @@ export default function ContactPage({ locale = 'en' }) {
             type="submit"
             disabled={loading}
             style={{
-              background: '#0a0a0a', color: '#fff', border: 'none',
-              padding: '14px 32px', borderRadius: 999, fontSize: 14,
-              fontWeight: 600, cursor: loading ? 'default' : 'pointer',
+              background: '#0a0a0a', color: '#fff', border: '1px solid #0a0a0a',
+              padding: '14px 32px', borderRadius: 0, fontSize: 14,
+              fontWeight: 800, cursor: loading ? 'default' : 'pointer',
               opacity: loading ? 0.6 : 1, alignSelf: 'flex-start',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.06em', textTransform: 'uppercase',
             }}
           >
             {loading ? t.sending : t.send}

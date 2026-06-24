@@ -53,10 +53,10 @@ function WishlistItem({ product, onRemove, locale, labels }) {
   }
 
   return (
-    <div style={{ display: 'flex', gap: 12, padding: '16px 0', borderBottom: '1px solid #f0f0ee' }}>
+    <div style={{ display: 'flex', gap: 12, padding: '16px 0', borderBottom: '1px solid #0a0a0a' }}>
       {/* Image */}
       <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)}
-        style={{ flexShrink: 0, width: 72, height: 90, borderRadius: 8, overflow: 'hidden', background: '#f5f5f3', display: 'block' }}>
+        style={{ flexShrink: 0, width: 72, height: 90, borderRadius: 0, overflow: 'hidden', background: '#fff', border: 'none', display: 'block' }}>
         {img
           ? <img src={img} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           : <div style={{ width: '100%', height: '100%' }} />
@@ -67,7 +67,7 @@ function WishlistItem({ product, onRemove, locale, labels }) {
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
           <a href={pathForLocale(`/products/${product.slug || product.id}`, locale)}
-            style={{ fontSize: 13, fontWeight: 600, color: '#111', textDecoration: 'none', lineHeight: 1.3, flex: 1 }}>
+            style={{ fontSize: 13, fontWeight: 900, color: '#111', textDecoration: 'none', lineHeight: 1.25, flex: 1, letterSpacing:'0.04em', textTransform:'uppercase' }}>
             {product.name}
           </a>
           {/* Remove button */}
@@ -81,7 +81,7 @@ function WishlistItem({ product, onRemove, locale, labels }) {
 
         {/* Price */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: disc ? '#ef4444' : '#111' }}>
+          <span style={{ fontSize: 14, fontWeight: 900, color: disc ? '#f02a2a' : '#111' }}>
             {formatPrice(priceForLocale(product, locale, uahRate), currency)}
           </span>
           {disc && (
@@ -98,7 +98,7 @@ function WishlistItem({ product, onRemove, locale, labels }) {
               return (
                 <button key={s} onClick={() => avail && setSelectedSize(s)}
                   style={{
-                    padding: '3px 8px', fontSize: 11, fontWeight: 600, borderRadius: 6,
+                    padding: '3px 8px', fontSize: 11, fontWeight: 900, borderRadius: 0,
                     cursor: avail ? 'pointer' : 'not-allowed',
                     border: active ? '1.5px solid #111' : '1px solid #ddd',
                     background: active ? '#111' : '#fff',
@@ -118,10 +118,11 @@ function WishlistItem({ product, onRemove, locale, labels }) {
           onClick={handleAddToCart}
           disabled={!canAdd}
           style={{
-            marginTop: 6, padding: '7px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-            border: 'none', cursor: canAdd ? 'pointer' : 'default',
-            background: added ? '#16a34a' : isOutOfStock ? '#e5e5e3' : !selectedSizeAvailable ? '#e5e5e3' : '#111',
-            color: (isOutOfStock || !selectedSizeAvailable) ? '#999' : '#fff',
+            marginTop: 6, padding: '8px 12px', borderRadius: 0, fontSize: 11, fontWeight: 900,
+            letterSpacing:'0.08em', textTransform:'uppercase',
+            border: '1px solid #111', cursor: canAdd ? 'pointer' : 'default',
+            background: added ? '#d7ff2f' : isOutOfStock ? '#e6e6e0' : !selectedSizeAvailable ? '#e6e6e0' : '#111',
+            color: added ? '#0a0a0a' : (isOutOfStock || !selectedSizeAvailable) ? '#999' : '#fff',
             transition: 'background 0.2s',
           }}>
           {added ? labels.added : isOutOfStock ? labels.outOfStock : !selectedSizeAvailable ? labels.outOfStock : labels.addToCart}
@@ -210,20 +211,21 @@ export default function WishlistDrawer() {
         display: 'flex', flexDirection: 'column',
         transform: visible ? 'translateX(0)' : 'translateX(100%)',
         transition: 'transform 0.32s cubic-bezier(0.32,0,0,1)',
-        boxShadow: '-24px 0 60px rgba(0,0,0,0.1)',
+        boxShadow: 'none',
+        borderLeft: '1px solid #0a0a0a',
       }}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #f0f0ee', flexShrink: 0 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #0a0a0a', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{d.wishlistPage.title}</h2>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 900, letterSpacing:'0.08em', textTransform:'uppercase' }}>{d.wishlistPage.title}</h2>
             {products.length > 0 && (
               <span style={{ fontSize: 12, color: '#aaa' }}>({products.length})</span>
             )}
           </div>
-          <button onClick={close} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 24, color: '#888', lineHeight: 1, padding: '0 2px' }}>×</button>
+          <button onClick={close} style={{ background: '#fff', border: '1px solid #0a0a0a', borderRadius:0, cursor: 'pointer', fontSize: 24, color: '#0a0a0a', lineHeight: 1, padding: 0, width:34, height:34 }}>×</button>
         </div>
 
         {/* Body */}
@@ -234,7 +236,7 @@ export default function WishlistDrawer() {
               <p style={{ fontSize: 15, fontWeight: 600, margin: '0 0 8px' }}>{d.wishlistPage.drawerSignInTitle}</p>
               <p style={{ fontSize: 13, color: '#888', margin: '0 0 24px' }}>{d.wishlistPage.drawerSignInBody}</p>
               <a href={pathForLocale('/auth', locale)} onClick={close}
-                style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 999, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
+                style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 0, fontSize: 12, fontWeight: 900, letterSpacing:'0.08em', textTransform:'uppercase', textDecoration: 'none', display: 'inline-block' }}>
                 {d.wishlistPage.signIn}
               </a>
             </div>
@@ -248,7 +250,7 @@ export default function WishlistDrawer() {
                 {d.wishlistPage.drawerEmptyBody}
               </p>
               <a href={pathForLocale('/products', locale)} onClick={close}
-                style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 999, fontSize: 13, fontWeight: 600, textDecoration: 'none', display: 'inline-block' }}>
+                style={{ background: '#111', color: '#fff', padding: '12px 28px', borderRadius: 0, fontSize: 12, fontWeight: 900, letterSpacing:'0.08em', textTransform:'uppercase', textDecoration: 'none', display: 'inline-block' }}>
                 {d.wishlistPage.browseProducts}
               </a>
             </div>
@@ -263,7 +265,7 @@ export default function WishlistDrawer() {
 
         {/* Footer */}
         {products.length > 0 && (
-          <div style={{ borderTop: '1px solid #f0f0ee', padding: '16px 20px', flexShrink: 0 }}>
+          <div style={{ borderTop: '1px solid #0a0a0a', padding: '16px 20px', flexShrink: 0 }}>
             <a href={pathForLocale('/wishlist', locale)} onClick={close}
               style={{ display: 'block', textAlign: 'center', fontSize: 13, color: '#888', textDecoration: 'none' }}>
               {d.wishlistPage.drawerViewFull}
