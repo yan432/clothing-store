@@ -11,9 +11,16 @@ const groups = [
     ],
   },
   {
+    title: 'Sales',
+    items: [
+      { href: '/partner/orders', label: 'Orders' },
+    ],
+  },
+  {
     title: 'Catalog',
     items: [
       { href: '/partner/products', label: 'My products' },
+      { href: '/partner/inventory', label: 'Inventory' },
     ],
   },
 ]

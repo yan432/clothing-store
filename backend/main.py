@@ -4652,6 +4652,113 @@ def partner_stats_views(period_days: int = 7, bu: dict = Depends(require_brand_u
     }
 
 
+def _brand_product_ids(brand_id: int) -> set[int]:
+    rows = (
+        supabase.table("products")
+        .select("id")
+        .eq("brand_id", brand_id)
+        .execute()
+    ).data or []
+    return {int(r["id"]) for r in rows}
+
+
+@app.get("/partner/orders")
+def partner_orders(bu: dict = Depends(require_brand_user)):
+    """Orders containing at least one product belonging to the caller's brand.
+    Items not from this brand are stripped from each order so partners only
+    see their own line items."""
+    brand_id = bu["brand_id"]
+    my_ids = _brand_product_ids(brand_id)
+    if not my_ids:
+        return []
+
+    orders = (
+        supabase.table("orders")
+        .select("id,status,email,shipping_name,amount_total,currency,items_json,created_at,shipping_city,shipping_country,tracking_number,tracking_url")
+        .order("created_at", desc=True)
+        .limit(200)
+        .execute()
+    ).data or []
+
+    result = []
+    for o in orders:
+        items = o.get("items_json") or []
+        if isinstance(items, str):
+            try:
+                items = json.loads(items)
+            except Exception:
+                items = []
+        my_items = [it for it in items if int(it.get("id") or 0) in my_ids]
+        if not my_items:
+            continue
+        my_subtotal = round(sum(float(it.get("price") or 0) * int(it.get("quantity") or 0) for it in my_items), 2)
+        result.append({
+            "id": o["id"],
+            "status": o.get("status"),
+            "customer_email": o.get("email"),
+            "customer_name": o.get("shipping_name"),
+            "currency": o.get("currency"),
+            "order_total": o.get("amount_total"),
+            "my_subtotal": my_subtotal,
+            "my_items": my_items,
+            "shipping_city": o.get("shipping_city"),
+            "shipping_country": o.get("shipping_country"),
+            "tracking_number": o.get("tracking_number"),
+            "tracking_url": o.get("tracking_url"),
+            "created_at": o.get("created_at"),
+        })
+    return result
+
+
+@app.get("/partner/inventory")
+def partner_inventory(bu: dict = Depends(require_brand_user)):
+    """Per-size stock for the caller's brand only. Same shape as /admin/inventory."""
+    brand_id = bu["brand_id"]
+    products = (
+        supabase.table("products")
+        .select("id,name,slug,tags,available_stock,stock,image_url,is_hidden")
+        .eq("brand_id", brand_id)
+        .neq("category", "archived")
+        .order("name")
+        .execute()
+    ).data or []
+
+    if not products:
+        return []
+
+    product_ids = [p["id"] for p in products]
+    try:
+        size_stocks_raw = (
+            supabase.table("product_size_stock")
+            .select("product_id,size,stock")
+            .in_("product_id", product_ids)
+            .execute()
+        )
+    except Exception:
+        size_stocks_raw = type("R", (), {"data": []})()
+
+    stock_by_product: dict = {}
+    for row in (size_stocks_raw.data or []):
+        pid = row["product_id"]
+        if pid not in stock_by_product:
+            stock_by_product[pid] = {}
+        stock_by_product[pid][row["size"]] = row["stock"]
+
+    return [
+        {
+            "id": p["id"],
+            "name": p["name"],
+            "slug": p.get("slug") or str(p["id"]),
+            "image_url": p.get("image_url"),
+            "tags": p.get("tags") or [],
+            "available_stock": p.get("available_stock") or p.get("stock") or 0,
+            "is_hidden": bool(p.get("is_hidden")),
+            "size_stock": stock_by_product.get(p["id"], {}),
+        }
+        for p in products
+    ]
+
+
 # ── Page views (tracking + stats) ───────────────────────────────────────────
 
 class PageViewIn(BaseModel):
