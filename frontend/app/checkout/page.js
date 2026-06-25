@@ -267,6 +267,7 @@ function CheckoutPage({ locale = 'en' }) {
   const [paymentElementError, setPaymentElementError] = useState('')
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
   const [expressReady, setExpressReady] = useState(false)
+  const [expressAvailabilityChecked, setExpressAvailabilityChecked] = useState(false)
   const [clientReady, setClientReady] = useState(false)
   const activeAuthInputRef = useRef(null)
   const authPasswordInputRef = useRef(null)
@@ -556,6 +557,7 @@ function CheckoutPage({ locale = 'en' }) {
       setPaymentElementLoading(false)
       setPaymentElementReady(false)
       setExpressReady(false)
+      setExpressAvailabilityChecked(false)
       return undefined
     }
 
@@ -569,11 +571,13 @@ function CheckoutPage({ locale = 'en' }) {
       setPaymentIntentId('')
       if (!STRIPE_PUBLISHABLE_KEY) {
         setPaymentElementError(d.checkout.stripeMissingKey)
+        setExpressAvailabilityChecked(true)
         return
       }
       setPaymentElementLoading(true)
       setPaymentElementReady(false)
       setExpressReady(false)
+      setExpressAvailabilityChecked(false)
       try {
         const Stripe = await loadStripeJs()
         if (!Stripe) throw new Error('Stripe.js failed to initialize')
@@ -620,13 +624,22 @@ function CheckoutPage({ locale = 'en' }) {
             },
           })
           expressElement.on('availablepaymentmethodschange', ({ paymentMethods }) => {
-            if (!cancelled) setExpressReady(hasExpressPaymentMethods(paymentMethods))
+            if (!cancelled) {
+              setExpressAvailabilityChecked(true)
+              setExpressReady(hasExpressPaymentMethods(paymentMethods))
+            }
           })
           expressElement.on('ready', ({ availablePaymentMethods }) => {
-            if (!cancelled) setExpressReady(hasExpressPaymentMethods(availablePaymentMethods))
+            if (!cancelled) {
+              setExpressAvailabilityChecked(true)
+              setExpressReady(hasExpressPaymentMethods(availablePaymentMethods))
+            }
           })
           expressElement.on('loaderror', () => {
-            if (!cancelled) setExpressReady(false)
+            if (!cancelled) {
+              setExpressAvailabilityChecked(true)
+              setExpressReady(false)
+            }
           })
           expressElement.on('confirm', async () => {
             await confirmElementsPaymentRef.current?.()
@@ -635,7 +648,10 @@ function CheckoutPage({ locale = 'en' }) {
           mountedExpressElement = expressElement
           expressCheckoutRef.current = expressElement
         } catch (_) {
-          if (!cancelled) setExpressReady(false)
+          if (!cancelled) {
+            setExpressAvailabilityChecked(true)
+            setExpressReady(false)
+          }
         }
 
         const billingName = `${trimmedString(form.firstName)} ${trimmedString(form.lastName)}`.trim()
@@ -1017,13 +1033,25 @@ function CheckoutPage({ locale = 'en' }) {
           <h1>{d.checkout.expressCheckout}</h1>
           <p>{d.checkout.paymentSecure}</p>
         </div>
-        {(!canMountPaymentElements || !expressReady) && (
+        {!canMountPaymentElements && (
           <p className="checkout-payment-inline-note">
-            {canMountPaymentElements ? d.checkout.paymentEmbeddedLoading : d.checkout.paymentRedirect}
+            {d.checkout.paymentRedirect}
           </p>
         )}
         {canMountPaymentElements && (
           <>
+            {!expressReady && !expressAvailabilityChecked && (
+              <div className="checkout-express-placeholder" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
+            )}
+            {!expressReady && expressAvailabilityChecked && (
+              <p className="checkout-payment-inline-note checkout-express-unavailable">
+                {d.checkout.expressUnavailable}
+              </p>
+            )}
             <div className={expressReady ? 'checkout-express-real is-ready' : 'checkout-express-real'}>
               <div id="express-checkout-element" />
             </div>
@@ -1034,30 +1062,32 @@ function CheckoutPage({ locale = 'en' }) {
 
       <div className="checkout-onepage-layout">
         <div className="checkout-main-column">
-          <a href={pathForLocale('/', locale)} className="checkout-page-logo checkout-inline-logo">edm.clothes</a>
+          <div className="checkout-main-top">
+            <a href={pathForLocale('/', locale)} className="checkout-page-logo checkout-inline-logo">edm.clothes</a>
 
-          {!user && (
-            <div className="checkout-auth-switch" aria-label="Checkout mode">
-              {[
-                ['guest', d.checkout.auth.guest],
-                ['login', d.checkout.auth.login],
-                ['register', d.checkout.auth.register],
-              ].map(([m,label]) => (
-                <button key={m} type="button" onClick={() => {
-                  setMode(m)
-                  setAuthError('')
-                  setAuthMessage('')
-                  setAuthPassword('')
-                  setAuthConfirmPassword('')
-                  setPendingVerifyEmail('')
-                  setShowAuthPassword(false)
-                  setShowAuthConfirmPassword(false)
-                }} className={mode === m ? 'is-active' : ''}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+            {!user && (
+              <div className="checkout-auth-switch" aria-label="Checkout mode">
+                {[
+                  ['guest', d.checkout.auth.guest],
+                  ['login', d.checkout.auth.login],
+                  ['register', d.checkout.auth.register],
+                ].map(([m,label]) => (
+                  <button key={m} type="button" onClick={() => {
+                    setMode(m)
+                    setAuthError('')
+                    setAuthMessage('')
+                    setAuthPassword('')
+                    setAuthConfirmPassword('')
+                    setPendingVerifyEmail('')
+                    setShowAuthPassword(false)
+                    setShowAuthConfirmPassword(false)
+                  }} className={mode === m ? 'is-active' : ''}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {!user && (mode === 'login' || mode === 'register') && (
             <>
