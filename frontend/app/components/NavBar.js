@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { useWishlist } from '../context/WishlistContext'
+import { usePartner } from '../lib/usePartner'
 import { getApiUrl } from '../lib/api'
 import { getMessages, localeFromPathname, pathForLocale, switchLocalePath, translateCategory } from '../lib/i18n'
 import { collectionPathForCategory } from '../lib/collections'
@@ -47,6 +48,7 @@ export default function NavBar() {
   const { count, setDrawerOpen } = useCart()
   const { user, signOut, isAdmin } = useAuth()
   const { ids: wishlistIds } = useWishlist()
+  const { isPartner, brand } = usePartner(user)
 
   const [openMenu,   setOpenMenu]   = useState(null) // 'shop' | 'info' | 'admin'
   const [categories, setCategories] = useState([])
@@ -232,6 +234,16 @@ export default function NavBar() {
           {/* RIGHT — icons */}
           <div className="nav-right-icons">
 
+            {/* Partner cabinet — visible to invited brand users only.
+                Admin also gets an Admin dropdown below; partners-only users
+                see this single link. */}
+            {isPartner && !isAdmin && (
+              <a href={pathForLocale('/partner', locale)}
+                style={{ fontSize: 11, fontWeight: 900, color: '#555', padding: '8px 4px', letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', marginRight: 8 }}>
+                {brand?.name ? `Partner · ${brand.name}` : 'Partner'}
+              </a>
+            )}
+
             {/* Admin — desktop only (mobile: in hamburger drawer) */}
             {isAdmin && (
               <div ref={adminRef} className="nav-admin-btn" style={{ position: 'relative', marginRight: 8 }}
@@ -407,6 +419,19 @@ export default function NavBar() {
             </div>
             {/* Drawer body */}
             <div style={{ padding: '20px' }}>
+              {/* Partner cabinet — mobile only */}
+              {isPartner && !isAdmin && (
+                <>
+                  <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>Partner</p>
+                  <div style={{ marginBottom: 24 }}>
+                    <a href={pathForLocale('/partner', locale)} onClick={() => setMobileOpen(false)}
+                      style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#555', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      {brand?.name ? `${brand.name} cabinet` : 'Partner cabinet'}
+                    </a>
+                  </div>
+                </>
+              )}
+
               {/* Admin — mobile only */}
               {isAdmin && (
                 <>
