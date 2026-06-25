@@ -369,15 +369,16 @@ export default function CookieConsent() {
             <button
               onClick={handleAcceptAll}
               style={{
-                background:    'transparent',
+                background:    '#0a0a0a',
                 border:        '1px solid #0a0a0a',
-                color:         '#0a0a0a',
+                color:         '#fff',
                 padding:       '12px 28px',
                 fontSize:      12,
                 fontWeight:    900,
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 cursor:        'pointer',
+                minWidth:      180,
               }}
             >
               {c.acceptAll}
