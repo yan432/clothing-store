@@ -205,10 +205,10 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 /* Desktop: 3-column grid (logo | links | icons) */
 .nav-main-bar {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   padding: 0 28px;
 }
-.nav-logo     { justify-self: start; }
+.nav-logo     { justify-self: start; min-width: 0; }
 .nav-logo-text { display: inline; }
 .nav-center-links { display: flex; gap: 36px; align-items: center; }
 .nav-right-icons  { display: flex; gap: 4px; align-items: center; justify-self: end; }
@@ -216,14 +216,19 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
 .nav-hamburger    { display: none; }
 .nav-admin-btn    { display: block; }
 
+@media (max-width: 1180px) and (min-width: 901px) {
+  .nav-logo-text { display: none; }
+  .nav-center-links { gap: 28px; }
+}
+
 /* Mobile: flex row — hamburger | [logo centered] | icons */
-@media (max-width: 680px) {
+@media (max-width: 900px) {
   .nav-main-bar {
     display: flex;
     position: relative;
-    padding: 0 16px;
+    padding: 0 16px !important;
   }
-.nav-hamburger {
+  .nav-hamburger {
     display: flex; align-items: center; justify-content: center;
     background: none; border: none; cursor: pointer;
     padding: 8px; color: var(--edm-ink); flex-shrink: 0;
@@ -237,6 +242,7 @@ div[style*="scrollSnapType"]::-webkit-scrollbar {
   .nav-logo-text { display: none; }
   .nav-center-links { display: none; }
   .nav-right-icons  { margin-left: auto; justify-self: unset; }
+  .nav-right-icons > a[href$="/partner"] { display: none !important; }
   .nav-locale-switch { display: none !important; }
   .nav-admin-btn    { display: none; }
 }
