@@ -5,16 +5,17 @@ export default function PageHeader({ title, subtitle, actions }) {
     <header style={{
       display: 'flex',
       justifyContent: 'space-between',
-      alignItems: 'flex-end',
+      alignItems: 'flex-start',
       gap: tokens.space.lg,
-      marginBottom: tokens.space.xl,
-      paddingBottom: tokens.space.lg,
-      borderBottom: `1px solid ${tokens.color.border}`,
+      marginBottom: 28,
+      paddingBottom: 18,
+      borderBottom: `1px solid ${tokens.color.borderStrong}`,
+      flexWrap: 'wrap',
     }}>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <h1 style={tokens.font.h1}>{title}</h1>
         {subtitle && (
-          <p style={{ ...tokens.font.bodyMuted, margin: '6px 0 0' }}>{subtitle}</p>
+          <p style={{ ...tokens.font.bodyMuted, margin: '8px 0 0', maxWidth: 680 }}>{subtitle}</p>
         )}
       </div>
       {actions && (

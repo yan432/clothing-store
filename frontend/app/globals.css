@@ -759,6 +759,62 @@ a.ig-feed-tile:focus-visible .ig-feed-overlay {
 /* ── Product cards edge-to-edge on mobile ───────────── */
 .product-card-info { /* text area */ }
 .product-card-desc { /* description */ }
+.product-card-quick-add {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 2px;
+}
+.product-card-quick-sizes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(46px, 1fr));
+  gap: 5px;
+}
+.product-card-quick-size,
+.product-card-quick-button {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #111;
+  border-radius: 0;
+  background: #fff;
+  color: #111;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+.product-card-quick-button {
+  background: #111;
+  color: #fff;
+  font-size: 11px;
+}
+.product-card-quick-size:not(:disabled):hover,
+.product-card-quick-button:not(:disabled):hover {
+  background: #111;
+  color: #fff;
+}
+.product-card-quick-size:disabled,
+.product-card-quick-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+  text-decoration: line-through;
+}
+.product-card-quick-status {
+  min-height: 14px;
+  margin: 0;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #555;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.product-card-quick-status.is-visible {
+  opacity: 1;
+}
 
 @media (max-width: 679px) {
   /* Stretch grid to full screen width */
@@ -792,6 +848,19 @@ a.ig-feed-tile:focus-visible .ig-feed-overlay {
 
   /* Hide color swatches on mobile — too small to read reliably */
   .product-color-swatches { display: none !important; }
+
+  .product-card-quick-add {
+    padding: 0 12px 12px;
+  }
+  .product-card-quick-sizes {
+    grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
+    gap: 4px;
+  }
+  .product-card-quick-size,
+  .product-card-quick-button {
+    min-height: 32px;
+    letter-spacing: 0.04em;
+  }
 
 }
 
@@ -1967,5 +2036,102 @@ a.photo-tile:hover .photo-tile-img {
 
   .checkout-summary-item strong {
     grid-column: 2;
+  }
+}
+
+/* Admin + partner operations UI */
+.operations-shell {
+  background: #fff !important;
+  color: #0a0a0a;
+}
+
+.operations-main {
+  max-width: 1440px;
+}
+
+.operations-main input:not([type="checkbox"]):not([type="radio"]),
+.operations-main select,
+.operations-main textarea {
+  background: #fff !important;
+  border: 1px solid #0a0a0a !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  color: #0a0a0a !important;
+}
+
+.operations-main input::placeholder,
+.operations-main textarea::placeholder {
+  color: #8a8a84;
+}
+
+.operations-main button,
+.operations-main a[style*="border"],
+.operations-main [style*="border-radius"],
+.operations-sidebar [style*="border-radius"] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.operations-main table {
+  border-collapse: collapse;
+}
+
+.operations-main th {
+  background: #fff !important;
+  color: #565656 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  border-bottom: 1px solid #0a0a0a !important;
+}
+
+.operations-main td {
+  border-bottom-color: #d6d6d0 !important;
+}
+
+.operations-main section {
+  border-radius: 0 !important;
+}
+
+.operations-sidebar a:hover {
+  background: #f2f2ef !important;
+  color: #0a0a0a !important;
+}
+
+.operations-sidebar a.is-active:hover {
+  background: #0a0a0a !important;
+  color: #fff !important;
+}
+
+@media (max-width: 900px) {
+  .operations-shell {
+    display: block !important;
+  }
+
+  .operations-sidebar {
+    width: auto !important;
+    min-height: 0 !important;
+    position: static !important;
+    border-right: none !important;
+    border-bottom: 1px solid #0a0a0a !important;
+    padding: 16px !important;
+  }
+
+  .operations-sidebar nav {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .operations-sidebar nav a {
+    white-space: nowrap;
+  }
+
+  .operations-main {
+    padding: 24px 16px 48px !important;
+    max-width: none;
   }
 }

@@ -20,7 +20,7 @@ function StatTile({ label, value, hint }) {
   return (
     <Card style={{ minWidth: 0 }}>
       <div style={{ ...tokens.font.label, marginBottom: tokens.space.sm }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 600, lineHeight: 1.1, color: tokens.color.text }}>
+      <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1, color: tokens.color.text }}>
         {value ?? '—'}
       </div>
       {hint && (
@@ -34,7 +34,7 @@ function ShortcutTile({ href, title, description }) {
   return (
     <Link href={href} style={{ textDecoration: 'none', color: 'inherit' }}>
       <Card style={{ height: '100%' }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: tokens.color.text, marginBottom: 4 }}>
+        <div style={{ fontSize: 13, fontWeight: 900, color: tokens.color.text, marginBottom: 6, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
           {title}
         </div>
         <div style={{ ...tokens.font.bodyMuted }}>{description}</div>

@@ -19,7 +19,7 @@ function StatTile({ label, value, hint }) {
   return (
     <Card style={{ minWidth: 0 }}>
       <div style={{ ...tokens.font.label, marginBottom: tokens.space.sm }}>{label}</div>
-      <div style={{ fontSize: 30, fontWeight: 600, lineHeight: 1.1, color: tokens.color.text }}>
+      <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1, color: tokens.color.text }}>
         {value ?? '—'}
       </div>
       {hint && <div style={{ ...tokens.font.bodyMuted, marginTop: tokens.space.xs }}>{hint}</div>}

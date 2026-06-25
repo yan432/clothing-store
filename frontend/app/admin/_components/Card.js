@@ -5,7 +5,7 @@ export default function Card({ children, padding = tokens.space.xl, style, ...re
     <div
       style={{
         background: tokens.color.surface,
-        border: `1px solid ${tokens.color.border}`,
+        border: `1px solid ${tokens.color.borderStrong}`,
         borderRadius: tokens.radius.lg,
         boxShadow: tokens.shadow.card,
         padding,

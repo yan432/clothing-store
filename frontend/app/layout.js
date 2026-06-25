@@ -64,7 +64,13 @@ export default async function RootLayout({ children }) {
   const referrer = requestHeaders.get('referer') || ''
   const hostname = requestHeaders.get('host') || ''
   const locale = localeFromPathname(pathname)
-  const suppressMarketingTracking = shouldSuppressMarketingTracking({
+  const isOperationsPath = (
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/') ||
+    pathname === '/partner' ||
+    pathname.startsWith('/partner/')
+  )
+  const suppressMarketingTracking = isOperationsPath || shouldSuppressMarketingTracking({
     pathname,
     search,
     referrer,
@@ -118,14 +124,22 @@ export default async function RootLayout({ children }) {
         <AuthProvider>
           <WishlistProvider>
           <CartProvider>
-            <AnnouncementBar />
-            <NavBar />
-            <DrawerWrapper />
-            <EmailCapturePopup />
-            <Suspense fallback={null}><UtmCapture /></Suspense>
+            {!isOperationsPath && (
+              <>
+                <AnnouncementBar />
+                <NavBar />
+                <DrawerWrapper />
+                <EmailCapturePopup />
+                <Suspense fallback={null}><UtmCapture /></Suspense>
+              </>
+            )}
             {children}
-            <Footer />
-            <CookieConsent />
+            {!isOperationsPath && (
+              <>
+                <Footer />
+                <CookieConsent />
+              </>
+            )}
             <MarketingPixels disabled={suppressMarketingTracking} />
             {!suppressMarketingTracking && (
               <>

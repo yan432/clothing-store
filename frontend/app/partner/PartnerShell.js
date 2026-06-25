@@ -9,9 +9,9 @@ export default function PartnerShell({ children }) {
 
   return (
     <BrandOnly onResolved={setInfo}>
-      <div style={{ display: 'flex', alignItems: 'stretch', background: tokens.color.bg, minHeight: '100vh' }}>
+      <div className="operations-shell partner-shell" style={{ display: 'flex', alignItems: 'stretch', background: tokens.color.bg, minHeight: '100vh' }}>
         <PartnerSidebar brand={info?.brand} />
-        <main style={{ flex: 1, minWidth: 0, padding: '32px 32px 64px' }}>
+        <main className="operations-main" style={{ flex: 1, minWidth: 0, padding: '32px 32px 64px' }}>
           {children}
         </main>
       </div>

@@ -10,9 +10,9 @@ export const metadata = {
 export default function AdminLayout({ children }) {
   return (
     <AdminOnly>
-      <div style={{ display: 'flex', alignItems: 'stretch', background: tokens.color.bg, minHeight: '100vh' }}>
+      <div className="operations-shell admin-shell" style={{ display: 'flex', alignItems: 'stretch', background: tokens.color.bg, minHeight: '100vh' }}>
         <Sidebar />
-        <main style={{ flex: 1, minWidth: 0, padding: '32px 32px 64px' }}>
+        <main className="operations-main" style={{ flex: 1, minWidth: 0, padding: '32px 32px 64px' }}>
           {children}
         </main>
       </div>

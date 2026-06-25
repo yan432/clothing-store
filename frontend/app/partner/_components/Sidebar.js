@@ -34,26 +34,26 @@ export default function PartnerSidebar({ brand }) {
   const pathname = usePathname() || ''
 
   return (
-    <aside style={{
-      width: 220,
+    <aside className="operations-sidebar" style={{
+      width: 240,
       flexShrink: 0,
-      borderRight: `1px solid ${tokens.color.border}`,
+      borderRight: `1px solid ${tokens.color.borderStrong}`,
       background: tokens.color.surface,
-      padding: '24px 12px',
+      padding: '22px 14px',
       minHeight: 'calc(100vh - 60px)',
       position: 'sticky',
       top: 0,
       alignSelf: 'flex-start',
     }}>
-      <div style={{ padding: '0 10px 14px', borderBottom: `1px solid ${tokens.color.border}`, marginBottom: 14 }}>
+      <div style={{ padding: '0 10px 14px', borderBottom: `1px solid ${tokens.color.borderStrong}`, marginBottom: 14 }}>
         <div style={{ ...tokens.font.label, fontSize: 11, marginBottom: 6 }}>Brand</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {brand?.logo_url ? (
-            <div style={{ width: 28, height: 28, borderRadius: 6, background: tokens.color.bg, overflow: 'hidden', flexShrink: 0 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 0, background: tokens.color.bg, border: `1px solid ${tokens.color.borderStrong}`, overflow: 'hidden', flexShrink: 0 }}>
               <img src={brand.logo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           ) : null}
-          <div style={{ fontSize: 14, fontWeight: 600, color: tokens.color.text }}>{brand?.name || '—'}</div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: tokens.color.text, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{brand?.name || '—'}</div>
         </div>
       </div>
 
@@ -64,14 +64,16 @@ export default function PartnerSidebar({ brand }) {
             {group.items.map(item => {
               const active = isActive(pathname, item)
               return (
-                <Link key={item.href} href={item.href} style={{
+                <Link key={item.href} href={item.href} className={active ? 'is-active' : undefined} style={{
                   display: 'block',
-                  padding: '7px 10px',
+                  padding: '9px 10px',
                   borderRadius: tokens.radius.sm,
-                  fontSize: 13,
-                  color: active ? tokens.color.text : tokens.color.textMuted,
-                  background: active ? tokens.color.bg : 'transparent',
-                  fontWeight: active ? 600 : 500,
+                  fontSize: 12,
+                  color: active ? tokens.color.accentText : tokens.color.textMuted,
+                  background: active ? tokens.color.accent : 'transparent',
+                  fontWeight: 900,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
                   textDecoration: 'none',
                 }}>
                   {item.label}

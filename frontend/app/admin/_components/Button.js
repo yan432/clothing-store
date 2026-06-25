@@ -24,9 +24,9 @@ const variants = {
 }
 
 const sizes = {
-  sm: { padding: '6px 10px', fontSize: 12, borderRadius: tokens.radius.sm },
-  md: { padding: '8px 14px', fontSize: 13, borderRadius: tokens.radius.sm },
-  lg: { padding: '10px 18px', fontSize: 14, borderRadius: tokens.radius.md },
+  sm: { padding: '7px 10px', fontSize: 11, borderRadius: tokens.radius.sm },
+  md: { padding: '10px 14px', fontSize: 12, borderRadius: tokens.radius.sm },
+  lg: { padding: '12px 18px', fontSize: 12, borderRadius: tokens.radius.md },
 }
 
 export default function Button({
@@ -43,7 +43,9 @@ export default function Button({
       style={{
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.55 : 1,
-        fontWeight: 500,
+        fontWeight: 900,
+        letterSpacing: '0.08em',
+        textTransform: 'uppercase',
         transition: 'opacity 120ms ease',
         ...variants[variant],
         ...sizes[size],
