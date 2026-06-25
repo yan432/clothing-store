@@ -58,12 +58,11 @@ export default function HomeAboutTeaser({ locale = 'en' }) {
       <div ref={photoRef} className="home-about-photo">
         <Image
           src="/about/cover-hero.jpg"
-          alt=""
+          alt={d.home.storyImageAlt}
           fill
           sizes="100vw"
           quality={65}
           loading="lazy"
-          aria-hidden="true"
         />
       </div>
       <div className="home-about-overlay" aria-hidden="true" />

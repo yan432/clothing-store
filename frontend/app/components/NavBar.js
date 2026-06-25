@@ -185,7 +185,12 @@ export default function NavBar() {
           </button>
 
           {/* Logo: desktop — left col; mobile — absolute center */}
-          <a href={pathForLocale('/', locale)} className="nav-logo" style={{ display: 'inline-flex', alignItems: 'center', gap: 11, fontSize: 16, fontWeight: 900, letterSpacing: '0.08em', textDecoration: 'none', color: 'inherit', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+          <a
+            href={pathForLocale('/', locale)}
+            className="nav-logo"
+            aria-label="edm.clothes home"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 11, fontSize: 16, fontWeight: 900, letterSpacing: '0.08em', textDecoration: 'none', color: 'inherit', textTransform: 'uppercase', whiteSpace: 'nowrap' }}
+          >
             <Image
               src="/brand/edm-logo-mark.png"
               alt=""

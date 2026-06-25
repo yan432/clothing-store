@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import ShopTheLookDrawer from './ShopTheLookDrawer'
-import { localeFromPathname, pathForLocale } from '../lib/i18n'
+import { getMessages, localeFromPathname, pathForLocale } from '../lib/i18n'
 
 function CartIcon() {
   return (
@@ -18,6 +18,7 @@ function CartIcon() {
 export default function HomepagePhotoTiles({ tiles }) {
   const pathname = usePathname() || '/'
   const locale = localeFromPathname(pathname)
+  const d = getMessages(locale)
   const [activeTile, setActiveTile] = useState(null)
 
   if (!tiles || tiles.length === 0) return null
@@ -32,11 +33,12 @@ export default function HomepagePhotoTiles({ tiles }) {
       <div className="photo-tiles-grid">
         {tiles.map(tile => {
           const hasProducts = Array.isArray(tile.product_ids) && tile.product_ids.length > 0
+          const imageAlt = tile.alt || tile.title || d.home.shopThisLookAlt
           const inner = (
             <div className="photo-tile-inner">
               <Image
                 src={tile.image_url}
-                alt=""
+                alt={imageAlt}
                 fill
                 sizes="(max-width: 680px) 50vw, 25vw"
                 className="photo-tile-img"
@@ -55,7 +57,7 @@ export default function HomepagePhotoTiles({ tiles }) {
                 key={tile.id}
                 type="button"
                 className="photo-tile"
-                aria-label="Shop this look"
+                aria-label={d.home.shopThisLook}
                 onClick={(e) => openDrawer(tile, e)}
                 style={{ cursor: 'pointer', background: 'none', border: 'none', padding: 0, display: 'block', textAlign: 'left' }}
               >

@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import Script from 'next/script'
 
 const STORAGE_KEY = 'cookie_consent'
+const ANALYTICS_DELAY_MS = 11000
+const MARKETING_DELAY_MS = 13000
 
 function consentGranted() {
   try {
@@ -13,8 +15,46 @@ function consentGranted() {
   }
 }
 
+function scheduleAfterLoadIdle(start, delayMs) {
+  let loadListener = null
+  let delayId = null
+  let idleId = null
+
+  const runWhenIdle = () => {
+    delayId = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(start, { timeout: 1600 })
+      } else {
+        start()
+      }
+    }, delayMs)
+  }
+
+  if (document.readyState === 'complete') {
+    runWhenIdle()
+  } else {
+    loadListener = runWhenIdle
+    window.addEventListener('load', loadListener, { once: true })
+  }
+
+  return () => {
+    if (loadListener) window.removeEventListener('load', loadListener)
+    if (delayId) window.clearTimeout(delayId)
+    if (idleId && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleId)
+  }
+}
+
 export default function MarketingPixels({ disabled = false }) {
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false)
   const [marketingEnabled, setMarketingEnabled] = useState(false)
+
+  useEffect(() => {
+    if (disabled || window.__edmTrackingDisabled) {
+      return undefined
+    }
+
+    return scheduleAfterLoadIdle(() => setAnalyticsEnabled(true), ANALYTICS_DELAY_MS)
+  }, [disabled])
 
   useEffect(() => {
     if (disabled || window.__edmTrackingDisabled) {
@@ -29,14 +69,8 @@ export default function MarketingPixels({ disabled = false }) {
         setMarketingEnabled(false)
         return
       }
-      const start = () => setMarketingEnabled(true)
-      if ('requestIdleCallback' in window) {
-        const id = window.requestIdleCallback(start, { timeout: 1800 })
-        cancelScheduledStart = () => window.cancelIdleCallback(id)
-      } else {
-        const id = window.setTimeout(start, 900)
-        cancelScheduledStart = () => window.clearTimeout(id)
-      }
+      if (cancelScheduledStart) cancelScheduledStart()
+      cancelScheduledStart = scheduleAfterLoadIdle(() => setMarketingEnabled(true), MARKETING_DELAY_MS)
     }
 
     initialSync = window.setTimeout(sync, 0)
@@ -54,8 +88,10 @@ export default function MarketingPixels({ disabled = false }) {
 
   return (
     <>
-      <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="afterInteractive" />
-      <Script id="ga-config" strategy="afterInteractive">{`
+      {analyticsEnabled && (
+        <>
+          <Script src="https://www.googletagmanager.com/gtag/js?id=G-CMVZYXVZ8Y" strategy="lazyOnload" />
+          <Script id="ga-config" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.__gaConfigured) {
           window.dataLayer = window.dataLayer || [];
           window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);}
@@ -66,9 +102,11 @@ export default function MarketingPixels({ disabled = false }) {
           window.dispatchEvent(new Event('ga-configured'));
         }
       `}</Script>
+        </>
+      )}
       {marketingEnabled && (
         <>
-      <Script id="meta-pixel" strategy="lazyOnload">{`
+          <Script id="meta-pixel" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.fbq) {
           !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
           fbq('init', '1608949326833856');
@@ -79,7 +117,7 @@ export default function MarketingPixels({ disabled = false }) {
           }
         }
       `}</Script>
-      <Script id="tiktok-pixel" strategy="lazyOnload">{`
+          <Script id="tiktok-pixel" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.ttq) {
           !function (w, d, t) {
             w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"],ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e},ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js",o=n&&n.partner;ttq._i=ttq._i||{},ttq._i[e]=[],ttq._i[e]._u=r,ttq._t=ttq._t||{},ttq._t[e]=+new Date,ttq._o=ttq._o||{},ttq._o[e]=n||{};n=document.createElement("script");n.type="text/javascript",n.async=!0,n.src=r+"?sdkid="+e+"&lib="+t;e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
@@ -92,7 +130,7 @@ export default function MarketingPixels({ disabled = false }) {
           }(window, document, 'ttq');
         }
       `}</Script>
-      <Script id="ms-clarity" strategy="lazyOnload">{`
+          <Script id="ms-clarity" strategy="lazyOnload">{`
         if (!window.__edmTrackingDisabled && !window.clarity) {
           (function(c,l,a,r,i,t,y){
             c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
