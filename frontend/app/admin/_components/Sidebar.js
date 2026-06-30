@@ -5,6 +5,12 @@ import { tokens } from './tokens'
 
 const groups = [
   {
+    title: 'Storefront',
+    items: [
+      { href: '/', label: 'View site' },
+    ],
+  },
+  {
     title: 'Overview',
     items: [
       { href: '/admin', label: 'Dashboard', match: 'exact' },
