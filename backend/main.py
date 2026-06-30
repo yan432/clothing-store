@@ -90,10 +90,13 @@ app.add_middleware(
     allow_origins=[
         FRONTEND_URL,
         "http://localhost:3000",
+        "http://localhost:3007",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3007",
         "https://www.edmclothes.net",
         "https://edmclothes.net",
     ],
-    allow_origin_regex=r"https://clothing-store(-[a-z0-9-]+)?\.vercel\.app",
+    allow_origin_regex=r"(https://clothing-store(-[a-z0-9-]+)?\.vercel\.app|http://(localhost|127\.0\.0\.1):[0-9]+)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -2015,15 +2018,20 @@ def get_products():
     # appear in any public listing or be returned through this endpoint.
     products = [p for p in (data.data or []) if not _is_unlisted(p)]
     try:
-        size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+        size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock,reserved").execute()
     except Exception:
-        size_stocks_raw = type("R", (), {"data": []})()
+        try:
+            size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock").execute()
+        except Exception:
+            size_stocks_raw = type("R", (), {"data": []})()
     stock_by_product: dict = {}
     for row in (size_stocks_raw.data or []):
         pid = row["product_id"]
         if pid not in stock_by_product:
             stock_by_product[pid] = {}
-        stock_by_product[pid][row["size"]] = row["stock"]
+        stock = int(row.get("stock", 0) or 0)
+        reserved = int(row.get("reserved", 0) or 0)
+        stock_by_product[pid][row["size"]] = max(0, stock - reserved)
     result = []
     for p in products:
         db_urls = p.get("image_urls") or []

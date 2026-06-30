@@ -997,9 +997,9 @@ function CheckoutPage({ locale = 'en' }) {
         return data
       }
       if (data.url) {
-        alert(d.checkout.embeddedRequired)
-        setPaymentLoading(false)
-        return null
+        rememberPendingOrder()
+        window.location.href = data.url
+        return data
       }
       const requestId = data.request_id || data.detail?.request_id || null
       alert(`${d.confirm.checkoutFailed}${requestId ? ` ${d.confirm.reference}: ${requestId}` : ''}`)

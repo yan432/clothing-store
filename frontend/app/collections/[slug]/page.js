@@ -203,6 +203,7 @@ export default async function CollectionPage({ params, locale = 'en' }) {
                 imagePriority={index < 2}
                 locale={locale}
                 uahRate={uahRate}
+                quickAdd
               />
             ))}
           </div>

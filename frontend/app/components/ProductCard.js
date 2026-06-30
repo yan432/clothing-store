@@ -1,13 +1,26 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import WishlistButton from './WishlistButton'
+import { useCart } from '../context/CartContext'
 import { getMessages, localeFromPathname, localizeProduct, pathForLocale, translateCategory, UK_LOCALE } from '../lib/i18n'
 import { currencyForLocale, priceForLocale, comparePriceForLocale, formatPrice } from '../lib/money'
+import { parseSizeOptionsFromTags, SIZE_PRESET_OPTIONS } from '../lib/sizeOptions'
 import { useUahRate } from '../lib/useUahRate'
 
-export default function ProductCard({ product, colorSiblings = [], imagePriority = false, locale, uahRate = null }) {
+function sortSizes(sizes) {
+  return [...sizes].sort((a, b) => {
+    const ia = SIZE_PRESET_OPTIONS.indexOf(a)
+    const ib = SIZE_PRESET_OPTIONS.indexOf(b)
+    if (ia === -1 && ib === -1) return a.localeCompare(b)
+    if (ia === -1) return 1
+    if (ib === -1) return -1
+    return ia - ib
+  })
+}
+
+export default function ProductCard({ product, colorSiblings = [], imagePriority = false, locale, uahRate = null, quickAdd = false }) {
   const pathname = usePathname() || '/'
   const activeLocale = locale || localeFromPathname(pathname)
   // Use the server-passed rate when available (SSR-accurate); otherwise pull
@@ -16,11 +29,14 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const effectiveRate = uahRate ?? hookRate
   const d = getMessages(activeLocale)
   const displayProduct = localizeProduct(product, activeLocale)
+  const { addToCart } = useCart()
   const [hovered, setHovered] = useState(false)
   const [secondaryReadyFor, setSecondaryReadyFor] = useState(null)
   const [swatchVariant, setSwatchVariant] = useState(null) // hovered color variant
+  const [quickAddState, setQuickAddState] = useState({ status: '', size: '' })
   const touchTimerRef = useRef(null)
   const leaveTimerRef = useRef(null)
+  const quickAddTimerRef = useRef(null)
 
   // When a swatch is hovered, show that variant's photo
   const activeProduct = swatchVariant || displayProduct
@@ -47,6 +63,12 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   const availableStock = displayProduct.available_stock ?? displayProduct.stock ?? 0
   const description = (displayProduct.description || '').trim()
   const isLowStock = availableStock > 0 && availableStock <= 5
+  const sizeStock = displayProduct.size_stock || product.size_stock || {}
+  const sizeOptions = useMemo(() => sortSizes(parseSizeOptionsFromTags(product.tags)), [product.tags])
+  const hasMultipleSizes = sizeOptions.length > 1
+  const isSizeAvailable = (size) => sizeStock[size] === undefined ? availableStock > 0 : Number(sizeStock[size]) > 0
+  const allSizesUnavailable = sizeOptions.length > 0 && sizeOptions.every(size => !isSizeAvailable(size))
+  const isOutOfStock = availableStock <= 0 || allSizesUnavailable
 
   const tags = Array.isArray(displayProduct.tags) ? displayProduct.tags : []
   const discount = Number.isFinite(Number(displayProduct.discount_percent))
@@ -71,7 +93,41 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
   useEffect(() => () => {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+    if (quickAddTimerRef.current) clearTimeout(quickAddTimerRef.current)
   }, [])
+
+  function setTemporaryQuickAddState(nextState, timeout = 1600) {
+    if (quickAddTimerRef.current) clearTimeout(quickAddTimerRef.current)
+    setQuickAddState(nextState)
+    quickAddTimerRef.current = setTimeout(() => setQuickAddState({ status: '', size: '' }), timeout)
+  }
+
+  function handleQuickAdd(size = null) {
+    if (isOutOfStock) {
+      setTemporaryQuickAddState({ status: 'error', size: '' })
+      return
+    }
+
+    const resolvedSize = size || sizeOptions[0] || null
+    const sizeSpecificStock = resolvedSize ? sizeStock[resolvedSize] : undefined
+    if (resolvedSize && sizeSpecificStock === 0) {
+      setTemporaryQuickAddState({ status: 'error', size: resolvedSize })
+      return
+    }
+
+    const stockOverride = sizeSpecificStock !== undefined
+      ? { available_stock: sizeSpecificStock }
+      : {}
+    const result = addToCart({ ...displayProduct, size: resolvedSize, ...stockOverride })
+    if (!result?.ok) {
+      setTemporaryQuickAddState({
+        status: result?.reason === 'max_reached' ? 'max' : 'error',
+        size: resolvedSize || '',
+      }, 1800)
+      return
+    }
+    setTemporaryQuickAddState({ status: 'added', size: resolvedSize || '' }, 1500)
+  }
 
   function handleMouseEnter() {
     if (touchTimerRef.current) clearTimeout(touchTimerRef.current)
@@ -238,6 +294,54 @@ export default function ProductCard({ product, colorSiblings = [], imagePriority
               }}
             />
           ))}
+        </div>
+      )}
+
+      {quickAdd && (
+        <div className="product-card-quick-add" aria-live="polite">
+          {hasMultipleSizes ? (
+            <div className="product-card-quick-sizes" aria-label={d.cart.selectSize}>
+              {sizeOptions.map(size => {
+                const available = isSizeAvailable(size)
+                const active = quickAddState.status === 'added' && quickAddState.size === size
+                const longLabel = size.length > 4
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => available && handleQuickAdd(size)}
+                    disabled={!available || isOutOfStock}
+                    title={available ? `${d.cart.addToCart} - ${size}` : `${size} - ${d.cart.soldOut}`}
+                    className="product-card-quick-size"
+                    style={{ fontSize: longLabel ? 9 : 11, background: active ? '#d7ff2f' : undefined, color: active ? '#0a0a0a' : undefined }}
+                  >
+                    {size}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleQuickAdd(sizeOptions[0] || null)}
+              disabled={isOutOfStock}
+              className="product-card-quick-button"
+            >
+              {quickAddState.status === 'added'
+                ? d.cart.added
+                : isOutOfStock ? d.cart.outOfStock : d.cart.addToCart}
+            </button>
+          )}
+
+          <p className={`product-card-quick-status ${quickAddState.status ? 'is-visible' : ''}`}>
+            {quickAddState.status === 'added'
+              ? `${d.cart.added}${quickAddState.size ? ` · ${quickAddState.size}` : ''}`
+              : quickAddState.status === 'max'
+                ? d.cart.maxReachedShort
+                : quickAddState.status === 'error'
+                  ? d.cart.outOfStock
+                  : '\u00a0'}
+          </p>
         </div>
       )}
     </article>

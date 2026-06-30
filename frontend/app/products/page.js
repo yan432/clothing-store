@@ -292,6 +292,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
                 imagePriority={index < 2}
                 locale={locale}
                 uahRate={uahRate}
+                quickAdd
               />
             ))}
           </div>
