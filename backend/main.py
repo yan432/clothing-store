@@ -4389,6 +4389,7 @@ class Brand(BaseModel):
     slug: str
     name: str
     description: Optional[str] = None
+    description_uk: Optional[str] = None
     logo_url: Optional[str] = None
     cover_url: Optional[str] = None
     is_active: bool = True
@@ -4399,6 +4400,7 @@ class BrandUpdate(BaseModel):
     slug: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
+    description_uk: Optional[str] = None
     logo_url: Optional[str] = None
     cover_url: Optional[str] = None
     is_active: Optional[bool] = None
@@ -4415,7 +4417,7 @@ def list_brands_public():
     try:
         data = (
             supabase.table("brands")
-            .select("id,slug,name,description,logo_url,cover_url,sort_order")
+            .select("id,slug,name,description,description_uk,logo_url,cover_url,sort_order")
             .eq("is_active", True)
             .order("sort_order")
             .order("name")
@@ -4457,6 +4459,7 @@ def create_brand(payload: Brand):
         "slug": slug,
         "name": name,
         "description": payload.description,
+        "description_uk": payload.description_uk,
         "logo_url": payload.logo_url,
         "cover_url": payload.cover_url,
         "is_active": bool(payload.is_active),
