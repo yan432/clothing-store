@@ -6,6 +6,7 @@
 import { getApiUrl } from './api'
 import { getSessionId } from './session'
 import { isMarketingTrackingDisabled } from './trackingFilter'
+import { getStoredUtm } from '../components/UtmCapture'
 
 const GA_MEASUREMENT_ID = 'G-CMVZYXVZ8Y'
 
@@ -188,6 +189,8 @@ async function send(event_type, extra = {}) {
   if (typeof window === 'undefined') return
   if (isMarketingTrackingDisabled()) return
   try {
+    const utm = getStoredUtm()
+    const metadata = utm ? { ...(extra.metadata || {}), utm } : extra.metadata
     await fetch(getApiUrl('/events'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -195,6 +198,7 @@ async function send(event_type, extra = {}) {
         session_id: getSessionId(),
         event_type,
         ...extra,
+        metadata,
       }),
     })
   } catch {
@@ -447,6 +451,12 @@ export function trackContact({ source = 'contact_form' } = {}) {
 export function trackSearch({ searchString = '', resultCount = null } = {}) {
   const q = String(searchString || '').trim()
   if (!q) return
+  send('search_query', {
+    metadata: {
+      query: q,
+      result_count: resultCount == null ? null : Number(resultCount),
+    },
+  })
   gaEvent('search', {
     search_term: q,
     results:     resultCount == null ? undefined : Number(resultCount),

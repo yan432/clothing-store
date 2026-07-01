@@ -8,13 +8,6 @@ import { useWishlist } from '../context/WishlistContext'
 import { usePartner } from '../lib/usePartner'
 import { getApiUrl } from '../lib/api'
 import { getMessages, localeFromPathname, pathForLocale, switchLocalePath, translateCategory } from '../lib/i18n'
-import { collectionPathForCategory } from '../lib/collections'
-
-const SHOP_ROUTES = [
-  { key: 'allProducts', href: '/products' },
-  { key: 'newArrivals', href: '/collections/new' },
-  { key: 'sale',        href: '/collections/sale' },
-]
 
 const INFO_ROUTES = [
   { key: 'about',     href: '/about' },
@@ -50,9 +43,10 @@ export default function NavBar() {
   const { ids: wishlistIds } = useWishlist()
   const { isPartner, brand } = usePartner(user)
 
-  const [openMenu,   setOpenMenu]   = useState(null) // 'shop' | 'info' | 'admin'
+  const [openMenu,   setOpenMenu]   = useState(null) // 'women' | 'men' | 'info' | 'admin'
   const [categories, setCategories] = useState([])
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileSections, setMobileSections] = useState({ women: false, men: false })
 
   const navLeaveTimer = useRef(null)
   const adminRef      = useRef(null)
@@ -61,7 +55,8 @@ export default function NavBar() {
     fetch(getApiUrl('/categories'))
       .then(r => r.ok ? r.json() : [])
       .then(cats => {
-        const sorted = [...(Array.isArray(cats) ? cats : [])].sort((a, b) => {
+        const menuCategories = Array.from(new Set([...(Array.isArray(cats) ? cats : []), 'Accessories']))
+        const sorted = menuCategories.sort((a, b) => {
           const ai = CATEGORY_ORDER.indexOf(a), bi = CATEGORY_ORDER.indexOf(b)
           if (ai !== -1 && bi !== -1) return ai - bi
           if (ai !== -1) return -1
@@ -75,10 +70,12 @@ export default function NavBar() {
 
   useEffect(() => () => clearTimeout(navLeaveTimer.current), [])
 
-  const shopStatic = SHOP_ROUTES.map(item => ({
-    label: d.nav[item.key],
-    href: pathForLocale(item.href, locale),
-  }))
+  const genderBrowseLinks = (audience) => [
+    { label: d.nav.allProducts, href: pathForLocale(`/${audience}`, locale) },
+    { label: d.nav.newArrivals, href: pathForLocale(`/${audience}?special=new`, locale) },
+    { label: d.nav.sale, href: pathForLocale(`/${audience}?special=sale`, locale) },
+    { label: d.nav.brands, href: pathForLocale('/brands', locale) },
+  ]
   const infoLinks = INFO_ROUTES.map(item => ({
     label: d.nav[item.key],
     href: pathForLocale(item.href, locale),
@@ -87,8 +84,8 @@ export default function NavBar() {
     label: d.nav[item.key],
     href: pathForLocale(item.href, locale),
   }))
-  const categoryHref = (category) => pathForLocale(
-    collectionPathForCategory(category) || `/products?category=${encodeURIComponent(category)}`,
+  const audienceCategoryHref = (audience, category) => pathForLocale(
+    `/${audience}?category=${encodeURIComponent(category)}`,
     locale,
   )
 
@@ -120,13 +117,16 @@ export default function NavBar() {
   }
   function onNavLeave() {
     navLeaveTimer.current = setTimeout(
-      () => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m),
+      () => setOpenMenu(m => (m === 'women' || m === 'men' || m === 'info') ? null : m),
       150
     )
   }
   function onNavEnter() { clearTimeout(navLeaveTimer.current) }
+  function toggleMobileSection(section) {
+    setMobileSections(current => ({ ...current, [section]: !current[section] }))
+  }
 
-  const isMegaOpen = openMenu === 'shop' || openMenu === 'info'
+  const isMegaOpen = openMenu === 'women' || openMenu === 'men' || openMenu === 'info'
 
   function navBtn(key, label) {
     const active = openMenu === key
@@ -209,7 +209,13 @@ export default function NavBar() {
               style={{ color: '#0a0a0a', textDecoration: 'none', fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
               {d.nav.newArrivals}
             </a>
-            {navBtn('shop', d.nav.shop)}
+            {navBtn('women', d.nav.women)}
+            {navBtn('men', d.nav.men)}
+            <a href={pathForLocale('/brands', locale)}
+              onMouseEnter={() => setOpenMenu(null)}
+              style={{ color: '#0a0a0a', textDecoration: 'none', fontSize: 12, fontWeight: 900, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {d.nav.brands}
+            </a>
             {navBtn('info', d.nav.info)}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <a href={switchLocalePath(pathname, 'en')}
@@ -240,8 +246,8 @@ export default function NavBar() {
           <div className="nav-right-icons">
 
             {/* Partner cabinet — visible to invited brand users only.
-                Admin also gets an Admin dropdown below; partners-only users
-                see this single link. */}
+                Admin gets a separate Admin dropdown above and can still
+                reach /partner via the link below if needed. */}
             {isPartner && !isAdmin && (
               <a href={pathForLocale('/partner', locale)}
                 style={{ fontSize: 11, fontWeight: 900, color: '#555', padding: '8px 4px', letterSpacing: '0.08em', textTransform: 'uppercase', textDecoration: 'none', marginRight: 8 }}>
@@ -277,7 +283,7 @@ export default function NavBar() {
 
             {/* Cart */}
             <button type="button" onClick={() => setDrawerOpen(true)} aria-label={d.nav.openCart}
-              onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
+              onMouseEnter={() => setOpenMenu(m => (m === 'women' || m === 'men' || m === 'info') ? null : m)}
               style={{ width: 36, height: 36, background: '#fff', border: '1px solid #0a0a0a', borderRadius: 0, cursor: 'pointer', padding: 0, color: '#0a0a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
               <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
                 <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -305,7 +311,7 @@ export default function NavBar() {
 
             {/* User icon */}
             <a href={pathForLocale(user ? '/account' : '/auth', locale)} aria-label={user ? d.nav.account : d.nav.signIn}
-              onMouseEnter={() => setOpenMenu(m => (m === 'shop' || m === 'info') ? null : m)}
+              onMouseEnter={() => setOpenMenu(m => (m === 'women' || m === 'men' || m === 'info') ? null : m)}
               style={{ width: 36, height: 36, border: '1px solid #0a0a0a', borderRadius: 0, background: '#fff', display: 'grid', placeItems: 'center', textDecoration: 'none' }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="8" r="3.1" stroke="#1a1a18" strokeWidth="1.5"/>
@@ -328,13 +334,15 @@ export default function NavBar() {
           }}>
             <div style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 28px 36px', display: 'flex', gap: 80 }}>
 
-              {/* SHOP */}
-              {openMenu === 'shop' && (
+              {/* WOMEN / MEN */}
+              {(openMenu === 'women' || openMenu === 'men') && (
                 <>
                   <div>
-                      <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.browse}</p>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {shopStatic.map(item => (
+                    <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>
+                      {openMenu === 'women' ? d.nav.women : d.nav.men}
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {genderBrowseLinks(openMenu).map(item => (
                         <a key={item.href} href={item.href} onClick={() => setOpenMenu(null)} style={megaLink}>{item.label}</a>
                       ))}
                     </div>
@@ -344,7 +352,7 @@ export default function NavBar() {
                       <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 16px' }}>{d.nav.categories}</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {categories.map(cat => (
-                          <a key={cat} href={categoryHref(cat)}
+                          <a key={cat} href={audienceCategoryHref(openMenu, cat)}
                             onClick={() => setOpenMenu(null)} style={megaLink}>{translateCategory(cat, locale)}</a>
                         ))}
                       </div>
@@ -451,7 +459,6 @@ export default function NavBar() {
                   </div>
                 </>
               )}
-              {/* Shop */}
               <div style={{ display: 'flex', gap: 8, margin: '0 0 20px' }}>
                 <a href={switchLocalePath(pathname, 'en')} onClick={() => { rememberPreferredLocale('en'); setMobileOpen(false) }}
                   style={{ fontSize: 12, fontWeight: 900, color: locale === 'en' ? '#111' : '#777', textDecoration: 'none' }}>EN</a>
@@ -460,14 +467,44 @@ export default function NavBar() {
                   style={{ fontSize: 12, fontWeight: 900, color: locale === 'uk' ? '#111' : '#777', textDecoration: 'none' }}>UA</a>
               </div>
 
-              <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.shop}</p>
               <div style={{ marginBottom: 24 }}>
-                {[...shopStatic, ...categories.map(cat => ({ label: translateCategory(cat, locale), href: categoryHref(cat) }))].map(item => (
-                  <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
-                    style={{ display: 'block', padding: '12px 0', borderBottom: '1px solid #0a0a0a', fontSize: 14, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                    {item.label}
-                  </a>
-                ))}
+                {['women', 'men'].map(audience => {
+                  const isOpen = mobileSections[audience]
+                  const label = audience === 'women' ? d.nav.women : d.nav.men
+                  return (
+                    <div key={audience} style={{ borderBottom: '1px solid #0a0a0a' }}>
+                      <button type="button" onClick={() => toggleMobileSection(audience)}
+                        aria-expanded={isOpen}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 0', background: '#fff', border: 'none', color: '#0a0a0a', cursor: 'pointer', fontSize: 15, fontWeight: 900, letterSpacing: '0.05em', textTransform: 'uppercase', textAlign: 'left' }}>
+                        {label}
+                        <svg width="12" height="7" viewBox="0 0 12 7" fill="none"
+                          style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 160ms ease', flexShrink: 0 }}>
+                          <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </button>
+                      {isOpen && (
+                        <div style={{ padding: '0 0 14px 12px' }}>
+                          {genderBrowseLinks(audience).map(item => (
+                            <a key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                              style={{ display: 'block', padding: '9px 0', fontSize: 13, fontWeight: 900, color: '#0a0a0a', textDecoration: 'none', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                              {item.label}
+                            </a>
+                          ))}
+                          {categories.length > 0 && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #d7d7d2' }}>
+                              {categories.map(cat => (
+                                <a key={`${audience}-${cat}`} href={audienceCategoryHref(audience, cat)} onClick={() => setMobileOpen(false)}
+                                  style={{ display: 'block', padding: '8px 0', fontSize: 13, fontWeight: 800, color: '#333', textDecoration: 'none', letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                                  {translateCategory(cat, locale)}
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
               {/* Account */}
               <p style={{ fontSize: 10, fontWeight: 900, letterSpacing: '0.14em', color: '#666', textTransform: 'uppercase', margin: '0 0 4px' }}>{d.nav.account}</p>

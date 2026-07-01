@@ -7,6 +7,7 @@ import { safeJsonLd } from '../../lib/safeJsonLd'
 import { absoluteUrl, localizedAlternates, openGraphLocale } from '../../lib/seo'
 import { getUahRate } from '../../lib/money'
 import { COLLECTION_SLUGS, collectionCopy, collectionPath, getCollection } from '../../lib/collections'
+import { getPublicBrands, withPreviewBrands } from '../../lib/marketplacePreview'
 
 function stableRandomRank(product) {
   const input = String(product?.id ?? product?.slug ?? product?.name ?? '')
@@ -20,7 +21,7 @@ function stableRandomRank(product) {
 
 async function getProducts() {
   try {
-    const res = await fetch(getApiUrl('/products'), { next: { revalidate: 300 } })
+    const res = await fetch(getApiUrl('/products?scope=marketplace&limit=500'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? data : []
@@ -85,7 +86,9 @@ function orderProducts(products) {
       if (ap !== bp) return ap - bp
     }
     if (am.isRandom && bm.isRandom) return (randomRanks.get(a.id) || 0) - (randomRanks.get(b.id) || 0)
-    return (Date.parse(b.created_at || '') || 0) - (Date.parse(a.created_at || '') || 0) || Number(b.id || 0) - Number(a.id || 0)
+    const sd = (Number(b.popularity_score) || 0) - (Number(a.popularity_score) || 0)
+    if (sd !== 0) return sd
+    return (randomRanks.get(a.id) || 0) - (randomRanks.get(b.id) || 0)
   })
 }
 
@@ -118,19 +121,35 @@ export async function generateMetadata({ params, locale = 'en' }) {
   }
 }
 
-export default async function CollectionPage({ params, locale = 'en' }) {
+export default async function CollectionPage({ params, searchParams, locale = 'en' }) {
   const { slug } = await params
+  const currentParams = await (searchParams || {})
   const collection = getCollection(slug)
   if (!collection) notFound()
 
   const d = getMessages(locale)
   const copy = collectionCopy(collection, locale)
+  const normalizeList = value => Array.isArray(value) ? value.filter(Boolean).map(String) : typeof value === 'string' && value ? [value] : []
+  const selectedBrands = normalizeList(currentParams?.brand)
   const products = (await getProducts())
     .filter(p => !p.is_hidden && p.slug && !(p.name || '').startsWith('[ARCHIVED]'))
+  const rawBrands = await getPublicBrands()
+  const brands = withPreviewBrands(rawBrands, products)
   const colorSiblingsMap = buildColorSiblingsMap(products)
-  const visibleProducts = orderProducts(products.filter(product => matchesCollection(product, collection)))
+  const visibleProducts = orderProducts(products.filter(product => {
+    const matchBrand = selectedBrands.length === 0 || selectedBrands.includes(String(product.brand_id || ''))
+    return matchesCollection(product, collection) && matchBrand
+  }))
   const uahRate = locale === 'uk' ? await getUahRate() : undefined
   const pagePath = collectionPath(collection.slug)
+  const hasActiveFilters = selectedBrands.length > 0
+
+  function buildHref(nextBrands = selectedBrands) {
+    const sp = new URLSearchParams()
+    nextBrands.forEach(brand => sp.append('brand', brand))
+    const qs = sp.toString()
+    return pathForLocale(qs ? `${pagePath}?${qs}` : pagePath, locale)
+  }
 
   const itemListJsonLd = {
     '@context': 'https://schema.org',
@@ -188,6 +207,28 @@ export default async function CollectionPage({ params, locale = 'en' }) {
           <span style={{ fontSize: 13, color: '#aaa' }}>{visibleProducts.length} {d.products.items}</span>
         </div>
 
+        <div className="products-filter-bar">
+          <div className="products-pills">
+            {brands.map(brand => {
+              const brandId = String(brand.id)
+              const isActive = selectedBrands.includes(brandId)
+              const nextBrands = isActive ? selectedBrands.filter(id => id !== brandId) : [...selectedBrands, brandId]
+              return (
+                <Link key={brand.id} href={buildHref(nextBrands)} style={{
+                  padding: '9px 13px', borderRadius: 0, fontSize: 11, fontWeight: 900,
+                  textDecoration: 'none', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0,
+                  background: isActive ? '#111' : 'transparent',
+                  color: isActive ? '#fff' : '#111',
+                  border: '1px solid', borderColor: isActive ? '#111' : '#bdbdb8',
+                }}>{brand.name}</Link>
+              )
+            })}
+          </div>
+          {hasActiveFilters && (
+            <Link href={pathForLocale(pagePath, locale)} style={{ fontSize: 11, color: '#555', textDecoration: 'underline', whiteSpace: 'nowrap', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{d.products.clear}</Link>
+          )}
+        </div>
+
         {visibleProducts.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '72px 0', color: '#aaa' }}>
             <p style={{ fontSize: 16, margin: '0 0 12px' }}>{d.products.noProducts}</p>
@@ -203,7 +244,6 @@ export default async function CollectionPage({ params, locale = 'en' }) {
                 imagePriority={index < 2}
                 locale={locale}
                 uahRate={uahRate}
-                quickAdd
               />
             ))}
           </div>

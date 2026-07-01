@@ -8,6 +8,7 @@ import DropCountdown from './components/DropCountdown'
 import { getMessages, localizeProduct, pathForLocale, translateCategory } from './lib/i18n'
 import { localizedAlternates } from './lib/seo'
 import { buildCollectionImageAlt, buildHomepageImageAlt } from './lib/seoText'
+import { brandImage, getPublicBrands, imageForProduct, productsForBrand, withPreviewBrands } from './lib/marketplacePreview'
 // All below-fold sections are lazy-loaded via a 'use client' wrapper so
 // each gets its own JS chunk instead of bloating the initial bundle.
 import {
@@ -25,7 +26,7 @@ export const metadata = {
 
 async function getProducts() {
   try {
-    const res = await fetch(getApiUrl('/products'), { next: { revalidate: 300 } })
+    const res = await fetch(getApiUrl('/products?scope=marketplace&limit=500'), { next: { revalidate: 300 } })
     if (!res.ok) return []
     const data = await res.json()
     return Array.isArray(data) ? data.filter(p => !p.is_hidden && !(p.name || '').startsWith('[ARCHIVED]')) : []
@@ -143,11 +144,28 @@ export default async function Home({ searchParams, locale = 'en' }) {
     redirect(query ? `${resetPath}?${query}` : resetPath)
   }
 
-  const [allProducts, slides, dropTimer, photoTiles, landingContent, instagramPosts] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent(locale), getInstagramPosts()])
+  const [allProducts, slides, dropTimer, photoTiles, landingContent, instagramPosts, publicBrands] = await Promise.all([getProducts(), getSlides(), getDropTimer(), getPhotoTiles(), getLandingContent(locale), getInstagramPosts(), getPublicBrands()])
+  const previewBrands = withPreviewBrands(publicBrands, allProducts)
+  const featuredBrands = previewBrands.slice(0, 4)
+  const platformHero = locale === 'uk'
+    ? {
+        season: 'Multi-brand platform',
+        title: 'Незалежний streetwear в одному місці',
+        subtitle: 'Тестова версія нової структури: бренди, жіночі та чоловічі добірки, категорії і дропи в одній вітрині.',
+        cta: 'Дивитись новинки',
+      }
+    : {
+        season: 'Multi-brand platform',
+        title: 'Independent streetwear in one place',
+        subtitle: 'A preview of the new structure: brands, women and men edits, categories and drops inside one curated storefront.',
+        cta: 'Shop new arrivals',
+      }
   const hero = {
     ...homepageContent.hero,
-    ...(locale === 'uk' ? d.home.hero : {}),
-    ...(landingContent?.hero ? Object.fromEntries(Object.entries(landingContent.hero).filter(([, v]) => v !== null)) : {}),
+    ...platformHero,
+    image: landingContent?.hero?.image || homepageContent.hero.image,
+    mobileImage: landingContent?.hero?.mobileImage || landingContent?.hero?.image || homepageContent.hero.mobileImage,
+    overlay: landingContent?.hero?.overlay ?? homepageContent.hero.overlay,
   }
   const heroMobileImage = hero.mobileImage || '/homepage-hero-mobile.jpg'
   const heroMobileSizes = '100vw'
@@ -182,6 +200,12 @@ export default async function Home({ searchParams, locale = 'en' }) {
   const newArrivals = allProducts
     .filter(p => Array.isArray(p.tags) && p.tags.includes('new'))
     .slice(0, 4)
+  const platformTiles = [
+    { title: d.nav.women, href: pathForLocale('/women', locale), image: imageForProduct(allProducts[0]) || hero.image },
+    { title: d.nav.men, href: pathForLocale('/men', locale), image: imageForProduct(allProducts[1]) || imageForProduct(allProducts[0]) || hero.image },
+    { title: d.nav.brands, href: pathForLocale('/brands', locale), image: brandImage(featuredBrands[0], allProducts) || hero.image },
+    { title: d.nav.sale, href: pathForLocale('/collections/sale', locale), image: imageForProduct(allProducts.find(p => Array.isArray(p.tags) && p.tags.includes('sale'))) || imageForProduct(allProducts[2]) || hero.image },
+  ].filter(tile => tile.image)
   const localizeSlideCta = (label) => {
     if (locale === 'uk' && (!label || String(label).trim().toLowerCase() === 'shop now')) return d.home.hero.cta
     return label
@@ -279,24 +303,89 @@ export default async function Home({ searchParams, locale = 'en' }) {
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.78)', margin: '0 0 32px', lineHeight: 1.55, maxWidth: 520 }}>
             {hero.subtitle}
           </p>
-          <a href={pathForLocale('/products', locale)} className="hero-cta">{hero.cta}</a>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <a href={pathForLocale('/collections/new', locale)} className="hero-cta">{hero.cta}</a>
+            <a href={pathForLocale('/brands', locale)} className="hero-cta" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', borderColor: 'rgba(255,255,255,0.72)' }}>{d.nav.brands}</a>
+          </div>
         </div>
       </section>
 
       {/* ── 2. DROP TIMER ─────────────────────────────── */}
       {dropTimer && <DropCountdown targetDate={dropTimer.date} label={dropTimer.label} />}
 
-      {/* ── 3. PHOTO TILES ─────────────────────────────── */}
+      {/* ── 3. PLATFORM ENTRY POINTS ──────────────────── */}
+      {platformTiles.length > 0 && (
+        <section style={{ maxWidth: 1320, margin: '0 auto', padding: '34px 24px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, marginBottom: 18, paddingTop: 18, borderTop: '1px solid #0a0a0a' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {locale === 'uk' ? 'Вітрина платформи' : 'Shop the platform'}
+            </h2>
+            <a href={pathForLocale('/products', locale)} style={{ fontSize: 11, color: '#111', textDecoration: 'none', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 }}>
+              {d.nav.allProducts} →
+            </a>
+          </div>
+          <div className="marketplace-entry-grid">
+            {platformTiles.map(tile => (
+              <a key={tile.href} href={tile.href} style={{ position: 'relative', minHeight: 260, display: 'flex', alignItems: 'flex-end', overflow: 'hidden', color: '#fff', textDecoration: 'none', background: '#111' }}>
+                <Image
+                  src={tile.image}
+                  alt={tile.title}
+                  fill
+                  sizes="(max-width: 760px) 50vw, 25vw"
+                  style={{ objectFit: 'cover', opacity: 0.78, transition: 'transform 700ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+                />
+                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.72), rgba(0,0,0,0.08))' }} />
+                <div style={{ position: 'relative', zIndex: 1, padding: 18 }}>
+                  <p style={{ margin: 0, fontSize: 22, lineHeight: 1, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{tile.title}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── 4. FEATURED BRANDS ────────────────────────── */}
+      {featuredBrands.length > 0 && (
+        <section style={{ maxWidth: 1320, margin: '0 auto', padding: '44px 24px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, marginBottom: 18, paddingTop: 18, borderTop: '1px solid #0a0a0a' }}>
+            <h2 style={{ fontSize: 18, fontWeight: 900, margin: 0, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {d.nav.brands}
+            </h2>
+            <a href={pathForLocale('/brands', locale)} style={{ fontSize: 11, color: '#111', textDecoration: 'none', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 800 }}>
+              {d.home.viewAll} →
+            </a>
+          </div>
+          <div className="marketplace-brand-grid">
+            {featuredBrands.map(brand => {
+              const count = productsForBrand(allProducts, brand).length
+              const image = brandImage(brand, allProducts)
+              return (
+                <a key={brand.slug} href={pathForLocale(`/products?brand=${brand.id}`, locale)} style={{ display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr)', gap: 14, alignItems: 'center', color: 'inherit', textDecoration: 'none', border: '1px solid #0a0a0a', background: '#fff', padding: 12 }}>
+                  <div style={{ position: 'relative', width: 96, aspectRatio: '1/1', background: '#e7e5dc', overflow: 'hidden' }}>
+                    {image && <Image src={image} alt="" fill sizes="96px" style={{ objectFit: 'cover' }} />}
+                  </div>
+                  <div>
+                    <h3 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{brand.name}</h3>
+                    <p style={{ margin: 0, fontSize: 11, color: '#666', fontWeight: 900, letterSpacing: '0.1em', textTransform: 'uppercase' }}>{count} {d.products.items}</p>
+                  </div>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── 5. PHOTO TILES ─────────────────────────────── */}
       {photoTiles.length > 0 && <HomepagePhotoTiles tiles={photoTiles} />}
 
-      {/* ── 4. CUSTOM PHOTO CAROUSEL ───────────────────── */}
+      {/* ── 6. CUSTOM PHOTO CAROUSEL ───────────────────── */}
       {slides.length > 0 && (
         <section style={{ marginTop: 0 }}>
           <HeroCarousel slides={slides.map(s => ({ image: s.image_url, title: localizeSlideTitle(s), href: pathForLocale(s.href || '/products', locale), link_label: localizeSlideCta(s.link_label), label: '' }))} fullWidth />
         </section>
       )}
 
-      {/* ── 5. NEW ARRIVALS ────────────────────────────── */}
+      {/* ── 7. NEW ARRIVALS ────────────────────────────── */}
       {newArrivals.length > 0 && (
         <section style={{ maxWidth: W, margin: '0 auto', padding: '26px 24px 0' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24, paddingTop: 18, borderTop: '1px solid #0a0a0a' }}>

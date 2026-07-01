@@ -1,44 +1,82 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { getApiUrl } from '../lib/api'
+import { getSessionId } from '../lib/session'
+import { getStoredUtm } from './UtmCapture'
 
-const SESSION_KEY = 'edm_pv_session'
+const MIN_DURATION_MS = 500
 
-function getOrCreateSessionId() {
-  if (typeof window === 'undefined') return null
+function beacon(path, body) {
   try {
-    let id = sessionStorage.getItem(SESSION_KEY)
-    if (!id) {
-      id = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`)
-      sessionStorage.setItem(SESSION_KEY, id)
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(getApiUrl(path), new Blob([body], { type: 'application/json' }))
+      return
     }
-    return id
-  } catch {
-    return null
-  }
+  } catch {}
+  fetch(getApiUrl(path), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => {})
 }
 
 export default function PageViewTracker({ pageType, entityId }) {
+  const visibleSinceRef = useRef(null)
+  const accumulatedRef = useRef(0)
+
   useEffect(() => {
     if (!entityId) return
     if (typeof window === 'undefined') return
-    const session_id = getOrCreateSessionId()
+
+    const session_id = getSessionId()
     const referrer = document.referrer || null
-    const body = JSON.stringify({ page_type: pageType, entity_id: Number(entityId), session_id, referrer })
-    try {
-      if (navigator.sendBeacon) {
-        const blob = new Blob([body], { type: 'application/json' })
-        navigator.sendBeacon(getApiUrl('/page-views'), blob)
-        return
+    const utm = getStoredUtm()
+
+    beacon('/page-views', JSON.stringify({
+      page_type: pageType,
+      entity_id: Number(entityId),
+      session_id,
+      referrer,
+      utm,
+    }))
+
+    // Dwell time: accumulate visible time (paused while the tab is hidden),
+    // flush on hide/unload. Best-effort — never blocks navigation.
+    visibleSinceRef.current = Date.now()
+    accumulatedRef.current = 0
+
+    function flush() {
+      if (visibleSinceRef.current != null) {
+        accumulatedRef.current += Date.now() - visibleSinceRef.current
+        visibleSinceRef.current = null
       }
-    } catch {}
-    fetch(getApiUrl('/page-views'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-      keepalive: true,
-    }).catch(() => {})
+      if (accumulatedRef.current < MIN_DURATION_MS) return
+      beacon('/page-views/duration', JSON.stringify({
+        page_type: pageType,
+        entity_id: Number(entityId),
+        session_id,
+        duration_ms: accumulatedRef.current,
+      }))
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        flush()
+      } else {
+        visibleSinceRef.current = Date.now()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pagehide', flush)
+
+    return () => {
+      flush()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pagehide', flush)
+    }
   }, [pageType, entityId])
 
   return null

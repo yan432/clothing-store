@@ -51,6 +51,8 @@ export default function ProductEditorClient({ id }) {
     color_group_id: '',
     volumetric_weight: '',
     brand_id: '',
+    is_menswear: true,
+    is_womenswear: true,
   })
   const [brands, setBrands] = useState([])
 
@@ -118,6 +120,8 @@ export default function ProductEditorClient({ id }) {
           color_group_id: p.color_group_id || '',
           volumetric_weight: p.volumetric_weight != null ? String(p.volumetric_weight) : '',
           brand_id: p.brand_id != null ? String(p.brand_id) : '',
+          is_menswear: p.is_menswear !== false,
+          is_womenswear: p.is_womenswear !== false,
         })
       } catch (e) {
         if (mounted) setError(e.message || 'Failed to load product')
@@ -181,6 +185,8 @@ export default function ProductEditorClient({ id }) {
         color_group_id: form.color_group_id.trim() || null,
         volumetric_weight: form.volumetric_weight !== '' ? Number(form.volumetric_weight) : null,
         brand_id: form.brand_id ? Number(form.brand_id) : null,
+        is_menswear: Boolean(form.is_menswear),
+        is_womenswear: Boolean(form.is_womenswear),
         tags: [
           ...baseTags,
           form.is_new ? 'new' : null,
@@ -528,6 +534,29 @@ export default function ProductEditorClient({ id }) {
                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}{b.is_active ? '' : ' (hidden)'}</option>)}
               </select>
             </label>
+
+            <div style={{border:'1px solid #ecece8',borderRadius:10,padding:12,background:'#fafaf8'}}>
+              <p style={{fontSize:12,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'#888',margin:'0 0 10px'}}>Audience</p>
+              <div style={{display:'flex',gap:14,flexWrap:'wrap'}}>
+                <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.is_menswear)}
+                    onChange={(e) => setField('is_menswear', e.target.checked)}
+                  />
+                  Men
+                </label>
+                <label style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:13,color:'#444',cursor:'pointer'}}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.is_womenswear)}
+                    onChange={(e) => setField('is_womenswear', e.target.checked)}
+                  />
+                  Women
+                </label>
+              </div>
+              <p style={{fontSize:11,color:'#aaa',margin:'8px 0 0'}}>Unisex = both Men and Women checked.</p>
+            </div>
 
             <label style={{fontSize:13,color:'#444'}}>Image URL (cover)
               <input value={form.image_url} onChange={(e) => setField('image_url', e.target.value)} style={{width:'100%',marginTop:6,border:'1px solid #ddd',borderRadius:10,padding:'10px 12px',fontSize:14}} />

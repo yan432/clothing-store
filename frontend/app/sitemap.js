@@ -7,6 +7,9 @@ import { COLLECTION_SLUGS, collectionPath } from './lib/collections'
 const STATIC_PAGES = [
   { path: '/',           priority: 1.0, changeFrequency: 'daily',   lastModified: new Date('2026-05-26') },
   { path: '/products',   priority: 0.9, changeFrequency: 'daily',   lastModified: new Date('2026-05-26') },
+  { path: '/women',      priority: 0.8, changeFrequency: 'daily',   lastModified: new Date('2026-07-01') },
+  { path: '/men',        priority: 0.8, changeFrequency: 'daily',   lastModified: new Date('2026-07-01') },
+  { path: '/brands',     priority: 0.8, changeFrequency: 'daily',   lastModified: new Date('2026-07-01') },
   { path: '/about',      priority: 0.8, changeFrequency: 'monthly', lastModified: new Date('2026-05-26') },
   { path: '/contact',    priority: 0.7, changeFrequency: 'monthly', lastModified: new Date('2026-05-26') },
   { path: '/shipping',   priority: 0.5, changeFrequency: 'monthly', lastModified: new Date('2026-05-26') },

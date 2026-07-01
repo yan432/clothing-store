@@ -7,6 +7,7 @@ import { safeJsonLd } from '../lib/safeJsonLd'
 import { getMessages, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
 import { getUahRate, currencyForLocale, priceForLocale } from '../lib/money'
+import { getPublicBrands, withPreviewBrands } from '../lib/marketplacePreview'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 const SEO_PRODUCTS_TITLE = 'Shop Ukrainian Streetwear, Hoodies & Denim'
@@ -43,7 +44,7 @@ export async function generateMetadata() {
 
 async function getProducts() {
   try {
-    const res = await fetch(getApiUrl('/products'), { next: { revalidate: 300 } })
+    const res = await fetch(getApiUrl('/products?scope=marketplace&limit=500'), { next: { revalidate: 300 } })
     if (!res.ok) return { products: [], fetchError: 'Catalog is temporarily unavailable.' }
     const data = await res.json()
     return { products: Array.isArray(data) ? data : [], fetchError: '' }
@@ -78,7 +79,8 @@ function buildColorSiblingsMap(products) {
 
 export default async function ProductsPage({ searchParams, locale = 'en' }) {
   const d = getMessages(locale)
-  const { products, fetchError } = await getProducts()
+  const [{ products, fetchError }, rawBrands] = await Promise.all([getProducts(), getPublicBrands()])
+  const brands = withPreviewBrands(rawBrands, products)
   const colorSiblingsMap = buildColorSiblingsMap(products)
   const uahRate = locale === 'uk' ? await getUahRate() : undefined
   const currency = currencyForLocale(locale)
@@ -94,6 +96,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
   const selectedSpecials = normalizeList(params?.special)
     .map(v => String(v).toLowerCase())
     .filter(v => v === 'new' || v === 'sale')
+  const selectedBrands = normalizeList(params?.brand).map(String)
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(c => c && c !== 'All')))
     .sort((a, b) => {
@@ -120,8 +123,9 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
     const matchSpecial = selectedSpecials.length === 0 || selectedSpecials.some(s =>
       s === 'new' ? tags.includes('new') : tags.includes('sale') || (p.compare_price && p.compare_price > p.price)
     )
+    const matchBrand = selectedBrands.length === 0 || selectedBrands.includes(String(p.brand_id || ''))
     const matchQ = !q || displayProduct.name.toLowerCase().includes(q.toLowerCase()) || (displayProduct.description || '').toLowerCase().includes(q.toLowerCase())
-    return matchCat && matchSpecial && matchQ
+    return matchCat && matchSpecial && matchBrand && matchQ
   })
 
   const getOrderMeta = p => {
@@ -134,6 +138,11 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
     }
   }
   const randomRanks = new Map(filtered.map(p => [p.id, stableRandomRank(p)]))
+  const byPopularity = (a, b) => {
+    const sd = (Number(b.popularity_score) || 0) - (Number(a.popularity_score) || 0)
+    if (sd !== 0) return sd
+    return (randomRanks.get(a.id) || 0) - (randomRanks.get(b.id) || 0)
+  }
   const sorted = [...filtered].sort((a, b) => {
     if (activeSort === 'default') {
       const am = getOrderMeta(a), bm = getOrderMeta(b)
@@ -146,8 +155,9 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
         if (ap !== bp) return ap - bp
       }
       if (am.isRandom && bm.isRandom) return (randomRanks.get(a.id) || 0) - (randomRanks.get(b.id) || 0)
-      return (Date.parse(b.created_at || '') || 0) - (Date.parse(a.created_at || '') || 0) || Number(b.id || 0) - Number(a.id || 0)
+      return byPopularity(a, b)
     }
+    if (activeSort === 'popular')    return byPopularity(a, b)
     if (activeSort === 'price_asc')  return Number(a.price || 0) - Number(b.price || 0)
     if (activeSort === 'price_desc') return Number(b.price || 0) - Number(a.price || 0)
     const da = Date.parse(a.created_at || '') || 0, db = Date.parse(b.created_at || '') || 0
@@ -156,17 +166,18 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
     return Number(b.id || 0) - Number(a.id || 0)
   })
 
-  function buildHref(nextQ, nextCat, nextSpecials, nextSort = activeSort) {
+  function buildHref(nextQ, nextCat, nextSpecials, nextSort = activeSort, nextBrands = selectedBrands) {
     const sp = new URLSearchParams()
     if (nextQ) sp.set('q', nextQ)
     if (nextSort && nextSort !== 'default') sp.set('sort', nextSort)
     if (nextCat) sp.append('category', nextCat)
     nextSpecials.forEach(s => sp.append('special', s))
+    nextBrands.forEach(brand => sp.append('brand', brand))
     const qs = sp.toString()
     return pathForLocale(qs ? `/products?${qs}` : '/products', locale)
   }
 
-  const hasActiveFilters = q || selectedCategory || selectedSpecials.length > 0 || activeSort !== 'default'
+  const hasActiveFilters = q || selectedCategory || selectedSpecials.length > 0 || selectedBrands.length > 0 || activeSort !== 'default'
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -215,6 +226,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
           <form method="get" className="products-search-form">
             {selectedCategory && <input type="hidden" name="category" value={selectedCategory} />}
             {selectedSpecials.map(s => <input key={s} type="hidden" name="special" value={s} />)}
+            {selectedBrands.map(brand => <input key={brand} type="hidden" name="brand" value={brand} />)}
             {activeSort !== 'default' && <input type="hidden" name="sort" value={activeSort} />}
             <div style={{ position: 'relative' }}>
               <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#555', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -228,7 +240,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
 
           {/* Pills — scrollable on mobile */}
           <div className="products-pills">
-            <a href={buildHref(q, '', selectedSpecials)} style={{
+            <a href={buildHref(q, '', selectedSpecials, activeSort, selectedBrands)} style={{
               padding: '9px 14px', borderRadius: 0, fontSize: 11, fontWeight: 800,
               textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: '0.08em', textTransform: 'uppercase',
               background: !selectedCategory ? '#111' : 'transparent',
@@ -239,7 +251,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
             {categories.map(cat => {
               const isActive = selectedCategory === cat
               return (
-                <a key={cat} href={buildHref(q, isActive ? '' : cat, selectedSpecials)} style={{
+                <a key={cat} href={buildHref(q, isActive ? '' : cat, selectedSpecials, activeSort, selectedBrands)} style={{
                   padding: '9px 14px', borderRadius: 0, fontSize: 11, fontWeight: 800,
                   textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0, letterSpacing: '0.08em', textTransform: 'uppercase',
                   background: isActive ? '#111' : 'transparent',
@@ -255,13 +267,30 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
               const isActive = selectedSpecials.includes(special)
               const nextSpecials = isActive ? selectedSpecials.filter(s => s !== special) : [...selectedSpecials, special]
               return (
-                <a key={special} href={buildHref(q, selectedCategory, nextSpecials)} style={{
+                <a key={special} href={buildHref(q, selectedCategory, nextSpecials, activeSort, selectedBrands)} style={{
                   padding: '9px 13px', borderRadius: 0, fontSize: 11, fontWeight: 900,
                   textDecoration: 'none', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0,
                   background: isActive ? (special === 'sale' ? '#f02a2a' : '#111') : 'transparent',
                   color: isActive ? '#fff' : '#111',
                   border: '1px solid', borderColor: isActive ? (special === 'sale' ? '#f02a2a' : '#111') : '#bdbdb8',
                 }}>{special === 'new' ? d.nav.newArrivals : d.nav.sale}</a>
+              )
+            })}
+
+            <div style={{ width: 1, height: 30, background: '#111', margin: '0 2px', flexShrink: 0 }} />
+
+            {brands.map(brand => {
+              const brandId = String(brand.id)
+              const isActive = selectedBrands.includes(brandId)
+              const nextBrands = isActive ? selectedBrands.filter(id => id !== brandId) : [...selectedBrands, brandId]
+              return (
+                <a key={brand.id} href={buildHref(q, selectedCategory, selectedSpecials, activeSort, nextBrands)} style={{
+                  padding: '9px 13px', borderRadius: 0, fontSize: 11, fontWeight: 900,
+                  textDecoration: 'none', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0,
+                  background: isActive ? '#111' : 'transparent',
+                  color: isActive ? '#fff' : '#111',
+                  border: '1px solid', borderColor: isActive ? '#111' : '#bdbdb8',
+                }}>{brand.name}</a>
               )
             })}
           </div>
@@ -271,7 +300,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
             {hasActiveFilters && (
               <Link href={pathForLocale('/products', locale)} style={{ fontSize: 11, color: '#555', textDecoration: 'underline', whiteSpace: 'nowrap', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{d.products.clear}</Link>
             )}
-            <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials }} locale={locale} />
+            <SortSelect options={sortOptions} activeSort={activeSort} hiddenFields={{ q, category: selectedCategory, special: selectedSpecials, brand: selectedBrands }} locale={locale} />
           </div>
 
         </div>
@@ -292,7 +321,6 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
                 imagePriority={index < 2}
                 locale={locale}
                 uahRate={uahRate}
-                quickAdd
               />
             ))}
           </div>

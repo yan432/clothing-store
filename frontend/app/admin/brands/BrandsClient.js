@@ -147,7 +147,7 @@ export default function BrandsClient() {
           </div>
         )}
         <Field label="Name" value={form.name} onChange={v => set('name', v)} />
-        <Field label="Slug" value={form.slug} onChange={v => set('slug', v)} hint="Used in URL: /brands/<slug>" />
+        <Field label="Slug" value={form.slug} onChange={v => set('slug', v)} hint="Internal brand handle; storefront uses brand filters." />
         <Field label="Description" value={form.description} onChange={v => set('description', v)} multiline />
         <Field label="Logo URL" value={form.logo_url} onChange={v => set('logo_url', v)} />
         <Field label="Cover URL" value={form.cover_url} onChange={v => set('cover_url', v)} />

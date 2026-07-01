@@ -2026,14 +2026,128 @@ def root():
     return {"status": "ok"}
 
 
+# ── Popularity ranking ───────────────────────────────────────────────────────
+# Time-decayed engagement (views/wishlist/cart/purchase), Bayesian-smoothed
+# against the catalog average so low-traffic noise doesn't dominate, plus a
+# UCB-style exploration bonus so under-shown products keep getting surfaced.
+
+POPULARITY_WINDOW_DAYS = 60
+POPULARITY_HALF_LIFE_DAYS = 14
+POPULARITY_EVENT_WEIGHTS = {
+    "view": 1.0,
+    "wishlist_add": 4.0,
+    "cart_add": 5.0,
+    "purchase": 20.0,
+}
+POPULARITY_BAYESIAN_C = 20.0  # pseudo-impressions blended into the catalog prior
+
+
+def _popularity_decay(age_days: float) -> float:
+    lam = _math.log(2) / POPULARITY_HALF_LIFE_DAYS
+    return _math.exp(-lam * max(age_days, 0.0))
+
+
+def _parse_ts(value) -> datetime:
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+
+def compute_popularity_scores(product_ids: list) -> dict:
+    if not product_ids:
+        return {}
+    ids = set(product_ids)
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=POPULARITY_WINDOW_DAYS)).isoformat()
+
+    weighted = {pid: 0.0 for pid in ids}
+    impressions = {pid: 0 for pid in ids}
+
+    try:
+        views = (
+            supabase.table("page_views")
+            .select("entity_id,created_at")
+            .eq("page_type", "product")
+            .gte("created_at", since)
+            .limit(50000)
+            .execute()
+        ).data or []
+    except Exception:
+        views = []
+    for row in views:
+        pid = row.get("entity_id")
+        if pid not in weighted:
+            continue
+        age_days = (now - _parse_ts(row["created_at"])).total_seconds() / 86400
+        weighted[pid] += POPULARITY_EVENT_WEIGHTS["view"] * _popularity_decay(age_days)
+        impressions[pid] += 1
+
+    try:
+        events = (
+            supabase.table("user_events")
+            .select("product_id,event_type,created_at")
+            .in_("event_type", ["cart_add", "wishlist_add"])
+            .gte("created_at", since)
+            .limit(50000)
+            .execute()
+        ).data or []
+    except Exception:
+        events = []
+    for row in events:
+        pid = row.get("product_id")
+        weight = POPULARITY_EVENT_WEIGHTS.get(row.get("event_type"))
+        if pid not in weighted or not weight:
+            continue
+        age_days = (now - _parse_ts(row["created_at"])).total_seconds() / 86400
+        weighted[pid] += weight * _popularity_decay(age_days)
+
+    try:
+        orders = (
+            supabase.table("orders")
+            .select("items_json,created_at")
+            .gte("created_at", since)
+            .limit(20000)
+            .execute()
+        ).data or []
+    except Exception:
+        orders = []
+    for order in orders:
+        age_days = (now - _parse_ts(order["created_at"])).total_seconds() / 86400
+        decay = _popularity_decay(age_days)
+        for item in (order.get("items_json") or []):
+            pid = item.get("id")
+            if pid not in weighted:
+                continue
+            qty = int(item.get("quantity") or 1)
+            weighted[pid] += POPULARITY_EVENT_WEIGHTS["purchase"] * decay * qty
+
+    total_weighted = sum(weighted.values())
+    total_impressions = sum(impressions.values())
+    # avg_rate is engagement PER IMPRESSION (not per product) — units must
+    # match `weighted[pid] / impressions[pid]` for the Bayesian blend below,
+    # otherwise products with many low-engagement views get dragged below
+    # untested products instead of settling at the true catalog-average rate.
+    avg_rate = (total_weighted / total_impressions) if total_impressions > 0 else 0.0
+    exploration_k = 0.5 * avg_rate
+
+    scores = {}
+    for pid in ids:
+        e = weighted[pid]
+        imp = impressions[pid]
+        popularity = (e + POPULARITY_BAYESIAN_C * avg_rate) / (imp + POPULARITY_BAYESIAN_C)
+        exploration_bonus = exploration_k * _math.sqrt(_math.log(max(total_impressions, 2)) / (1 + imp))
+        scores[pid] = popularity + exploration_bonus
+    return scores
+
+
 @app.get("/products")
-def get_products():
+def get_products(scope: Optional[str] = None):
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    # Strip products tagged access:unlisted, and products belonging to other
-    # brands — those live on their own /brands/<slug> pages, never here.
+    include_marketplace = str(scope or "").strip().lower() in ("marketplace", "all")
+    # Strip products tagged access:unlisted. By default, the public catalog
+    # still shows only the house brand; marketplace previews can opt into all
+    # brands via ?scope=marketplace.
     products = [
         p for p in (data.data or [])
-        if not _is_unlisted(p) and _is_primary_brand(p)
+        if not _is_unlisted(p) and (include_marketplace or _is_primary_brand(p))
     ]
     try:
         size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock,reserved").execute()
@@ -2050,6 +2164,7 @@ def get_products():
         stock = int(row.get("stock", 0) or 0)
         reserved = int(row.get("reserved", 0) or 0)
         stock_by_product[pid][row["size"]] = max(0, stock - reserved)
+    popularity_scores = compute_popularity_scores([p["id"] for p in products])
     result = []
     for p in products:
         db_urls = p.get("image_urls") or []
@@ -2071,6 +2186,7 @@ def get_products():
             "compare_price": p.get("compare_price"),
             "discount_percent": compute_discount_percent(p.get("price"), p.get("compare_price")),
             "size_stock": stock_by_product.get(p["id"], {}),
+            "popularity_score": popularity_scores.get(p["id"], 0.0),
         })
     return result
 
@@ -4818,9 +4934,18 @@ class PageViewIn(BaseModel):
     entity_id: int
     session_id: Optional[str] = None
     referrer: Optional[str] = None
+    utm: Optional[dict] = None
+
+
+class PageViewDurationIn(BaseModel):
+    page_type: str  # 'product' | 'brand'
+    entity_id: int
+    session_id: str
+    duration_ms: int
 
 
 PAGE_VIEW_DEDUP_WINDOW_MIN = 30
+PAGE_VIEW_DURATION_LOOKBACK_MIN = 120
 
 
 @app.post("/page-views")
@@ -4855,6 +4980,7 @@ def track_page_view(payload: PageViewIn, request: Request):
 
     country = request.headers.get("cf-ipcountry") or request.headers.get("x-vercel-ip-country") or None
     referrer = (payload.referrer or request.headers.get("referer") or "")[:500] or None
+    utm = payload.utm if isinstance(payload.utm, dict) and payload.utm else None
 
     try:
         supabase.table("page_views").insert({
@@ -4863,10 +4989,49 @@ def track_page_view(payload: PageViewIn, request: Request):
             "session_id": session_id,
             "country": country,
             "referrer": referrer,
+            "utm": utm,
         }).execute()
     except Exception:
         # Best-effort tracking — never break the storefront if the table is
         # missing (migration 030 not applied) or the DB hiccups.
+        return {"ok": False, "stored": False}
+    return {"ok": True}
+
+
+@app.post("/page-views/duration")
+def track_page_view_duration(payload: PageViewDurationIn):
+    """Best-effort dwell-time update for the most recent matching page_views row.
+    Sent via sendBeacon on visibilitychange/pagehide, so it may fire more than
+    once per visit — always take the max to stay monotonic."""
+    page_type = (payload.page_type or "").strip().lower()
+    if page_type not in ("product", "brand"):
+        raise HTTPException(status_code=400, detail="page_type must be product or brand")
+    entity_id = int(payload.entity_id or 0)
+    session_id = (payload.session_id or "").strip()[:64]
+    duration_ms = int(payload.duration_ms or 0)
+    if entity_id <= 0 or not session_id or duration_ms <= 0:
+        return {"ok": False, "stored": False}
+
+    try:
+        since = (datetime.now(timezone.utc) - timedelta(minutes=PAGE_VIEW_DURATION_LOOKBACK_MIN)).isoformat()
+        existing = (
+            supabase.table("page_views")
+            .select("id,duration_ms")
+            .eq("session_id", session_id)
+            .eq("page_type", page_type)
+            .eq("entity_id", entity_id)
+            .gte("created_at", since)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not existing.data:
+            return {"ok": True, "stored": False}
+        row = existing.data[0]
+        if duration_ms <= int(row.get("duration_ms") or 0):
+            return {"ok": True, "stored": False}
+        supabase.table("page_views").update({"duration_ms": duration_ms}).eq("id", row["id"]).execute()
+    except Exception:
         return {"ok": False, "stored": False}
     return {"ok": True}
 
@@ -5643,6 +5808,7 @@ ALLOWED_EVENT_TYPES = {
     "purchase", "login", "wishlist_add",
     "size_select", "add_to_cart_blocked", "shipping_open",
     "checkout_shipping_info", "checkout_payment_info", "payment_click",
+    "search_query",
 }
 
 class UserEventPayload(BaseModel):

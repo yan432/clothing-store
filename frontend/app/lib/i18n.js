@@ -11,6 +11,9 @@ export const messages = {
       allProducts: 'All products',
       newArrivals: 'New arrivals',
       sale: 'Sale',
+      women: 'Women',
+      men: 'Men',
+      brands: 'Brands',
       shop: 'Shop',
       info: 'Info',
       browse: 'Browse',
@@ -434,6 +437,9 @@ export const messages = {
       allProducts: 'Усі товари',
       newArrivals: 'Новинки',
       sale: 'Знижки',
+      women: 'Жінки',
+      men: 'Чоловіки',
+      brands: 'Бренди',
       shop: 'Магазин',
       info: 'Інфо',
       browse: 'Огляд',
@@ -899,6 +905,9 @@ export function switchLocalePath(pathname = '/', locale = DEFAULT_LOCALE) {
     stripped === '/products' ||
     stripped.startsWith('/products/') ||
     stripped.startsWith('/collections/') ||
+    stripped === '/women' ||
+    stripped === '/men' ||
+    stripped === '/brands' ||
     stripped === '/about' ||
     stripped === '/contact' ||
     stripped === '/shipping' ||

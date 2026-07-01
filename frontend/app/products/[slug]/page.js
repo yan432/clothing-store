@@ -13,6 +13,7 @@ import { notFound } from 'next/navigation'
 import { getMessages, localizeProduct, pathForLocale } from '../../lib/i18n'
 import { localizedAlternates, openGraphLocale } from '../../lib/seo'
 import { getUahRate, currencyForLocale, priceForLocale, formatPrice } from '../../lib/money'
+import { audienceMatches } from '../../lib/marketplacePreview'
 
 function cleanMetaText(value = '') {
   return String(value || '')
@@ -92,28 +93,61 @@ async function getSizeStock(productId) {
   } catch { return {} }
 }
 
+// Audience(s) a product belongs to, derived from its own gender flags/tags
+// (reusing the same unisex-aware matching used for the /men and /women
+// edits). Unisex or unflagged products return both — recommendations for
+// them are allowed to pull from either audience.
+function productAudiences(product) {
+  const audiences = []
+  if (audienceMatches(product, 'men'))   audiences.push('men')
+  if (audienceMatches(product, 'women')) audiences.push('women')
+  return audiences
+}
+
+function weightFor(product) {
+  return Math.max(Number(product.popularity_score) || 0, 0.01)
+}
+
+// Weighted random sample without replacement — probability of picking a
+// product is proportional to its popularity_score, so recommendations lean
+// toward proven items without being a fixed, repetitive top-N.
+function weightedSample(pool, n) {
+  const remaining = [...pool]
+  const picked = []
+  while (remaining.length && picked.length < n) {
+    const total = remaining.reduce((sum, p) => sum + weightFor(p), 0)
+    let r = Math.random() * total
+    const idx = remaining.findIndex(p => (r -= weightFor(p)) <= 0)
+    picked.push(remaining.splice(idx < 0 ? remaining.length - 1 : idx, 1)[0])
+  }
+  return picked
+}
+
 function buildRecommendations(current, all) {
-  const pool = all.filter(p => p.id !== current.id && !p.is_hidden)
-  const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+  const currentAudiences = productAudiences(current)
+  const pool = all.filter(p =>
+    p.id !== current.id &&
+    !p.is_hidden &&
+    currentAudiences.some(aud => audienceMatches(p, aud))
+  )
 
-  // Up to 2 from same category
-  const samecat = shuffle(pool.filter(p => p.category && p.category === current.category)).slice(0, 2)
+  // Up to 2 from the same category
+  const samecat = weightedSample(pool.filter(p => p.category && p.category === current.category), 2)
 
-  // Fill remainder from other categories
+  // Up to 2 more from one randomly chosen other category
   const usedIds = new Set(samecat.map(p => p.id))
   const otherCats = [...new Set(pool.filter(p => !usedIds.has(p.id) && p.category !== current.category).map(p => p.category))].filter(Boolean)
   const randomCat = otherCats.length ? otherCats[Math.floor(Math.random() * otherCats.length)] : null
-  const otherPool = shuffle(randomCat
+  const otherPool = randomCat
     ? pool.filter(p => !usedIds.has(p.id) && p.category === randomCat)
     : pool.filter(p => !usedIds.has(p.id))
-  )
-  const others = otherPool.slice(0, 4 - samecat.length)
+  const others = weightedSample(otherPool, 4 - samecat.length)
 
-  // If still not enough, pad with any remaining
+  // If still not enough (small catalog), pad with any remaining in scope
   const total = [...samecat, ...others]
   if (total.length < 4) {
     const usedAll = new Set(total.map(p => p.id))
-    const extra = shuffle(pool.filter(p => !usedAll.has(p.id))).slice(0, 4 - total.length)
+    const extra = weightedSample(pool.filter(p => !usedAll.has(p.id)), 4 - total.length)
     total.push(...extra)
   }
   return total.slice(0, 4)
