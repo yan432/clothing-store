@@ -6,6 +6,7 @@ import {
   AUDIENCE_COPY,
   buildColorSiblingsMap,
   getPublicBrands,
+  getRankingSeed,
   getVisibleProducts,
   orderPreviewProducts,
   productsForAudience,
@@ -21,7 +22,7 @@ export default async function AudienceShopPage({ audience, locale = 'en', search
   const selectedCategory = typeof params?.category === 'string' ? params.category : ''
   const selectedBrands = normalizeList(params?.brand)
   const selectedSpecial = typeof params?.special === 'string' ? params.special : ''
-  const [products, brands] = await Promise.all([getVisibleProducts(), getPublicBrands()])
+  const [products, brands, seed] = await Promise.all([getVisibleProducts(), getPublicBrands(), getRankingSeed()])
   const audienceProducts = productsForAudience(products, audience)
   const categories = Array.from(new Set(audienceProducts.map(product => product.category).filter(Boolean))).sort((a, b) => {
     const ai = CATEGORY_ORDER.indexOf(a), bi = CATEGORY_ORDER.indexOf(b)
@@ -40,7 +41,7 @@ export default async function AudienceShopPage({ audience, locale = 'en', search
         : tags.includes('sale') || (product.compare_price && product.compare_price > product.price)
     )
     return matchCategory && matchBrand && matchSpecial
-  }))
+  }), seed)
   const colorSiblingsMap = buildColorSiblingsMap(products)
   const uahRate = locale === 'uk' ? await getUahRate() : undefined
   const basePath = `/${audience}`

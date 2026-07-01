@@ -1,4 +1,21 @@
+import { cookies } from 'next/headers'
 import { getApiUrl } from './api'
+
+const SESSION_COOKIE = 'edm_sid'
+
+// Per-session seed for stableRandomRank, so the tie-break order among
+// products with no engagement data yet differs across visitors instead of
+// being one fixed permutation for everyone. Falls back to '' (global,
+// deterministic order) on a visitor's very first request, before the
+// session cookie has been set client-side.
+export async function getRankingSeed() {
+  try {
+    const store = await cookies()
+    return store.get(SESSION_COOKIE)?.value || ''
+  } catch {
+    return ''
+  }
+}
 
 export const AUDIENCE_COPY = {
   women: {
@@ -116,8 +133,8 @@ export function productsForAudience(products, audience) {
   return products.filter(product => audienceMatches(product, audience))
 }
 
-function stableRandomRank(product) {
-  const input = String(product?.id ?? product?.slug ?? product?.name ?? '')
+export function stableRandomRank(product, seed = '') {
+  const input = `${seed}:${String(product?.id ?? product?.slug ?? product?.name ?? '')}`
   let hash = 2166136261
   for (let i = 0; i < input.length; i += 1) {
     hash ^= input.charCodeAt(i)
@@ -139,8 +156,8 @@ function getOrderMeta(product) {
 // Same admin-override precedence as /products and /collections/[slug]:
 // order:fixed (by priority) > order:random > everything else, which falls
 // back to new-tag-first, then popularity_score, then created_at.
-export function orderPreviewProducts(products) {
-  const randomRanks = new Map(products.map(p => [p.id, stableRandomRank(p)]))
+export function orderPreviewProducts(products, seed = '') {
+  const randomRanks = new Map(products.map(p => [p.id, stableRandomRank(p, seed)]))
   return [...products].sort((a, b) => {
     const am = getOrderMeta(a), bm = getOrderMeta(b)
     const rank = m => m.isFixed ? 0 : m.isRandom ? 1 : 2
@@ -158,6 +175,8 @@ export function orderPreviewProducts(products) {
     if (aNew !== bNew) return aNew ? -1 : 1
     const sd = (Number(b.popularity_score) || 0) - (Number(a.popularity_score) || 0)
     if (sd !== 0) return sd
+    const rr = (randomRanks.get(a.id) || 0) - (randomRanks.get(b.id) || 0)
+    if (rr !== 0) return rr
     return (Date.parse(b.created_at || '') || 0) - (Date.parse(a.created_at || '') || 0)
   })
 }

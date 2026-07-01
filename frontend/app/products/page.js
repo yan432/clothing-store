@@ -7,7 +7,7 @@ import { safeJsonLd } from '../lib/safeJsonLd'
 import { getMessages, localizeProduct, pathForLocale, translateCategory } from '../lib/i18n'
 import { localizedAlternates } from '../lib/seo'
 import { getUahRate, currencyForLocale, priceForLocale } from '../lib/money'
-import { getPublicBrands, withPreviewBrands } from '../lib/marketplacePreview'
+import { getPublicBrands, getRankingSeed, stableRandomRank, withPreviewBrands } from '../lib/marketplacePreview'
 
 const CATEGORY_ORDER = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Knitwear', 'Denim', 'Jackets']
 const SEO_PRODUCTS_TITLE = 'Shop Ukrainian Streetwear, Hoodies & Denim'
@@ -16,16 +16,6 @@ const SEO_PRODUCTS_DESCRIPTION = 'Explore edm.clothes: oversized hoodies, decons
 function usefulMeta(value, fallback, minLength = 60) {
   const text = String(value || '').trim()
   return text.length >= minLength ? text : fallback
-}
-
-function stableRandomRank(product) {
-  const input = String(product?.id ?? product?.slug ?? product?.name ?? '')
-  let hash = 2166136261
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return (hash >>> 0) / 4294967295
 }
 
 export async function generateMetadata() {
@@ -79,7 +69,7 @@ function buildColorSiblingsMap(products) {
 
 export default async function ProductsPage({ searchParams, locale = 'en' }) {
   const d = getMessages(locale)
-  const [{ products, fetchError }, rawBrands] = await Promise.all([getProducts(), getPublicBrands()])
+  const [{ products, fetchError }, rawBrands, seed] = await Promise.all([getProducts(), getPublicBrands(), getRankingSeed()])
   const brands = withPreviewBrands(rawBrands, products)
   const colorSiblingsMap = buildColorSiblingsMap(products)
   const uahRate = locale === 'uk' ? await getUahRate() : undefined
@@ -137,7 +127,7 @@ export default async function ProductsPage({ searchParams, locale = 'en' }) {
       priority: pt ? Number(String(pt).split('order:priority:')[1]) : null,
     }
   }
-  const randomRanks = new Map(filtered.map(p => [p.id, stableRandomRank(p)]))
+  const randomRanks = new Map(filtered.map(p => [p.id, stableRandomRank(p, seed)]))
   const byPopularity = (a, b) => {
     const sd = (Number(b.popularity_score) || 0) - (Number(a.popularity_score) || 0)
     if (sd !== 0) return sd

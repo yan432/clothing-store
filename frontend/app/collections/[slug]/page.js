@@ -7,17 +7,7 @@ import { safeJsonLd } from '../../lib/safeJsonLd'
 import { absoluteUrl, localizedAlternates, openGraphLocale } from '../../lib/seo'
 import { getUahRate } from '../../lib/money'
 import { COLLECTION_SLUGS, collectionCopy, collectionPath, getCollection } from '../../lib/collections'
-import { getPublicBrands, withPreviewBrands } from '../../lib/marketplacePreview'
-
-function stableRandomRank(product) {
-  const input = String(product?.id ?? product?.slug ?? product?.name ?? '')
-  let hash = 2166136261
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return (hash >>> 0) / 4294967295
-}
+import { getPublicBrands, getRankingSeed, stableRandomRank, withPreviewBrands } from '../../lib/marketplacePreview'
 
 async function getProducts() {
   try {
@@ -63,8 +53,8 @@ function matchesCollection(product, collection) {
   return true
 }
 
-function orderProducts(products) {
-  const randomRanks = new Map(products.map(p => [p.id, stableRandomRank(p)]))
+function orderProducts(products, seed = '') {
+  const randomRanks = new Map(products.map(p => [p.id, stableRandomRank(p, seed)]))
   const getOrderMeta = p => {
     const tags = Array.isArray(p.tags) ? p.tags : []
     const priorityTag = tags.find(t => String(t).startsWith('order:priority:'))
@@ -131,15 +121,15 @@ export default async function CollectionPage({ params, searchParams, locale = 'e
   const copy = collectionCopy(collection, locale)
   const normalizeList = value => Array.isArray(value) ? value.filter(Boolean).map(String) : typeof value === 'string' && value ? [value] : []
   const selectedBrands = normalizeList(currentParams?.brand)
-  const products = (await getProducts())
+  const [allProducts, rawBrands, seed] = await Promise.all([getProducts(), getPublicBrands(), getRankingSeed()])
+  const products = allProducts
     .filter(p => !p.is_hidden && p.slug && !(p.name || '').startsWith('[ARCHIVED]'))
-  const rawBrands = await getPublicBrands()
   const brands = withPreviewBrands(rawBrands, products)
   const colorSiblingsMap = buildColorSiblingsMap(products)
   const visibleProducts = orderProducts(products.filter(product => {
     const matchBrand = selectedBrands.length === 0 || selectedBrands.includes(String(product.brand_id || ''))
     return matchesCollection(product, collection) && matchBrand
-  }))
+  }), seed)
   const uahRate = locale === 'uk' ? await getUahRate() : undefined
   const pagePath = collectionPath(collection.slug)
   const hasActiveFilters = selectedBrands.length > 0
