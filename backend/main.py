@@ -335,6 +335,8 @@ class Product(BaseModel):
     color_group_id: Optional[str] = None
     volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
     brand_id: Optional[int] = None
+    is_menswear: bool = True
+    is_womenswear: bool = True
     hover_image_url: Optional[str] = None  # selected hover photo for the product card; null = use second image
 
 
@@ -366,6 +368,8 @@ class ProductUpdate(BaseModel):
     color_group_id: Optional[str] = None
     volumetric_weight: Optional[float] = None  # kg — used for shipping calculation
     brand_id: Optional[int] = None
+    is_menswear: Optional[bool] = None
+    is_womenswear: Optional[bool] = None
     hover_image_url: Optional[str] = None
 
 
@@ -2145,6 +2149,23 @@ def get_product_admin(product_id: int):
     return _decorate_product_with_images(get_product_row(product_id))
 
 
+def _ceil_euro(value):
+    """Round a price up to a whole euro. Store-owner preference: no cents."""
+    if value is None:
+        return None
+    import math
+    return int(math.ceil(float(value)))
+
+
+_EUR_PRICE_FIELDS = ("price", "compare_price")
+
+
+def _round_price_fields(payload: dict) -> None:
+    for key in _EUR_PRICE_FIELDS:
+        if key in payload and payload[key] is not None:
+            payload[key] = _ceil_euro(payload[key])
+
+
 @app.post("/products", dependencies=[Depends(require_admin)])
 def create_product(product: Product):
     payload = {k: v for k, v in product.dict().items() if v is not None}
@@ -2153,6 +2174,7 @@ def create_product(product: Product):
     payload.setdefault("stock", 0)
     payload.setdefault("is_hidden", False)
     payload.setdefault("tags", [])
+    _round_price_fields(payload)
 
     try:
         data = supabase.table("products").insert(payload).execute()
@@ -2172,6 +2194,8 @@ def create_product(product: Product):
 def update_product(product_id: int, product: ProductUpdate):
     existing = get_product_row(product_id)
     updates = product.dict(exclude_unset=True)
+
+    _round_price_fields(updates)
 
     if "available_stock" in updates and updates["available_stock"] is not None:
         updates["available_stock"] = max(0, int(updates["available_stock"]))
@@ -2216,6 +2240,7 @@ def duplicate_product(product_id: int):
         "price", "compare_price", "price_uah", "compare_price_uah", "category",
         "tags", "color_name", "color_hex", "color_group_id",
         "volumetric_weight",
+        "is_menswear", "is_womenswear",
     ]
     base_name = str(original.get("name") or "Product")
     payload: dict = {}

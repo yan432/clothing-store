@@ -25,6 +25,8 @@ export default function AdminProductsClient() {
   const [query, setQuery] = useState('')
   const [hideArchived, setHideArchived] = useState(true)
   const [visibilityFilter, setVisibilityFilter] = useState('all')
+  const [brandFilter, setBrandFilter] = useState('all') // 'all' | 'none' | numeric brand_id
+  const [brands, setBrands] = useState([])
   const [sortBy, setSortBy] = useState('id_desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
@@ -63,6 +65,10 @@ export default function AdminProductsClient() {
       }
     }
     load()
+    fetch(getApiUrl('/brands/admin'), { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : [])
+      .then(b => { if (mounted) setBrands(Array.isArray(b) ? b : []) })
+      .catch(() => {})
     return () => { mounted = false }
   }, [])
 
@@ -74,11 +80,14 @@ export default function AdminProductsClient() {
         const isArchivedCategory = String(p.category || '').toLowerCase() === 'archived'
         if (isArchivedName || isArchivedCategory) return false
       }
-      if (visibilityFilter === 'hidden') return Boolean(p.is_hidden)
-      if (visibilityFilter === 'visible') return !Boolean(p.is_hidden)
-      if (!q) return true
-      const source = [p.name, p.category, String(p.id)].join(' ').toLowerCase()
-      if (!source.includes(q)) return false
+      if (visibilityFilter === 'hidden' && !p.is_hidden) return false
+      if (visibilityFilter === 'visible' && p.is_hidden) return false
+      if (brandFilter === 'none' && p.brand_id) return false
+      if (brandFilter !== 'all' && brandFilter !== 'none' && String(p.brand_id ?? '') !== brandFilter) return false
+      if (q) {
+        const source = [p.name, p.category, String(p.id)].join(' ').toLowerCase()
+        if (!source.includes(q)) return false
+      }
       return true
     })
     const sorted = [...base]
@@ -96,7 +105,7 @@ export default function AdminProductsClient() {
       }
     })
     return sorted
-  }, [products, query, hideArchived, sortBy, visibilityFilter])
+  }, [products, query, hideArchived, sortBy, visibilityFilter, brandFilter])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages)
@@ -107,7 +116,7 @@ export default function AdminProductsClient() {
 
   useEffect(() => {
     setPage(1)
-  }, [query, hideArchived, sortBy, pageSize, visibilityFilter])
+  }, [query, hideArchived, sortBy, pageSize, visibilityFilter, brandFilter])
 
   useEffect(() => {
     setSelectedIds((prev) => prev.filter((id) => filtered.some((p) => p.id === id)))
@@ -395,6 +404,16 @@ export default function AdminProductsClient() {
             <option value="all">Visibility: All</option>
             <option value="visible">Visibility: Visible</option>
             <option value="hidden">Visibility: Hidden</option>
+          </select>
+          <select
+            value={brandFilter}
+            onChange={(e) => setBrandFilter(e.target.value)}
+            style={{border:'1px solid #ddd',borderRadius:10,padding:'8px 10px',fontSize:13,background:'#fff'}}>
+            <option value="all">Brand: All</option>
+            <option value="none">Brand: — Unassigned —</option>
+            {brands.map(b => (
+              <option key={b.id} value={String(b.id)}>{`Brand: ${b.name}${b.is_active ? '' : ' (hidden)'}`}</option>
+            ))}
           </select>
           <select
             value={sortBy}
