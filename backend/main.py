@@ -1614,6 +1614,17 @@ def get_product_row(product_id: int) -> dict:
 
 UNLISTED_TAG = "access:unlisted"
 
+# Products belonging to the house brand (id 1 = EDM Clothes) are the main
+# storefront catalog. Other brands' products stay behind their /brands/<slug>
+# pages and never appear in the top-level /products listing or in categories.
+# Legacy products with no brand_id at all are treated as house brand too.
+PRIMARY_BRAND_ID = 1
+
+
+def _is_primary_brand(product: dict) -> bool:
+    bid = product.get("brand_id")
+    return bid is None or int(bid) == PRIMARY_BRAND_ID
+
 
 def _product_tags(product: dict) -> list:
     tags = product.get("tags") or []
@@ -2014,9 +2025,12 @@ def root():
 @app.get("/products")
 def get_products():
     data = supabase.table("products").select("*").eq("is_hidden", False).execute()
-    # Strip products tagged access:unlisted — they remain in the DB but must not
-    # appear in any public listing or be returned through this endpoint.
-    products = [p for p in (data.data or []) if not _is_unlisted(p)]
+    # Strip products tagged access:unlisted, and products belonging to other
+    # brands — those live on their own /brands/<slug> pages, never here.
+    products = [
+        p for p in (data.data or [])
+        if not _is_unlisted(p) and _is_primary_brand(p)
+    ]
     try:
         size_stocks_raw = supabase.table("product_size_stock").select("product_id,size,stock,reserved").execute()
     except Exception:
@@ -2060,11 +2074,13 @@ def get_products():
 @app.get("/categories")
 def get_categories_endpoint():
     """Return distinct non-empty categories from visible products, sorted alphabetically."""
-    data = supabase.table("products").select("category,tags").eq("is_hidden", False).execute()
+    data = supabase.table("products").select("category,tags,brand_id").eq("is_hidden", False).execute()
     cats = sorted({
         p["category"].strip()
         for p in (data.data or [])
-        if p.get("category") and p["category"].strip() and not _is_unlisted(p)
+        if p.get("category") and p["category"].strip()
+        and not _is_unlisted(p)
+        and _is_primary_brand(p)
     })
     return cats
 
