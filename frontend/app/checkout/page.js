@@ -11,40 +11,6 @@ import { currencyForLocale, priceForLocale, eurToUah, formatPrice } from '../lib
 import { useUahRate } from '../lib/useUahRate'
 import { buildItemImageAlt } from '../lib/seoText'
 
-const STRIPE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || ''
-let stripeJsPromise
-
-function loadStripeJs() {
-  if (typeof window === 'undefined') return Promise.reject(new Error('Stripe.js is only available in the browser'))
-  if (window.Stripe) return Promise.resolve(window.Stripe)
-  if (!stripeJsPromise) {
-    stripeJsPromise = new Promise((resolve, reject) => {
-      const existing = document.querySelector('script[src^="https://js.stripe.com"]')
-      if (existing) {
-        existing.addEventListener('load', () => resolve(window.Stripe), { once: true })
-        existing.addEventListener('error', () => reject(new Error('Stripe.js failed to load')), { once: true })
-        return
-      }
-      const script = document.createElement('script')
-      script.src = 'https://js.stripe.com/v3/'
-      script.async = true
-      script.onload = () => resolve(window.Stripe)
-      script.onerror = () => reject(new Error('Stripe.js failed to load'))
-      document.head.appendChild(script)
-    })
-  }
-  return stripeJsPromise
-}
-
-function hasExpressPaymentMethods(paymentMethods) {
-  if (!paymentMethods || typeof paymentMethods !== 'object') return false
-  return Object.values(paymentMethods).some(Boolean)
-}
-
-function trimmedString(value) {
-  return typeof value === 'string' ? value.trim() : ''
-}
-
 const COUNTRIES = [
   ['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],
   ['AG','Antigua and Barbuda'],['AR','Argentina'],['AM','Armenia'],['AU','Australia'],
@@ -261,22 +227,9 @@ function CheckoutPage({ locale = 'en' }) {
   const [showAuthPassword, setShowAuthPassword] = useState(false)
   const [showAuthConfirmPassword, setShowAuthConfirmPassword] = useState(false)
   const [errors, setErrors] = useState({})
-  const [paymentIntentId, setPaymentIntentId] = useState('')
-  const [paymentElementLoading, setPaymentElementLoading] = useState(false)
-  const [paymentElementReady, setPaymentElementReady] = useState(false)
-  const [paymentElementError, setPaymentElementError] = useState('')
-  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
-  const [expressReady, setExpressReady] = useState(false)
-  const [expressAvailabilityChecked, setExpressAvailabilityChecked] = useState(false)
   const [clientReady, setClientReady] = useState(false)
   const activeAuthInputRef = useRef(null)
   const authPasswordInputRef = useRef(null)
-  const stripeRef = useRef(null)
-  const stripeElementsRef = useRef(null)
-  const paymentElementRef = useRef(null)
-  const expressCheckoutRef = useRef(null)
-  const confirmElementsPaymentRef = useRef(null)
-  const paymentSectionRef = useRef(null)
   const paymentTracked = useRef(false)
   const pendingCouponApplied = useRef(false)
 
@@ -295,7 +248,10 @@ function CheckoutPage({ locale = 'en' }) {
   })
 
   function set(key, val) { setForm(f => ({...f, [key]: val})) }
-  const checkoutLocked = paymentSubmitting || paymentLoading
+  const checkoutLocked = paymentLoading
+  const paymentRedirectCopy = locale === UK_LOCALE
+    ? 'Тебе буде перенаправлено до Stripe, щоб безпечно завершити оплату.'
+    : 'You will be redirected to Stripe to complete the payment securely.'
   const isUkraineDelivery = form.country === 'UA'
   const isNovaPoshtaBranchDelivery = isUkraineDelivery && form.deliveryMethod === DELIVERY_METHOD_NOVA_POSHTA_BRANCH
   const checkoutShippingCity = isNovaPoshtaBranchDelivery ? form.novaPoshtaCity : form.city
@@ -440,69 +396,6 @@ function CheckoutPage({ locale = 'en' }) {
     return () => { cancelled = true }
   }, [form.country, form.deliveryMethod, isUkraineDelivery, cart, d.checkout.deliveryUnavailable, d.checkout.shippingFailed])
 
-  async function confirmElementsPayment() {
-    const stripe = stripeRef.current
-    const elements = stripeElementsRef.current
-    if (!stripe || !elements || paymentSubmitting) return
-
-    setPaymentSubmitting(true)
-    setPaymentElementError('')
-    try {
-      if (!validate()) {
-        setPaymentSubmitting(false)
-        return
-      }
-      if (shippingResult?.zone === 'unavailable') {
-        setErrors(e => ({...e, country: d.checkout.deliveryUnavailable}))
-        setPaymentSubmitting(false)
-        return
-      }
-      if (!shippingReadyForCheckout) {
-        setShippingError(cart.length ? d.checkout.shippingFailed : d.checkout.shippingNoCart)
-        setPaymentSubmitting(false)
-        return
-      }
-      if (typeof elements.submit === 'function') {
-        const { error: submitError } = await elements.submit()
-        if (submitError) {
-          setPaymentElementError(submitError.message || d.checkout.paymentLoadError)
-          setPaymentSubmitting(false)
-          return
-        }
-      }
-      const checkoutData = await createCheckoutPaymentIntent({ skipValidation: true })
-      if (!checkoutData?.client_secret) {
-        setPaymentSubmitting(false)
-        return
-      }
-      const returnUrl = `${window.location.origin}${pathForLocale('/success', locale)}`
-      const { error, paymentIntent } = await stripe.confirmPayment({
-        elements,
-        clientSecret: checkoutData.client_secret,
-        confirmParams: { return_url: returnUrl },
-        redirect: 'if_required',
-      })
-      if (error) {
-        setPaymentElementError(error.message || d.checkout.paymentLoadError)
-        setPaymentSubmitting(false)
-        return
-      }
-      const completedIntentId = paymentIntent?.id || checkoutData.payment_intent_id || paymentIntentId
-      if (completedIntentId) {
-        window.location.href = `${pathForLocale('/success', locale)}?payment_intent=${encodeURIComponent(completedIntentId)}`
-        return
-      }
-      setPaymentSubmitting(false)
-    } catch (error) {
-      setPaymentElementError(error?.message || d.checkout.paymentLoadError)
-      setPaymentSubmitting(false)
-    }
-  }
-
-  useEffect(() => {
-    confirmElementsPaymentRef.current = confirmElementsPayment
-  })
-
   const registerPasswordChecks = [
     { id: 'length', label: d.checkout.auth.checks[0], valid: authPassword.length >= 8 },
     { id: 'lower', label: d.checkout.auth.checks[1], valid: /[a-z]/.test(authPassword) },
@@ -543,195 +436,6 @@ function CheckoutPage({ locale = 'en' }) {
   const discountEur = promoApplied ? Math.min(total, Math.max(0, Number(promoApplied.discount_amount || 0))) : 0
   const shippingEur = promoFreeShipping ? 0 : (shippingResult?.price_eur != null ? Number(shippingResult.price_eur) : 0)
   const finalTotalEur = Math.max(0, total - discountEur + shippingEur)
-  const paymentCurrency = locale === UK_LOCALE ? 'uah' : 'eur'
-  const paymentAmountMinor = Math.max(0, Math.round(finalTotal * 100))
-  const canMountPaymentElements = Boolean(
-    clientReady &&
-    cart.length &&
-    shippingReadyForCheckout &&
-    paymentAmountMinor > 0
-  )
-
-  useEffect(() => {
-    if (!canMountPaymentElements) {
-      setPaymentElementLoading(false)
-      setPaymentElementReady(false)
-      setExpressReady(false)
-      setExpressAvailabilityChecked(false)
-      return undefined
-    }
-
-    let cancelled = false
-    let mountedPaymentElement = null
-    let mountedExpressElement = null
-    let mountedElements = null
-
-    async function mountPaymentElements() {
-      setPaymentElementError('')
-      setPaymentIntentId('')
-      if (!STRIPE_PUBLISHABLE_KEY) {
-        setPaymentElementError(d.checkout.stripeMissingKey)
-        setExpressAvailabilityChecked(true)
-        return
-      }
-      setPaymentElementLoading(true)
-      setPaymentElementReady(false)
-      setExpressReady(false)
-      setExpressAvailabilityChecked(false)
-      try {
-        const Stripe = await loadStripeJs()
-        if (!Stripe) throw new Error('Stripe.js failed to initialize')
-        const stripe = Stripe(STRIPE_PUBLISHABLE_KEY)
-        const appearance = {
-          variables: {
-            colorPrimary: '#111111',
-            colorText: '#111111',
-            colorTextSecondary: '#777777',
-            colorDanger: '#ef4444',
-            colorBackground: '#ffffff',
-            borderRadius: '0px',
-            fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif',
-          },
-          rules: {
-            '.Input': { borderColor: '#deded9' },
-            '.Tab': { borderColor: '#deded9' },
-          },
-        }
-        const elements = stripe.elements({
-          mode: 'payment',
-          amount: paymentAmountMinor,
-          currency: paymentCurrency,
-          appearance,
-          loader: 'auto',
-        })
-        if (cancelled) return
-        stripeRef.current = stripe
-        stripeElementsRef.current = elements
-        mountedElements = elements
-
-        try {
-          const expressElement = elements.create('expressCheckout', {
-            buttonHeight: 48,
-            buttonTheme: {
-              applePay: 'black',
-              googlePay: 'black',
-              paypal: 'gold',
-            },
-            buttonType: {
-              applePay: 'check-out',
-              googlePay: 'checkout',
-              paypal: 'buynow',
-            },
-          })
-          expressElement.on('availablepaymentmethodschange', ({ paymentMethods }) => {
-            if (!cancelled) {
-              setExpressAvailabilityChecked(true)
-              setExpressReady(hasExpressPaymentMethods(paymentMethods))
-            }
-          })
-          expressElement.on('ready', ({ availablePaymentMethods }) => {
-            if (!cancelled) {
-              setExpressAvailabilityChecked(true)
-              setExpressReady(hasExpressPaymentMethods(availablePaymentMethods))
-            }
-          })
-          expressElement.on('loaderror', () => {
-            if (!cancelled) {
-              setExpressAvailabilityChecked(true)
-              setExpressReady(false)
-            }
-          })
-          expressElement.on('confirm', async () => {
-            await confirmElementsPaymentRef.current?.()
-          })
-          expressElement.mount('#express-checkout-element')
-          mountedExpressElement = expressElement
-          expressCheckoutRef.current = expressElement
-        } catch (_) {
-          if (!cancelled) {
-            setExpressAvailabilityChecked(true)
-            setExpressReady(false)
-          }
-        }
-
-        const billingName = `${trimmedString(form.firstName)} ${trimmedString(form.lastName)}`.trim()
-        const billingDetails = {}
-        const billingEmail = trimmedString(form.email).toLowerCase()
-        const billingPhone = trimmedString(form.phone)
-        const billingAddress = {}
-        const billingLine1 = trimmedString(checkoutShippingLine1)
-        const billingCity = trimmedString(checkoutShippingCity)
-        const billingPostalCode = trimmedString(checkoutShippingZip)
-        const billingCountry = trimmedString(form.country)
-        if (billingName) billingDetails.name = billingName
-        if (billingEmail) billingDetails.email = billingEmail
-        if (billingPhone) billingDetails.phone = billingPhone
-        if (billingLine1) billingAddress.line1 = billingLine1
-        if (billingCity) billingAddress.city = billingCity
-        if (billingPostalCode) billingAddress.postal_code = billingPostalCode
-        if (billingCountry) billingAddress.country = billingCountry
-        if (Object.keys(billingAddress).length) billingDetails.address = billingAddress
-
-        const paymentElementOptions = {
-          layout: 'accordion',
-        }
-        if (Object.keys(billingDetails).length) {
-          paymentElementOptions.defaultValues = { billingDetails }
-        }
-
-        const paymentElement = elements.create('payment', paymentElementOptions)
-        paymentElement.on('ready', () => {
-          if (!cancelled) setPaymentElementReady(true)
-        })
-        paymentElement.on('loaderror', ({ error }) => {
-          if (!cancelled) setPaymentElementError(error?.message || d.checkout.paymentLoadError)
-        })
-        paymentElement.on('change', (event) => {
-          if (!cancelled && event.error) setPaymentElementError(event.error.message || d.checkout.paymentLoadError)
-        })
-        paymentElement.mount('#payment-element')
-        mountedPaymentElement = paymentElement
-        paymentElementRef.current = paymentElement
-      } catch (error) {
-        if (!cancelled) setPaymentElementError(error?.message || d.checkout.paymentLoadError)
-      } finally {
-        if (!cancelled) setPaymentElementLoading(false)
-      }
-    }
-
-    mountPaymentElements()
-
-    return () => {
-      cancelled = true
-      if (mountedPaymentElement) {
-        try { mountedPaymentElement.destroy() } catch (_) {}
-      }
-      if (mountedExpressElement) {
-        try { mountedExpressElement.destroy() } catch (_) {}
-      }
-      if (paymentElementRef.current === mountedPaymentElement) paymentElementRef.current = null
-      if (expressCheckoutRef.current === mountedExpressElement) expressCheckoutRef.current = null
-      if (stripeElementsRef.current === mountedElements) stripeElementsRef.current = null
-    }
-  }, [
-    canMountPaymentElements,
-    paymentAmountMinor,
-    paymentCurrency,
-    form.address,
-    form.city,
-    form.country,
-    form.email,
-    form.firstName,
-    form.lastName,
-    form.phone,
-    form.zip,
-    checkoutShippingCity,
-    checkoutShippingLine1,
-    checkoutShippingZip,
-    d.checkout.paymentLoadError,
-    d.checkout.stripeMissingKey,
-  ])
-
   useEffect(() => {
     if (!cart.length || shippingLoading || pendingCouponApplied.current) return
     let pending = ''
@@ -956,7 +660,6 @@ function CheckoutPage({ locale = 'en' }) {
           promo_code: promoApplied?.code || null,
           comment: form.comment || null,
           preferred_locale: locale,
-          ui_mode: 'elements',
           return_url: `${origin}${pathForLocale('/success', locale)}`,
           cancel_url: `${origin}${pathForLocale('/checkout', locale)}`,
           utm: getStoredUtm() || undefined,
@@ -992,7 +695,6 @@ function CheckoutPage({ locale = 'en' }) {
       }
       if (data.client_secret && data.payment_intent_id) {
         rememberPendingOrder()
-        setPaymentIntentId(data.payment_intent_id)
         setPaymentLoading(false)
         return data
       }
@@ -1027,38 +729,6 @@ function CheckoutPage({ locale = 'en' }) {
           setDrawerOpen={setDrawerOpen}
         />
       </Suspense>
-
-      <section className="checkout-express-top checkout-section">
-        <div className="checkout-section-heading">
-          <h1>{d.checkout.expressCheckout}</h1>
-          <p>{d.checkout.paymentSecure}</p>
-        </div>
-        {!canMountPaymentElements && (
-          <p className="checkout-payment-inline-note">
-            {d.checkout.paymentRedirect}
-          </p>
-        )}
-        {canMountPaymentElements && (
-          <>
-            {!expressReady && !expressAvailabilityChecked && (
-              <div className="checkout-express-placeholder" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-              </div>
-            )}
-            {!expressReady && expressAvailabilityChecked && (
-              <p className="checkout-payment-inline-note checkout-express-unavailable">
-                {d.checkout.expressUnavailable}
-              </p>
-            )}
-            <div className={expressReady ? 'checkout-express-real is-ready' : 'checkout-express-real'}>
-              <div id="express-checkout-element" />
-            </div>
-            {expressReady && <div className="checkout-or-divider checkout-or-divider-top"><span>{d.checkout.or}</span></div>}
-          </>
-        )}
-      </section>
 
       <div className="checkout-onepage-layout">
         <div className="checkout-main-column">
@@ -1358,29 +1028,20 @@ function CheckoutPage({ locale = 'en' }) {
               </div>
             </section>
 
-            <section className="checkout-section" ref={paymentSectionRef}>
+            <section className="checkout-section">
               <div className="checkout-section-heading">
                 <h2>{d.checkout.payment}</h2>
                 <p>{d.checkout.paymentSecure}</p>
               </div>
-              {!canMountPaymentElements && (
-                <p className="checkout-payment-inline-note">{d.checkout.paymentRedirect}</p>
-              )}
-              {canMountPaymentElements && (
-                <div className="checkout-elements-surface">
-                  {paymentElementLoading && <div className="checkout-embedded-loading">{d.checkout.paymentEmbeddedLoading}</div>}
-                  <div id="payment-element" className="checkout-payment-element" />
-                  {paymentElementError && <div className="checkout-alert error">{paymentElementError}</div>}
-                  <button
-                    type="button"
-                    onClick={confirmElementsPayment}
-                    disabled={!paymentElementReady || paymentSubmitting}
-                    className="checkout-pay-button checkout-elements-pay-button"
-                  >
-                    {paymentSubmitting ? d.confirm.loading : d.checkout.payNow}
-                  </button>
-                </div>
-              )}
+              <p className="checkout-payment-inline-note">{paymentRedirectCopy}</p>
+              <button
+                type="button"
+                onClick={() => createCheckoutPaymentIntent()}
+                disabled={paymentLoading || !cart.length || shippingLoading || !!shippingError || shippingResult?.zone === 'unavailable'}
+                className="checkout-pay-button checkout-elements-pay-button"
+              >
+                {paymentLoading ? d.confirm.loading : d.confirm.payNow}
+              </button>
             </section>
 
             {!checkoutLocked && (
